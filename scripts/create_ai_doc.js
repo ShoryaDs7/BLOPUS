@@ -1,9 +1,11 @@
-const { google } = require('C:/Blopus/node_modules/googleapis');
+const { google } = require('googleapis');
 const path = require('path');
 const fs = require('fs');
 
 // Read credentials from .env file
-const envPath = 'C:/Blopus/creators/shoryaDs7/.env';
+const creatorHandle = process.env.OWNER_HANDLE || process.argv[2]
+if (!creatorHandle) { console.error('Usage: node create_ai_doc.js <handle>  or set OWNER_HANDLE env var'); process.exit(1) }
+const envPath = path.join(process.cwd(), 'creators', creatorHandle, '.env');
 const envContent = fs.readFileSync(envPath, 'utf8');
 const envVars = {};
 envContent.split(/\r?\n/).forEach(line => {

@@ -2,8 +2,11 @@ const http = require('http');
 const https = require('https');
 const { exec } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
-const envContent = fs.readFileSync('C:/Blopus/creators/shoryaDs7/.env', 'utf8');
+const creatorHandle = process.env.OWNER_HANDLE || process.argv[2]
+if (!creatorHandle) { console.error('Usage: node get_google_token.js <handle>  or set OWNER_HANDLE env var'); process.exit(1) }
+const envContent = fs.readFileSync(path.join(process.cwd(), 'creators', creatorHandle, '.env'), 'utf8');
 const envVars = {};
 envContent.split(/\r?\n/).forEach(line => {
   const trimmed = line.trim();
@@ -89,12 +92,12 @@ const server = http.createServer((req, res) => {
         console.log('========================\n');
 
         // Write new refresh token to .env
-        let envFile = fs.readFileSync('C:/Blopus/creators/shoryaDs7/.env', 'utf8');
+        let envFile = fs.readFileSync('path.join(process.cwd(), 'creators', creatorHandle, '.env')', 'utf8');
         envFile = envFile.replace(
           /^GOOGLE_REFRESH_TOKEN=.*/m,
           'GOOGLE_REFRESH_TOKEN=' + tokens.refresh_token
         );
-        fs.writeFileSync('C:/Blopus/creators/shoryaDs7/.env', envFile);
+        fs.writeFileSync('path.join(process.cwd(), 'creators', creatorHandle, '.env')', envFile);
         console.log('Refresh token saved to .env file.');
         console.log('Access token (expires in 1hr):', tokens.access_token?.slice(0, 30) + '...');
       }

@@ -31,6 +31,10 @@ client_secret*
 *.json.bak
 scripts/upload_yt_script.js
 
+# Personal data files
+config/personality_profile.json
+test/reply_audit.json
+
 # Claude / tool internals
 claude-plugins-official/
 .claude-api-home/

@@ -19,11 +19,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import dotenv from 'dotenv'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') })
-dotenv.config({ path: path.resolve(process.cwd(), 'creators/shoryaDs7/.env') })
+const creatorHandle = process.env.OWNER_HANDLE ?? (() => { throw new Error('Set OWNER_HANDLE env var') })()
+dotenv.config({ path: path.resolve(process.cwd(), `creators/${creatorHandle}/.env`) })
 
-const ARCHIVE_PATH = process.env.TWITTER_ARCHIVE_PATH ?? 'C:/Users/DS7/Downloads/data/tweets.js'
-const PROFILE_PATH = path.resolve(process.cwd(), 'creators/shoryaDs7/personality_profile.json')
-const OWNER_HANDLE = 'shoryaDs7'
+const ARCHIVE_PATH = process.env.TWITTER_ARCHIVE_PATH ?? (() => { throw new Error('Set TWITTER_ARCHIVE_PATH env var') })()
+const PROFILE_PATH = path.resolve(process.cwd(), `creators/${creatorHandle}/personality_profile.json`)
+const OWNER_HANDLE = creatorHandle
 const GEN_MODEL    = 'claude-sonnet-4-6'
 const UTIL_MODEL   = 'claude-haiku-4-5-20251001'
 const TEST_COUNT   = 20
