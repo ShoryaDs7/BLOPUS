@@ -31,6 +31,9 @@ client_secret*
 *.json.bak
 scripts/upload_yt_script.js
 
+# Not ready for public yet
+README.md
+
 # Personal data files
 config/personality_profile.json
 test/reply_audit.json
