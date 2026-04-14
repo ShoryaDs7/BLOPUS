@@ -1,0 +1,30 @@
+# Web & scraping
+requests
+beautifulsoup4
+
+# Data
+pandas
+matplotlib
+openpyxl
+
+# Documents
+python-docx
+python-pptx
+reportlab
+
+# Email (Gmail API)
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+
+# Images
+Pillow
+skia-python
+
+# YouTube video understanding
+youtube-transcript-api
+google-genai
+
+# AI Image Generation (optional — installs on demand when user requests realistic images)
+# torch diffusers transformers accelerate

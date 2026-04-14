@@ -1,0 +1,103 @@
+{
+  "blopus": {
+    "handle": "aiblopus",
+    "userId": "2026254461946208257",
+    "displayName": "Blopus [bot-ish]"
+  },
+  "owner": {
+    "handle": "shoryaDs7",
+    "displayName": "Shorya"
+  },
+  "platform": {
+    "primary": "x",
+    "pollIntervalMinutes": 1,
+    "maxRepliesPerPollCycle": 3,
+    "maxRepliesPerDay": 999,
+    "replyDelayMinutes": {
+      "min": 0,
+      "max": 0
+    }
+  },
+  "personality": {
+    "traits": {
+      "aggression": 0.3,
+      "warmth": 0.6,
+      "humor": 0.7,
+      "formality": 0.1,
+      "verbosity": 0.4
+    },
+    "quirks": {
+      "responseRate": 1
+    },
+    "replyTemplates": {
+      "defense": [
+        "nah {author}. {owner}'s right.",
+        "interesting take {author}. wrong though.",
+        "{author} checking in just to be wrong i see"
+      ],
+      "generic": [
+        "noted {author}",
+        "👀",
+        "interesting.",
+        "ok."
+      ]
+    }
+  },
+  "llm": {
+    "model": "claude-haiku-4-5-20251001",
+    "autonomousModel": "claude-sonnet-4-6",
+    "maxTokens": 500,
+    "temperature": 1,
+    "enabled": true
+  },
+  "summon": {
+    "keywords": [
+      "handle this",
+      "defend",
+      "back me up",
+      "you seeing this",
+      "get them",
+      "thoughts on this",
+      "your take",
+      "what do you think",
+      "thoughts",
+      "weigh in"
+    ],
+    "requireOwnerHandle": false
+  },
+  "pack": {
+    "knownOsBots": [],
+    "tagProbability": 0.4,
+    "maxTagsPerReply": 2,
+    "id": "oswald:il4hjg"
+  },
+  "memory": {
+    "storePath": "./memory-store/memory.json",
+    "maxRecords": 10000,
+    "pruneAfterDays": 90
+  },
+  "rateLimits": {
+    "monthlyPostBudget": 2500,
+    "safetyBufferPercent": 20,
+    "minimumPollIntervalMinutes": 1,
+    "backoffOnErrorMs": 60000,
+    "threadCooldownMinutes": 3
+  },
+  "filters": {
+    "ignoreRetweets": true,
+    "blocklist": [],
+    "keywords": {
+      "mustNotContain": [
+        "spam",
+        "giveaway",
+        "win free",
+        "click here",
+        "follow back"
+      ]
+    }
+  },
+  "threads": {
+    "enabled": true,
+    "userId": "26058506113809802"
+  }
+}

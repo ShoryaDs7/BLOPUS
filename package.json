@@ -1,0 +1,69 @@
+{
+  "name": "blopus",
+  "version": "0.1.0",
+  "description": "Blopus — social pack-intelligence framework. Each OsBot is a summonable, reactive autonomous X agent.",
+  "main": "dist/agent/BlopusAgent.js",
+  "scripts": {
+    "setup": "npx tsx scripts/setup.ts",
+    "blopus:bot": "tsx agent/run-blopus-bot.ts",
+    "blopus:owner": "tsx agent/run-blopus-owner.ts",
+    "blopus:threads": "tsx agent/run-blopus-threads.ts",
+    "blopus:reddit": "tsx agent/run-blopus-reddit.ts",
+    "blopus:discord": "tsx agent/run-blopus-discord.ts",
+    "start": "node dist/agent/BlopusAgent.js",
+    "dev": "nodemon --exec tsx agent/BlopusAgent.ts",
+    "build": "tsc",
+    "fetch-bot-id": "tsx scripts/fetchBotUserId.ts",
+    "memory-report": "tsx scripts/memoryReport.ts",
+    "ingest": "tsx scripts/ingestPersonality.ts",
+    "ingest:dms": "tsx scripts/ingestDMs.ts",
+    "test": "jest --passWithNoTests",
+    "postinstall": "pip install -r requirements.txt -q && npm install -g surge @railway/cli --quiet 2>&1 | tail -2"
+  },
+  "keywords": [
+    "twitter",
+    "bot",
+    "ai",
+    "agents",
+    "social"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.81",
+    "@anthropic-ai/claude-code": "^2.1.81",
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@playwright/mcp": "^0.0.68",
+    "@types/snoowrap": "^1.16.1",
+    "discord.js-selfbot-v13": "^3.7.1",
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^10.6.2",
+    "googleapis": "^171.4.0",
+    "grammy": "^1.41.1",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.58.2",
+    "snoowrap": "^1.23.0",
+    "twitter-api-v2": "^1.17.2",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.14.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/uuid": "^9.0.8",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4",
+    "ts-jest": "^29.1.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ]
+  }
+}

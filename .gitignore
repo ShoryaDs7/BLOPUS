@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+dist/
+
+# Build artifacts
+*.js.map
+__pycache__/
+
+# Personal data — NEVER commit
+creators/
+memory-store/
+browser-data/
+test_data/
+logs/
+output/
+
+# Temp / unrelated files
+tmp/
+tmp_*
+temp_*
+notes/
+step_data.json
+
+# Unrelated Python scripts
+*.py
+
+# Credentials / secrets
+.env
+.env.*
+client_secret*
+*.json.bak
+scripts/upload_yt_script.js
+
+# Claude / tool internals
+claude-plugins-official/
+.claude-api-home/
