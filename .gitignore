@@ -34,3 +34,5 @@ scripts/upload_yt_script.js
 # Claude / tool internals
 claude-plugins-official/
 .claude-api-home/
+.claude/
+.playwright-mcp/

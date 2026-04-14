@@ -1,2 +1,0 @@
-[     301ms] [WARNING] [GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used. @ https://accounts.google.com/gsi/client:80
-[     350ms] [WARNING] Error while trying to use the following icon from the Manifest: https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png (Download error or resource isn't a valid image) @ https://news.ycombinator.com/:2
