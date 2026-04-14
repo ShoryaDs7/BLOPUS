@@ -532,7 +532,7 @@ async function main() {
     try {
       const { execSync } = require('child_process')
       execSync(
-        `python -c "import sys,os; sys.path.insert(0,'C:/Blopus'); os.environ['OWNER_HANDLE']='${creatorName}'; from google_auth import get_credentials; get_credentials(); print('Token saved')"`,
+        `python -c "import sys,os; sys.path.insert(0,'${process.cwd().replace(/\\/g, '/')}'); os.environ['OWNER_HANDLE']='${creatorName}'; from google_auth import get_credentials; get_credentials(); print('Token saved')"`,
         { stdio: 'inherit' }
       )
       // Extract refresh token from saved pickle
@@ -650,7 +650,7 @@ async function main() {
   Run this command RIGHT NOW in this terminal to create
   your free Surge account — takes 30 seconds:
 
-    surge C:/Blopus/output/website blopus-setup.surge.sh
+    surge output/website blopus-setup.surge.sh
 
   It will ask for email + password — create them on the spot.
   After that, Blopus can deploy any website with one message.
