@@ -35,6 +35,16 @@ scripts/upload_yt_script.js
 config/personality_profile.json
 test/reply_audit.json
 
+# Unused platform adapters
+adapters/discord/
+adapters/reddit/
+adapters/threads/
+agent/BlopusAgentDiscord.ts
+agent/BlopusAgentReddit.ts
+agent/run-blopus-discord.ts
+agent/run-blopus-reddit.ts
+agent/run-blopus-threads.ts
+
 # Claude / tool internals
 claude-plugins-official/
 .claude-api-home/
