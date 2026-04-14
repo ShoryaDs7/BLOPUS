@@ -7,6 +7,7 @@
 import readline from 'readline'
 import fs from 'fs'
 import path from 'path'
+import Anthropic from '@anthropic-ai/sdk'
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 
@@ -31,6 +32,398 @@ async function askOptional(label: string, hint?: string): Promise<string> {
 function hr() { console.log('─'.repeat(58)) }
 function section(n: number, title: string) {
   console.log(`\n${'─'.repeat(58)}\n  Step ${n} — ${title}\n${'─'.repeat(58)}`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helper: follow-up if answer is too vague
+function needsFollowUp(answer: string): boolean {
+  return answer.trim().length < 6 || /^(depends|idk|not sure|maybe|dunno|unclear)$/i.test(answer.trim())
+}
+
+// ─── Part 2: Voice Mode Interview ────────────────────────────
+async function runVoiceInterview(
+  apiKey: string,
+  computed: any,
+  askFn: (q: string) => Promise<string>
+): Promise<any> {
+  const answers: Record<string, string> = {}
+  const goldenExamples: string[] = []
+  const stats = computed?.writingStats ?? {}
+
+  console.log('\n' + '═'.repeat(58))
+  console.log('  PART 2 — VOICE MODE')
+  console.log('  Lock in exactly how you write. Answer like you\'re texting.')
+  console.log('═'.repeat(58))
+
+  // ── Section 1: Confirm computed stats ──────────────────────
+  console.log('\n  ─ Section 1: Confirm what we computed from your archive ─\n')
+  console.log('  Just say yes/correct or give the fix.\n')
+
+  // Case style
+  const casePrompt = stats.caseStyle
+    ? `  Archive says: ${stats.caseStyle}. Correct? `
+    : `  How do you write — lowercase, sentence case, or mixed? `
+  const caseA = await askFn(casePrompt)
+  if (stats.caseStyle && !/yes|correct|yep|yup|yeah|y$/i.test(caseA)) {
+    answers.caseStyle = caseA.trim() || stats.caseStyle
+  } else {
+    answers.caseStyle = stats.caseStyle || caseA
+  }
+
+  // Apostrophe style
+  if (stats.apostropheStyle) {
+    const a = await askFn(`\n  Archive says: ${stats.apostropheStyle}. Correct? `)
+    answers.apostropheStyle = /yes|correct|yep|yup|yeah|y$/i.test(a) ? stats.apostropheStyle : a || stats.apostropheStyle
+  } else {
+    const a = await askFn('\n  Do you use apostrophes in contractions (don\'t / dont)? ')
+    answers.apostropheStyle = a
+  }
+
+  // Reply length
+  if (stats.medianReplyLength) {
+    const a = await askFn(`\n  Archive says your replies are typically ${stats.medianReplyLength}. Correct? `)
+    answers.replyLength = /yes|correct|yep|yup|yeah|y$/i.test(a) ? stats.medianReplyLength : a || stats.medianReplyLength
+  } else {
+    const a = await askFn('\n  How long are your replies usually? (one line / two sentences / depends) ')
+    answers.replyLength = a
+  }
+
+  // Emoji usage
+  if (stats.emojiUsage) {
+    const a = await askFn(`\n  Emoji usage: ${stats.emojiUsage}. Correct? `)
+    answers.emojiUsage = /yes|correct|yep|yup|yeah|y$/i.test(a) ? stats.emojiUsage : a || stats.emojiUsage
+  } else {
+    const a = await askFn('\n  How much do you use emojis? (never / rare / sometimes / a lot) ')
+    answers.emojiUsage = a
+  }
+
+  // Characteristic mentions
+  const mentions = stats.characteristicMentions ?? []
+  if (mentions.length > 0) {
+    const a = await askFn(`\n  You frequently tag ${mentions.join(', ')} in replies. Correct? `)
+    if (/yes|correct|yep|yup|yeah|y$/i.test(a)) {
+      answers.characteristicMentions = mentions.join(', ')
+    } else {
+      const fix = await askFn('  Which accounts do you tag, if any? (or "none") ')
+      answers.characteristicMentions = fix
+    }
+  } else {
+    const a = await askFn('\n  Do you tag any accounts in replies often? (e.g. @grok, or "none") ')
+    answers.characteristicMentions = a
+  }
+
+  // ── Section 2: Tweet type → behavior ───────────────────────
+  console.log('\n\n  ─ Section 2: How you respond to different tweet types ─\n')
+  console.log('  Pick a letter or describe freely.\n')
+
+  // Q1: News with a take
+  console.log('  Q1. News tweet in your topics — you have a take on it.')
+  console.log('      a) reply with my take directly')
+  console.log('      b) tag @grok or another tool')
+  console.log('      c) short reaction (lol / damn / wild)')
+  console.log('      d) just like it, no reply')
+  console.log('      e) skip')
+  const q1 = await askFn('\n  Your move: ')
+  answers.onNewsWithTake = q1
+  if (/^a\b|reply|take|directly/i.test(q1)) {
+    const fu = await askFn('  How long — one line or two sentences? ')
+    answers.onNewsWithTake += ` (${fu})`
+  } else if (/depends/i.test(q1)) {
+    const fu = await askFn('  Depends on what? Give me an example: ')
+    answers.onNewsWithTake += ` — specifically: ${fu}`
+  }
+
+  // Q2: Factual claim unsure about
+  console.log('\n  Q2. Someone makes a factual claim you\'re not 100% sure about.')
+  console.log('      a) tag @grok to verify')
+  console.log('      b) react anyway with my take')
+  console.log('      c) skip / ignore')
+  console.log('      d) depends on the claim')
+  const q2 = await askFn('\n  Your move: ')
+  answers.onFactualClaim = q2
+  if (/^d\b|depends/i.test(q2)) {
+    const fu = await askFn('  Depends on what? ')
+    answers.onFactualClaim += ` — specifically: ${fu}`
+  } else if (/^a\b|grok/i.test(q2)) {
+    const fu = await askFn('  Always @grok or only for certain things? ')
+    answers.onFactualClaim += ` — ${fu}`
+  }
+
+  // Q3: Tweet you agree with
+  console.log('\n  Q3. Tweet you fully agree with — you would\'ve posted it yourself.')
+  console.log('      a) one line agreement')
+  console.log('      b) add my own angle to it')
+  console.log('      c) just like it, don\'t reply')
+  console.log('      d) retweet it')
+  const q3 = await askFn('\n  Your move: ')
+  answers.onAgreement = q3
+  if (/^a\b|^b\b|one line|angle|agree/i.test(q3)) {
+    const fu = await askFn('  Write me what that reply actually looks like: ')
+    answers.onAgreement += ` — example: "${fu}"`
+  } else if (/depends/i.test(q3)) {
+    const fu = await askFn('  Depends on what? ')
+    answers.onAgreement += ` — ${fu}`
+  }
+
+  // Q4: Someone wrong or delusional
+  console.log('\n  Q4. Someone says something you think is wrong or delusional.')
+  console.log('      a) push back with a reason')
+  console.log('      b) one-liner / sarcasm')
+  console.log('      c) just like and keep scrolling')
+  console.log('      d) depends how wrong they are')
+  const q4 = await askFn('\n  Your move: ')
+  answers.onDisagreement = q4
+  if (/^a\b|push|reason/i.test(q4)) {
+    const fu = await askFn('  Write me an example pushback reply: ')
+    answers.onDisagreement += ` — example: "${fu}"`
+  } else if (/^b\b|sarcasm|one.liner/i.test(q4)) {
+    const fu = await askFn('  Write me an example sarcastic reply: ')
+    answers.onDisagreement += ` — example: "${fu}"`
+  } else if (/^d\b|depends/i.test(q4)) {
+    const fu = await askFn('  When would you push back vs ignore? ')
+    answers.onDisagreement += ` — specifically: ${fu}`
+  }
+
+  // Q5: Funny tweet
+  console.log('\n  Q5. Funny or absurd tweet in your feed.')
+  console.log('      a) react and add to the joke')
+  console.log('      b) just like it')
+  console.log('      c) tag @grok')
+  console.log('      d) usually skip')
+  const q5 = await askFn('\n  Your move: ')
+  answers.onFunny = q5
+  if (/^a\b|react|joke/i.test(q5)) {
+    const fu = await askFn('  What does that look like? Write an example: ')
+    answers.onFunny += ` — example: "${fu}"`
+  }
+
+  // Q6: Hot take / controversial tweet
+  console.log('\n  Q6. Hot take or controversial opinion — not your topic but it\'s spicy.')
+  console.log('      a) jump in with my own take')
+  console.log('      b) retweet without comment')
+  console.log('      c) like only')
+  console.log('      d) scroll past')
+  const q6 = await askFn('\n  Your move: ')
+  answers.onControversial = q6
+  if (/^a\b|jump|take/i.test(q6)) {
+    const fu = await askFn('  What\'s your style when you jump in? ')
+    answers.onControversial += ` — ${fu}`
+  }
+
+  // ── Section 3: Golden examples ──────────────────────────────
+  console.log('\n\n  ─ Section 3: Your golden examples ─\n')
+  console.log('  Write 3-5 replies you\'d actually post. Real tweets, real energy.')
+  console.log('  These become your style bible — the bot matches these exactly.')
+  console.log('  Type "done" when finished.\n')
+
+  for (let i = 1; i <= 5; i++) {
+    const ex = await askFn(`  Example ${i}: `)
+    if (!ex.trim() || ex.toLowerCase() === 'done') {
+      if (goldenExamples.length < 2) {
+        console.log('  Need at least 2 examples.')
+        const ex2 = await askFn(`  Example ${i}: `)
+        if (ex2.trim() && ex2.toLowerCase() !== 'done') goldenExamples.push(ex2)
+      }
+      break
+    }
+    goldenExamples.push(ex.trim())
+    if (i >= 3) {
+      const more = await askFn('  Add another? (Enter to skip): ')
+      if (!more.trim() || more.toLowerCase() === 'done') break
+      goldenExamples.push(more.trim())
+      break
+    }
+  }
+
+  // ── Section 4: Hard rules ────────────────────────────────────
+  console.log('\n\n  ─ Section 4: Hard rules ─\n')
+
+  const bannedA = await askFn('  Phrases you NEVER want the bot to use? (comma-separated or Enter to skip): ')
+  answers.bannedPhrases = bannedA
+
+  const neverA = await askFn('\n  Topics/content you never engage with? (comma-separated or Enter to skip): ')
+  answers.neverTopics = neverA
+
+  // ── Synthesize with Claude ───────────────────────────────────
+  console.log('\n  Synthesizing your voice profile...')
+
+  let synthesized = ''
+  try {
+    const client = new Anthropic({ apiKey })
+    const res = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 350,
+      messages: [{
+        role: 'user',
+        content: `You are setting up an autonomous X bot that posts AS this person.
+
+Their confirmed writing style:
+- Case style: ${answers.caseStyle}
+- Apostrophes: ${answers.apostropheStyle}
+- Reply length: ${answers.replyLength}
+- Emoji usage: ${answers.emojiUsage}
+- Accounts they tag: ${answers.characteristicMentions || 'none'}
+
+Their behavior patterns:
+- On news with a take: ${answers.onNewsWithTake}
+- On uncertain facts: ${answers.onFactualClaim}
+- When agreeing: ${answers.onAgreement}
+- When disagreeing: ${answers.onDisagreement}
+- On funny content: ${answers.onFunny}
+- On controversial: ${answers.onControversial}
+
+Their golden example replies (write EXACTLY like these):
+${goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')}
+
+Write a 3-4 sentence voice profile that captures exactly how this person writes. Be specific and concrete — refer to their actual examples and behaviors. This gets injected into an LLM prompt.`
+      }]
+    })
+    const c = res.content[0]
+    if (c.type === 'text') synthesized = c.text
+  } catch (e: any) {
+    synthesized = `Writes ${answers.replyLength || 'short'} replies in ${answers.caseStyle || 'lowercase'}. ${answers.onDisagreement ? 'When someone is wrong: ' + answers.onDisagreement + '.' : ''}`
+  }
+
+  // Show and confirm
+  console.log('\n' + '─'.repeat(58))
+  console.log('  VOICE PROFILE SYNTHESIZED:\n')
+  console.log('  ' + synthesized.split('\n').join('\n  '))
+  console.log('\n' + '─'.repeat(58))
+
+  const confirm = await askFn('\n  Does this match how you write? (yes / no — tell me what\'s wrong): ')
+  let corrections = ''
+  if (!/^yes|^y$|^yep|^yup|^yeah/i.test(confirm)) {
+    corrections = confirm
+    console.log('  Got it — noted. Updating voice profile.\n')
+    if (corrections) synthesized += ` CORRECTION: ${corrections}`
+  }
+
+  return {
+    mode: 'interview' as const,
+    caseStyle: answers.caseStyle,
+    apostropheStyle: answers.apostropheStyle,
+    replyLength: answers.replyLength,
+    emojiUsage: answers.emojiUsage,
+    characteristicMentions: (answers.characteristicMentions || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    behaviorPatterns: {
+      onNewsWithTake: answers.onNewsWithTake,
+      onFactualClaim: answers.onFactualClaim,
+      onAgreement: answers.onAgreement,
+      onDisagreement: answers.onDisagreement,
+      onFunny: answers.onFunny,
+      onControversial: answers.onControversial,
+    },
+    goldenExamples,
+    bannedPhrases: (answers.bannedPhrases || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    neverTopics: (answers.neverTopics || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    synthesized,
+    confirmedAt: new Date().toISOString(),
+  }
+}
+
+// ─── Part 4: Quote Tweet Interview ───────────────────────────
+async function runQuoteTweetInterview(askFn: (q: string) => Promise<string>): Promise<any> {
+  console.log('\n' + '═'.repeat(58))
+  console.log('  PART 4 — QUOTE TWEET BEHAVIOR')
+  console.log('═'.repeat(58))
+  console.log('\n  When do you quote tweet vs just reply?\n')
+
+  const answers: Record<string, string> = {}
+
+  // Q1: When to quote
+  console.log('  Q1. When do you quote tweet instead of just replying?')
+  console.log('      a) when I want my followers to see it + my take')
+  console.log('      b) when I disagree but want to keep full context')
+  console.log('      c) when something is so good I want to amplify it')
+  console.log('      d) rarely — I almost always just reply')
+  const q1 = await askFn('\n  Your answer: ')
+  answers.whenToQuote = q1
+  if (/^a\b|^b\b|take|disagree/i.test(q1)) {
+    const fu = await askFn('  Write me an example quote tweet you\'d post: ')
+    answers.whenToQuote += ` — example: "${fu}"`
+  } else if (/depends/i.test(q1)) {
+    const fu = await askFn('  Depends on what? Give an example: ')
+    answers.whenToQuote += ` — ${fu}`
+  }
+
+  // Q2: Style
+  console.log('\n  Q2. When you do quote tweet — what\'s your style?')
+  console.log('      a) add context or explain my take')
+  console.log('      b) one sharp line / sarcasm')
+  console.log('      c) agree and hype it up')
+  console.log('      d) short reaction (one word, emoji, etc)')
+  const q2 = await askFn('\n  Your style: ')
+  answers.quoteTweetStyle = q2
+  if (needsFollowUp(q2)) {
+    const fu = await askFn('  Can you be more specific? Write an example: ')
+    answers.quoteTweetStyle += ` — ${fu}`
+  }
+
+  // Q3: Never quote
+  const q3 = await askFn('\n  Q3. What would you NEVER quote tweet? ')
+  answers.neverQuote = q3
+  if (needsFollowUp(q3)) {
+    const fu = await askFn('  Give me an example of something you\'d never quote: ')
+    answers.neverQuote += ` — e.g. ${fu}`
+  }
+
+  console.log('\n  ✓ Quote tweet behavior saved.')
+
+  return {
+    whenToQuote: answers.whenToQuote,
+    quoteTweetStyle: answers.quoteTweetStyle,
+    neverQuote: answers.neverQuote.split(',').map((s: string) => s.trim()).filter(Boolean),
+  }
+}
+
+// ─── Part 5: Like Behavior Interview ─────────────────────────
+async function runLikeInterview(askFn: (q: string) => Promise<string>): Promise<any> {
+  console.log('\n' + '═'.repeat(58))
+  console.log('  PART 5 — LIKE BEHAVIOR')
+  console.log('═'.repeat(58))
+  console.log('\n  When do you like a tweet without replying?\n')
+
+  const answers: Record<string, string> = {}
+
+  // Q1: What you like
+  const q1 = await askFn('  Q1. What kind of tweets do you like without replying? ')
+  answers.likesWhat = q1
+  if (needsFollowUp(q1)) {
+    const fu = await askFn('  Give me an example of one you\'d like: ')
+    answers.likesWhat += ` — example: "${fu}"`
+  } else if (/depends/i.test(q1)) {
+    const fu = await askFn('  Depends on what? ')
+    answers.likesWhat += ` — ${fu}`
+  }
+
+  // Q2: Accounts you always like
+  const q2 = await askFn('\n  Q2. Any accounts you almost always like when they post? (handles or Enter to skip) ')
+  answers.alwaysLike = q2
+
+  // Q3: Never like
+  const q3 = await askFn('\n  Q3. What would you NEVER like? Accounts or content types: ')
+  answers.neverLike = q3
+  if (needsFollowUp(q3)) {
+    const fu = await askFn('  Give me an example: ')
+    answers.neverLike += ` — e.g. ${fu}`
+  }
+
+  // Q4: Like + reply at same time?
+  console.log('\n  Q4. When you reply to something, do you also like it?')
+  console.log('      a) always')
+  console.log('      b) only if I agree')
+  console.log('      c) never')
+  const q4 = await askFn('\n  Your habit: ')
+  answers.likeOnReply = q4
+
+  console.log('\n  ✓ Like behavior saved.')
+
+  return {
+    likesWhat: answers.likesWhat,
+    alwaysLike: (answers.alwaysLike || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    neverLike: (answers.neverLike || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    likeOnReply: answers.likeOnReply,
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -398,6 +791,39 @@ async function main() {
       console.log(`  Run  npm run ingest  after getting your archive.`)
     } else {
       console.log(`  Skipped. Run  npm run ingest  after getting your archive.`)
+    }
+  }
+
+  // ── Part 2: Voice Mode Interview (owner/both only) ───────────
+
+  let voiceProfile: any = undefined
+  let quoteTweetBehavior: any = undefined
+  let likeBehavior: any = undefined
+
+  if (mode === 'owner' || mode === 'both') {
+    voiceProfile      = await runVoiceInterview(anthropicKey, personalityProfile, ownerHandle, ask)
+    quoteTweetBehavior = await runQuoteTweetInterview(ask)
+    likeBehavior       = await runLikeInterview(ask)
+
+    // Merge into personalityProfile so it gets saved together
+    if (personalityProfile) {
+      personalityProfile.voiceProfile       = voiceProfile
+      personalityProfile.quoteTweetBehavior  = quoteTweetBehavior
+      personalityProfile.likeBehavior        = likeBehavior
+      // Golden examples override polluted RAG examples
+      if (voiceProfile.goldenExamples?.length) {
+        personalityProfile.replyExamples = voiceProfile.goldenExamples
+      }
+      // Merge user-provided banned phrases into avoids
+      if (voiceProfile.bannedPhrases?.length) {
+        personalityProfile.avoids = [...(personalityProfile.avoids ?? []), ...voiceProfile.bannedPhrases]
+      }
+      // Update personality_profile.json with voice data
+      const profilePath = path.join(creatorDir, 'personality_profile.json')
+      if (fs.existsSync(profilePath)) {
+        fs.writeFileSync(profilePath, JSON.stringify(personalityProfile, null, 2), 'utf8')
+        console.log('\n  ✓ Voice profile saved to personality_profile.json')
+      }
     }
   }
 

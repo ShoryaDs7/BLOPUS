@@ -105,6 +105,41 @@ export interface BehaviorProfile {
   sampleOriginals: string[]       // 15 random original tweets for post style reference
 }
 
+export interface VoiceProfile {
+  mode: 'interview'
+  caseStyle: string
+  apostropheStyle: string
+  replyLength: string
+  emojiUsage: string
+  characteristicMentions: string[]
+  behaviorPatterns: {
+    onNewsWithTake: string
+    onFactualClaim: string
+    onAgreement: string
+    onDisagreement: string
+    onFunny: string
+    onControversial: string
+  }
+  goldenExamples: string[]
+  bannedPhrases: string[]
+  neverTopics: string[]
+  synthesized: string   // Claude's summary paragraph — injected directly into LLM prompt
+  confirmedAt: string
+}
+
+export interface QuoteTweetBehavior {
+  whenToQuote: string
+  quoteTweetStyle: string
+  neverQuote: string[]
+}
+
+export interface LikeBehavior {
+  likesWhat: string
+  alwaysLike: string[]
+  neverLike: string[]
+  likeOnReply: string
+}
+
 export interface PersonalityProfile {
   writingStyle: string
   dominantTopics: string[]   // user-confirmed combined list — what domain hunting uses
@@ -120,6 +155,9 @@ export interface PersonalityProfile {
   signaturePatterns?: SignaturePattern[]
   writingStats?: WritingStats
   behaviorProfile?: BehaviorProfile
+  voiceProfile?: VoiceProfile           // set when user completed interview setup
+  quoteTweetBehavior?: QuoteTweetBehavior
+  likeBehavior?: LikeBehavior
 }
 
 export class LLMReplyEngine {
@@ -302,8 +340,27 @@ export class LLMReplyEngine {
       ? (() => {
           const stats = ownerProfile.writingStats ?? {}
           const sigPatterns = ownerProfile.signaturePatterns ?? []
-          return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot.
+          const vp = ownerProfile.voiceProfile
 
+          const examplesBlock = vp?.goldenExamples?.length
+            ? `YOUR GOLDEN EXAMPLES — write exactly like these:\n${vp.goldenExamples.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+            : `HOW YOU ACTUALLY WRITE (real examples from your archive — match this energy exactly):\n${(ownerProfile.replyExamples ?? []).slice(0, 6).map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+
+          const behaviorBlock = vp
+            ? `\nHOW YOU RESPOND TO DIFFERENT TWEETS:
+- News/topic you have a take on: ${vp.behaviorPatterns.onNewsWithTake}
+- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}
+- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}
+- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}
+- Funny/absurd content: ${vp.behaviorPatterns.onFunny}`
+            : ''
+
+          const bannedExtra = vp?.bannedPhrases?.length
+            ? `\n- NEVER use these (you said so yourself): ${vp.bannedPhrases.join(', ')}`
+            : ''
+
+          return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot.
+${vp ? `\nYOUR CONFIRMED VOICE:\n${vp.synthesized}\n` : ''}
 ABSOLUTE RULES (never break these):
 - The tweet text shown to you IS the full tweet. You CAN read it. React to it directly.
 - NEVER say you cannot see something, cannot read something, or need more context.
@@ -311,18 +368,18 @@ ABSOLUTE RULES (never break these):
 - If the tweet has media you cannot see, reply based on the text. If the text is short, make a confident take on those exact words.
 - NEVER write a reply that says you won't reply or comments on your own behavior. Always write something — a short take, reaction, or pushback.
 
-HOW YOU ACTUALLY WRITE (real examples from your archive — match this energy exactly):
-${(ownerProfile.replyExamples ?? []).slice(0, 6).map((r, i) => `${i + 1}. ${r}`).join('\n')}
+${examplesBlock}
+${behaviorBlock}
 
 HARD RULES:
 ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
-${stats.medianReplyLength ? `- length: ${stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
+${(vp?.replyLength ?? stats.medianReplyLength) ? `- length: ${vp?.replyLength ?? stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
 - no em dashes (—). no hashtags. no emojis. plain text only.
 - when mentioning any account write @handle (e.g. @grok not grok)
 - NEVER start a reply with "Exactly" or "Yeah exactly" or "Yes exactly" — that is an AI tell. React in your own words.
 - NEVER write 3+ structured sentences in a row like an essay. If you agree, say one thing and stop.
 - NEVER use any of these AI-sounding phrases: ${AI_BANNED_PHRASES.join(', ')}
-- NEVER use these startup-guru phrases: "compounds", "compounding", "moat", "traction", "execution", "accountability", "at scale", "simplest way to understand", "failure modes", "surfaces real", "the real shift", "the real problem", "dressed up as", "noise disperses", "anxiety management", "attention is rented", "founders who win", "mastery compounds", "depth compounds"
+- NEVER use these startup-guru phrases: "compounds", "compounding", "moat", "traction", "execution", "accountability", "at scale", "simplest way to understand", "failure modes", "surfaces real", "the real shift", "the real problem", "dressed up as", "noise disperses", "anxiety management", "attention is rented", "founders who win", "mastery compounds", "depth compounds"${bannedExtra}
 - You are a person texting, not a pundit declaring facts. Write the way the examples above sound — match their energy, their length, their personal voice exactly.
 - If you agree with someone, say it in one casual line. Never write 2+ structured declarative sentences in a row.
 ${sigPatterns.length ? `\nSignature patterns — use ONLY when it fits naturally:\n${sigPatterns.map(sp => `"${sp.phrase}": ${sp.usedFor}${sp.neverUsedFor ? `. never for: ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
@@ -638,20 +695,38 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       const p = this.personalityProfile
       const stats = p.writingStats ?? {}
       const sigPatterns = p.signaturePatterns ?? []
-      return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
+      const vp = p.voiceProfile  // interview-based voice profile (overrides archive if set)
 
-Your voice extracted from your real reply archive:
+      // If interview voice profile exists, use it as the primary signal
+      const voiceBlock = vp
+        ? `YOUR CONFIRMED VOICE (locked in by you during setup):
+${vp.synthesized}
+
+HOW YOU RESPOND TO DIFFERENT TWEET TYPES:
+- News/topic tweet you have a take on: ${vp.behaviorPatterns.onNewsWithTake}
+- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}
+- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}
+- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}
+- Funny/absurd content: ${vp.behaviorPatterns.onFunny}
+- Controversial/hot take: ${vp.behaviorPatterns.onControversial}
+${vp.goldenExamples.length ? `\nYOUR GOLDEN EXAMPLES (write exactly like these):\n${vp.goldenExamples.map((e, i) => `${i + 1}. ${e}`).join('\n')}` : ''}`
+        : `Your voice extracted from your real reply archive:
 ${stats.medianReplyLength ? `- your replies are typically ${stats.medianReplyLength} — stay there. if in doubt, go shorter.` : '- keep replies short by default'}
 ${stats.caseStyle ? `- case style: ${stats.caseStyle}` : ''}
 ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
-- you NEVER use hashtags. ever.
 - how you reply: ${p.replyStyle}
 - your opinions: ${p.opinionStyle}
-- phrases you actually use: ${p.examplePhrases.slice(0, 5).join(' | ')}
-- you avoid: ${p.avoids.join(', ')}
+- phrases you actually use: ${p.examplePhrases.slice(0, 5).join(' | ')}`
+
+      return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
+
+${voiceBlock}
+
+- you NEVER use hashtags. ever.
+- you avoid: ${[...p.avoids, ...(vp?.bannedPhrases ?? [])].join(', ')}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
-${stats.characteristicMentions?.length ? `You sometimes @mention these accounts mid-reply when relevant (e.g. for comparisons, callouts): ${stats.characteristicMentions.join(', ')}` : ''}
+${(vp?.characteristicMentions ?? stats.characteristicMentions ?? []).length ? `You sometimes @mention these accounts mid-reply when relevant: ${(vp?.characteristicMentions ?? stats.characteristicMentions ?? []).join(', ')}` : ''}
 
 STRICT rules:
 - no em dashes (—). banned.
