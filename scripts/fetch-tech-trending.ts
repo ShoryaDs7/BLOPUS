@@ -2,9 +2,13 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { chromium, BrowserContext } from 'playwright'
 
-const X_AUTH_TOKEN = '84b1ee2f2f854086cf492800b6da1652050ad20f'
-const X_CT0 = '2024fd08179f6143496b763d92e117f9114f5248900fb27849181fb81d4578821438b6dda057b3240809b215fcfeda39daa1c5a97aa3358dd73e0ddbe0d2e04235c0d011d0933b0568760a5565e84c43'
-const USER_DATA_DIR = path.resolve('./memory-store/chrome-profile-shoryaDs7')
+import * as dotenv from 'dotenv'
+dotenv.config()
+
+const X_AUTH_TOKEN = process.env.X_AUTH_TOKEN ?? ''
+const X_CT0 = process.env.X_CT0 ?? ''
+const OWNER_HANDLE = process.env.OWNER_HANDLE ?? ''
+const USER_DATA_DIR = path.resolve(`./memory-store/chrome-profile-${OWNER_HANDLE || 'owner'}`)
 
 interface Tweet {
   tweetId: string
@@ -71,7 +75,7 @@ async function scrapePage(page: import('playwright').Page): Promise<Tweet[]> {
     { name: 'auth_token', value: X_AUTH_TOKEN, domain: '.x.com', path: '/', secure: true, httpOnly: true, sameSite: 'None' },
     { name: 'ct0',        value: X_CT0,        domain: '.x.com', path: '/', secure: true, httpOnly: false, sameSite: 'Lax' },
   ])
-  console.log('[fetch-tech] Cookies injected for @shoryaDs7')
+  console.log('[fetch-tech] Cookies injected')
 
   const queries = ['AI 2026', 'tech startup', 'software engineering', 'OpenAI GPT', 'LLM model']
   const all: Tweet[] = []

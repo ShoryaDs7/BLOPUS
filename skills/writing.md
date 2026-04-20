@@ -42,8 +42,9 @@ import datetime, os
 
 note = """[USER'S NOTE CONTENT HERE]"""
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-path = f"C:/Blopus/notes/{timestamp}.md"
-os.makedirs("C:/Blopus/notes", exist_ok=True)
+_bdir = os.environ.get("BLOPUS_DIR", os.getcwd())
+path = os.path.join(_bdir, "notes", f"{timestamp}.md")
+os.makedirs(os.path.join(_bdir, "notes"), exist_ok=True)
 with open(path, "w") as f:
     f.write(f"# Note — {datetime.datetime.now().strftime('%B %d %Y %H:%M')}\n\n{note}")
 print(f"Saved to {path}")

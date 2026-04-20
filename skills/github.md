@@ -8,7 +8,7 @@ description: Use this skill for anything GitHub — create/clone repos, push cod
 ## Setup check — always do this first
 ```bash
 # Get token from .env
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env 2>/dev/null | cut -d= -f2)
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" 2>/dev/null | cut -d= -f2)
 if [ -z "$TOKEN" ]; then echo "NO_TOKEN"; else echo "TOKEN_FOUND"; fi
 ```
 
@@ -21,7 +21,7 @@ gh CLI may not be installed — never try to install it, never use winget/choco.
 
 Get token for all curl calls:
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 ```
 
 Always use this TOKEN variable in every curl command below.
@@ -32,13 +32,13 @@ Always use this TOKEN variable in every curl command below.
 
 ### List your repos
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" https://api.github.com/user/repos?per_page=50 | python -c "import sys,json; repos=json.load(sys.stdin); [print(f\"{r['name']} | {'private' if r['private'] else 'public'} | {r['language']} | {r['updated_at'][:10]}\") for r in repos]"
 ```
 
 ### Create repo
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 # Public repo
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/user/repos \
@@ -52,25 +52,25 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### View repo info
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO | python -c "import sys,json; r=json.load(sys.stdin); print(f\"Stars: {r['stargazers_count']}, Forks: {r['forks_count']}, Issues: {r['open_issues_count']}\")"
 ```
 
 ### Delete a repo
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X DELETE -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO
 ```
 
 ### Fork a repo
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO/forks
 ```
 
 ### Star a repo
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X PUT -H "Authorization: token $TOKEN" https://api.github.com/user/starred/USERNAME/REPO
 ```
 
@@ -82,7 +82,7 @@ git clone -b main https://github.com/username/repo.git
 
 ### Search repos
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" "https://api.github.com/search/repositories?q=KEYWORD&sort=stars&per_page=10" | python -c "import sys,json; data=json.load(sys.stdin); [print(f\"{r['full_name']} | ⭐{r['stargazers_count']}\") for r in data['items']]"
 ```
 
@@ -134,13 +134,13 @@ gh api repos/username/repo/commits --jq '.[].commit.message' | head -10
 
 ### List PRs
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO/pulls | python -c "import sys,json; [print(f\"#{p['number']}: {p['title']} ({p['state']})\") for p in json.load(sys.stdin)]"
 ```
 
 ### Create PR
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/pulls \
   -d "{\"title\":\"PR title\",\"body\":\"Description\",\"head\":\"feature-branch\",\"base\":\"main\"}"
@@ -148,7 +148,7 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### Comment on PR
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/issues/PR_NUMBER/comments \
   -d "{\"body\":\"Your comment here\"}"
@@ -156,7 +156,7 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### Merge PR
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X PUT -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/pulls/PR_NUMBER/merge \
   -d "{\"merge_method\":\"squash\"}"
@@ -168,13 +168,13 @@ curl -s -X PUT -H "Authorization: token $TOKEN" -H "Content-Type: application/js
 
 ### List issues
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO/issues | python -c "import sys,json; [print(f\"#{i['number']}: {i['title']} ({i['state']})\") for i in json.load(sys.stdin)]"
 ```
 
 ### Create issue
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/issues \
   -d "{\"title\":\"Issue title\",\"body\":\"Description here\"}"
@@ -182,7 +182,7 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### Comment on issue
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/issues/ISSUE_NUMBER/comments \
   -d "{\"body\":\"Your comment here\"}"
@@ -190,7 +190,7 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### Close issue
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X PATCH -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/issues/ISSUE_NUMBER \
   -d "{\"state\":\"closed\"}"
@@ -202,13 +202,13 @@ curl -s -X PATCH -H "Authorization: token $TOKEN" -H "Content-Type: application/
 
 ### List workflow runs
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -H "Authorization: token $TOKEN" https://api.github.com/repos/USERNAME/REPO/actions/runs?per_page=10 | python -c "import sys,json; data=json.load(sys.stdin); [print(f\"{r['name']} | {r['status']} | {r['conclusion']} | {r['created_at'][:10]}\") for r in data.get('workflow_runs',[])]"
 ```
 
 ### Trigger workflow manually
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
   https://api.github.com/repos/USERNAME/REPO/actions/workflows/WORKFLOW_FILE/dispatches \
   -d "{\"ref\":\"main\"}"
@@ -216,7 +216,7 @@ curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/j
 
 ### Re-run failed jobs
 ```bash
-TOKEN=$(grep "^GITHUB_TOKEN=" C:/Blopus/.env | cut -d= -f2 | tr -d '[:space:]')
+TOKEN=$(grep "^GITHUB_TOKEN=" "${BLOPUS_DIR:-.}/.env" | cut -d= -f2 | tr -d '[:space:]')
 curl -s -X POST -H "Authorization: token $TOKEN" \
   https://api.github.com/repos/USERNAME/REPO/actions/runs/RUN_ID/rerun-failed-jobs
 ```

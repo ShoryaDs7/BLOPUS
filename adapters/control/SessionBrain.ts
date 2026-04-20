@@ -11,8 +11,14 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import path from 'path'
 import fs from 'fs'
+import { execSync } from 'child_process'
 
 const BLOPUS_DIR = path.resolve(process.env.BLOPUS_DIR ?? '.')
+const NPX_CMD = (() => {
+  try { return execSync('where npx', { encoding: 'utf8' }).trim().split('\n')[0].trim() } catch {}
+  try { return execSync('which npx', { encoding: 'utf8' }).trim() } catch {}
+  return 'npx'
+})()
 const SESSIONS_FILE = path.join(BLOPUS_DIR, 'memory-store/sessions.json')
 const TASK_TIMEOUT_MS = 15 * 60 * 1000
 const SESSION_EXPIRY_MS = 2 * 60 * 60 * 1000 // 2 hours — old context adds cost, not value
@@ -64,7 +70,7 @@ function buildScriptIndex(): string {
 }
 
 // Load creator config — reads BLOPUS_CONFIG_PATH env var (set by run-*.ts scripts)
-// Falls back to aiblopus config if not specified
+// Falls back to first available creator config if not specified
 function loadCreatorConfig(): any {
   const configPath = process.env.BLOPUS_CONFIG_PATH
     ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
@@ -550,7 +556,7 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
         cwd: BLOPUS_DIR,
         permissionMode: 'bypassPermissions',
         maxTurns: 25,
-        model: process.env.SESSIONBRAIN_MODEL ?? 'claude-haiku-4-5-20251001',
+        model: process.env.SESSIONBRAIN_MODEL ?? 'claude-sonnet-4-6',
         abortController: abort,
         // MCP browser — passed directly so SDK always starts it regardless of settings.json discovery.
         // Works for any website: X, trading platforms, news, anything a human can browse.
@@ -558,7 +564,7 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
         mcpServers: {
           xtools: {
             type: 'stdio' as const,
-            command: 'C:\\Program Files\\nodejs\\npx.cmd',
+            command: NPX_CMD,
             args: ['tsx', path.join(BLOPUS_DIR, 'adapters/control/XToolsMcpServer.ts')],
             env: { ...process.env },
           },

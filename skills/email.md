@@ -9,8 +9,8 @@ description: Use this skill when the user wants to read their inbox, summarize u
 ```python
 import os, json
 
-creds_path = os.path.join(os.environ.get("BLOPUS_DIR", "C:/Blopus"), "creators", os.environ.get("OWNER_HANDLE", ""), "gmail_credentials.json")
-token_path  = os.path.join(os.environ.get("BLOPUS_DIR", "C:/Blopus"), "creators", os.environ.get("OWNER_HANDLE", ""), "gmail_token.json")
+creds_path = os.path.join(os.environ.get("BLOPUS_DIR", os.getcwd()), "creators", os.environ.get("OWNER_HANDLE", ""), "gmail_credentials.json")
+token_path  = os.path.join(os.environ.get("BLOPUS_DIR", os.getcwd()), "creators", os.environ.get("OWNER_HANDLE", ""), "gmail_token.json")
 
 if not os.path.exists(creds_path):
     print("""
@@ -50,7 +50,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/meetings.space.created',
 ]
 
-BLOPUS_DIR   = os.environ.get("BLOPUS_DIR", "C:/Blopus")
+BLOPUS_DIR   = os.environ.get("BLOPUS_DIR", os.getcwd())
 OWNER_HANDLE = os.environ.get("OWNER_HANDLE", "")
 CREATOR_DIR  = os.path.join(BLOPUS_DIR, "creators", OWNER_HANDLE)
 CREDS_FILE   = os.path.join(CREATOR_DIR, "gmail_credentials.json")

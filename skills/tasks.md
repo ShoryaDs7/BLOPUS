@@ -7,7 +7,7 @@ description: Use this skill when the user wants to create, list, complete, move,
 
 ## Get Tasks service
 ```python
-import sys; sys.path.insert(0, 'C:/Blopus')
+import sys, os; sys.path.insert(0, os.environ.get("BLOPUS_DIR", os.getcwd()))
 from google_auth import get_service
 svc = get_service('tasks', 'v1')
 ```

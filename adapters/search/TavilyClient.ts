@@ -15,8 +15,11 @@ export class TavilyClient {
     return !!this.apiKey
   }
 
-  async fetchCurrentEvents(): Promise<string[]> {
-    return this.search('trending AI technology social media news debates today', 5)
+  async fetchCurrentEvents(topics?: string[]): Promise<string[]> {
+    const query = topics?.length
+      ? `trending news debates ${topics.slice(0, 3).join(' ')} today`
+      : 'trending news debates today'
+    return this.search(query, 5)
   }
 
   /**

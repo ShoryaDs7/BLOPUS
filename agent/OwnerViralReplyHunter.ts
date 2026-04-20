@@ -34,6 +34,8 @@ export class OwnerViralReplyHunter {
   private consecutiveSameTopic = 0
   private domainSearch = new PlaywrightDomainSearchProvider()
   private repliedIdsPath: string = ''
+  lastCandidates: Array<{ id: string; text: string; authorHandle: string; likeCount?: number }> = []
+  lastRepliedTweetId: string | null = null
 
   constructor(
     private llmEngine: LLMReplyEngine,
@@ -44,7 +46,7 @@ export class OwnerViralReplyHunter {
     private useGrokTag: boolean = false,
   ) {
     // Persist replied tweet IDs so restarts don't re-reply to same tweets
-    const configPath = process.env.BLOPUS_CONFIG_PATH ?? './creators/shoryaDs7/config.json'
+    const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
     this.repliedIdsPath = path.join(path.dirname(path.resolve(configPath)), 'replied_tweet_ids.json')
     this.loadRepliedIds()
   }
@@ -116,7 +118,7 @@ export class OwnerViralReplyHunter {
       }
 
       // Read replyMode + avoidTopics from config
-      const configPath = process.env.BLOPUS_CONFIG_PATH ?? './creators/shoryaDs7/config.json'
+      const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
       let replyMode: 'domain' | 'viral' = 'domain'
       let avoidTopics: string[] = []
       let domainMinLikes: Record<string, number> | undefined
@@ -174,6 +176,11 @@ export class OwnerViralReplyHunter {
         }
       }
 
+
+      // Expose candidates for engagement engine (like/rt/qt)
+      this.lastCandidates = candidates.map(c => ({
+        id: c.tweetId, text: c.text, authorHandle: c.authorHandle, likeCount: c.likeCount,
+      }))
 
       let fresh = candidates.filter(c =>
         !this.repliedTweetIds.has(c.tweetId) &&
@@ -255,6 +262,7 @@ export class OwnerViralReplyHunter {
 
       await this.xAdapter.postAutonomousReply(pick.tweetId, replyText)
       this.repliedTweetIds.add(pick.tweetId)
+      this.lastRepliedTweetId = pick.tweetId
       this.saveRepliedIds()
       this.replyCountToday++
 

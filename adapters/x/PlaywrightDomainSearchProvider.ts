@@ -65,6 +65,10 @@ export class PlaywrightDomainSearchProvider {
         }
       } catch (err) {
         console.warn(`[DomainSearch] Error searching topic "${topic}": ${err}`)
+        // If browser crashed or context closed — reset so next cycle starts fresh
+        if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
+          this.context = null
+        }
       }
     }
 
@@ -164,6 +168,15 @@ export class PlaywrightDomainSearchProvider {
   }
 
   private async getContext(): Promise<BrowserContext> {
+    if (this.context) {
+      // Check if context is still alive — if not, reset and recreate
+      try {
+        await this.context.pages()
+      } catch {
+        console.log('[DomainSearch] Browser context was dead — recreating...')
+        this.context = null
+      }
+    }
     if (this.context) return this.context
 
     fs.mkdirSync(USER_DATA_DIR, { recursive: true })

@@ -7,7 +7,7 @@ description: Read, edit, or add code to the Blopus project — fix bugs, add fea
 
 ## Project structure
 ```
-C:/Blopus/
+{BLOPUS_DIR}/
   agent/           — core agent loop, DmInboxPoller, OsBotAgent
   adapters/
     x/             — X/Twitter API + Playwright client
@@ -25,8 +25,8 @@ C:/Blopus/
 ## Workflow
 1. Read the file(s) to understand current code first
 2. Make targeted edits using Edit tool (not Write — don't rewrite whole files)
-3. Run `cd C:/Blopus && npx tsc --noEmit` to check for type errors
-4. Tell Shorya what changed and what to restart
+3. Run `npx tsc --noEmit` to check for type errors
+4. Tell the owner what changed and what to restart
 
 ## Rules
 - Never rewrite whole files unless it's a new file

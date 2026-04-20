@@ -4,7 +4,7 @@
  *
  * Claude calls this directly instead of writing TypeScript every time.
  *
- * Usage (always from C:/Blopus, with correct .env already loaded):
+ * Usage (always from project root, with correct .env already loaded):
  *   npx tsx tools/x-cli.ts post    <handle> "<tweet text>"
  *   npx tsx tools/x-cli.ts reply   <handle> <tweetId> "<reply text>"
  *   npx tsx tools/x-cli.ts quote   <handle> <tweetId> "<quote text>"

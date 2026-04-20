@@ -1,12 +1,12 @@
 {
   "blopus": {
-    "handle": "aiblopus",
-    "userId": "2026254461946208257",
-    "displayName": "Blopus [bot-ish]"
+    "handle": "YOUR_BOT_HANDLE",
+    "userId": "",
+    "displayName": "Blopus"
   },
   "owner": {
-    "handle": "shoryaDs7",
-    "displayName": "Shorya"
+    "handle": "YOUR_HANDLE",
+    "displayName": "Owner"
   },
   "platform": {
     "primary": "x",
@@ -69,7 +69,7 @@
     "knownOsBots": [],
     "tagProbability": 0.4,
     "maxTagsPerReply": 2,
-    "id": "oswald:il4hjg"
+    "id": ""
   },
   "memory": {
     "storePath": "./memory-store/memory.json",
@@ -98,6 +98,6 @@
   },
   "threads": {
     "enabled": true,
-    "userId": "26058506113809802"
+    "userId": ""
   }
 }

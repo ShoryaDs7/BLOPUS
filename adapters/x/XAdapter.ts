@@ -125,6 +125,21 @@ export class XAdapter {
     return this.client.postQuoteTweet(text, quoteTweetId)
   }
 
+  async likeTweet(tweetId: string): Promise<void> {
+    if (!this.playwright) return
+    await this.playwright.likeTweets([tweetId])
+  }
+
+  async retweetTweet(tweetId: string): Promise<void> {
+    if (!this.playwright) return
+    await this.playwright.retweet(tweetId)
+  }
+
+  async followUser(handle: string): Promise<'followed' | 'already_following' | 'not_found'> {
+    if (!this.playwright) return 'not_found'
+    return this.playwright.followUser(handle)
+  }
+
   async getBotFollowers(botUserId: string): Promise<{ userId: string; handle: string }[]> {
     return this.client.getBotFollowers(botUserId)
   }

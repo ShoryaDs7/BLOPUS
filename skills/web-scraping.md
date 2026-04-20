@@ -3,8 +3,6 @@ name: web-scraping
 description: Use this skill when the user wants to extract data from any website, scrape product prices, get article text, monitor pages, download links, or automate web data collection.
 ---
 
-**IMPORTANT: Always use Python `requests` + `BeautifulSoup` for scraping. Never use the browser navigation tool for scraping — it is slow. Only use browser tool if the site requires JavaScript rendering and Python requests returns empty content.**
-
 # Web Scraping Guide
 
 ## Quick Start

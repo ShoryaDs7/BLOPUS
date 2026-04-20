@@ -8,8 +8,11 @@ description: Use this skill when the user sends a YouTube URL and asks a questio
 ```python
 import os, re
 from dotenv import load_dotenv
-load_dotenv("C:/Blopus/.env")
-load_dotenv("C:/Blopus/creators/shoryaDs7/.env")
+_bdir = os.environ.get("BLOPUS_DIR", ".")
+load_dotenv(os.path.join(_bdir, ".env"))
+_owner = os.environ.get("OWNER_HANDLE", "")
+if _owner:
+    load_dotenv(os.path.join(_bdir, "creators", _owner, ".env"))
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

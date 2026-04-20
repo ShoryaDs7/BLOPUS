@@ -80,36 +80,35 @@ def create_resume(data: dict, filename: str = "resume.pdf"):
     doc.build(story)
     print(f"Resume saved: {filename}")
 
-# Example usage
+# Example usage — replace with owner's actual data
 data = {
-    "name": "DS7",
-    "email": "ds7@example.com",
-    "phone": "+91 98765 43210",
-    "location": "India",
-    "linkedin": "linkedin.com/in/ds7",
-    "github": "github.com/ds7",
-    "summary": "Founder and builder in AI automation. Building tools that replace manual digital workflows with autonomous agents.",
+    "name": "Your Name",
+    "email": "you@example.com",
+    "phone": "+1 555 000 0000",
+    "location": "Your City",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "summary": "Brief professional summary here.",
     "experience": [
         {
-            "title": "Founder",
-            "company": "Blopus",
-            "period": "2025 — Present",
+            "title": "Your Title",
+            "company": "Company Name",
+            "period": "2024 — Present",
             "bullets": [
-                "Built autonomous AI agent framework controlling X, Reddit, Discord simultaneously",
-                "Grew to 500+ users in first month via reply-guy strategy",
-                "Reduced manual social media time from 4h/day to zero"
+                "Achievement or responsibility 1",
+                "Achievement or responsibility 2"
             ]
         }
     ],
     "education": [
-        {"degree": "B.Tech Computer Science", "school": "XYZ University", "year": "2023"}
+        {"degree": "Your Degree", "school": "Your University", "year": "2023"}
     ],
-    "skills": ["Python", "TypeScript", "Node.js", "AI/LLMs", "Playwright", "Claude API"],
+    "skills": ["Skill 1", "Skill 2", "Skill 3"],
     "projects": [
         {
-            "name": "Blopus",
-            "description": "Autonomous social media agent framework. Controls X, Reddit, Discord.",
-            "link": "github.com/blopus/blopus"
+            "name": "Project Name",
+            "description": "What it does.",
+            "link": "github.com/you/project"
         }
     ]
 }

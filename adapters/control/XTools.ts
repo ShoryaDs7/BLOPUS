@@ -20,6 +20,7 @@ import { MCPBrowserDM } from '../../agent/MCPBrowserDM'
 import fs from 'fs'
 import path from 'path'
 import { writeRuntimeConfig, readRuntimeConfig } from './RuntimeConfig'
+import { PlaywrightWebScraper } from '../web/PlaywrightWebScraper'
 
 export interface XToolsOptions {
   xAdapter: XAdapter
@@ -95,7 +96,7 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   },
   {
     name: 'browse_x',
-    description: 'Navigate X like a human to do ANYTHING not covered by other tools — view profiles, read tweets, check notifications, summarize feeds, find specific content, etc. Use this when no other tool fits.',
+    description: 'Navigate X (Twitter) only — view profiles, read tweets, check notifications, summarize feeds. ONLY for x.com tasks. Never use this for scraping other websites — use scrape_website instead.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -238,6 +239,51 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
       required: ['tweet_urls'],
     },
   },
+  {
+    name: 'retweet_tweet',
+    description: 'Retweet a specific tweet by URL. Use when asked to "retweet this", "RT this tweet", "share this to my feed".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tweet_url: { type: 'string', description: 'Full tweet URL to retweet' },
+      },
+      required: ['tweet_url'],
+    },
+  },
+  {
+    name: 'follow_user',
+    description: 'Follow an X user by handle. Use when asked to "follow @someone", "follow this person".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        handle: { type: 'string', description: 'Twitter handle to follow, with or without @' },
+      },
+      required: ['handle'],
+    },
+  },
+  {
+    name: 'scrape_website',
+    description: 'Go to any website, fill in form fields, submit, click through all tabs/sections and return all extracted data. Use when asked to "scrape this site", "get my kundli", "fill this form", "check this website", etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'Full URL of the website to scrape' },
+        fields: {
+          type: 'array',
+          description: 'Form fields to fill. Each item has a label (field name/label on the page) and value.',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: 'Field label or name as shown on the page' },
+              value: { type: 'string', description: 'Value to fill in' },
+            },
+            required: ['label', 'value'],
+          },
+        },
+      },
+      required: ['url'],
+    },
+  },
 ]
 
 export class XTools {
@@ -247,6 +293,7 @@ export class XTools {
   private configPath: string
   private llmEngine: LLMReplyEngine
   private mcpDm?: MCPBrowserDM
+
 
   constructor(options: XToolsOptions) {
     this.xAdapter = options.xAdapter
@@ -378,6 +425,40 @@ export class XTools {
           const capped = ids.slice(0, 5) // hard cap — liking too many at once gets accounts flagged
           const liked = await this.playwrightClient.likeTweets(capped)
           return `liked ${liked}/${capped.length} tweets${ids.length > 5 ? ` (capped at 5 — X flags mass liking)` : ''}`
+        }
+
+        case 'retweet_tweet': {
+          const m = (input.tweet_url as string).match(/\/status\/(\d+)/)
+          if (!m) return `invalid tweet URL`
+          await this.xAdapter.retweetTweet(m[1])
+          return `retweeted`
+        }
+
+        case 'follow_user': {
+          const handle = (input.handle as string).replace(/^@/, '')
+          const result = await this.xAdapter.followUser(handle)
+          if (result === 'already_following') return `already following @${handle}`
+          if (result === 'not_found') return `couldn't find @${handle} — check the handle`
+          return `followed @${handle}`
+        }
+
+        case 'scrape_website': {
+          const url = input.url as string
+          const fields = (input.fields as Array<{ label: string; value: string }>) ?? []
+          const scraper = new PlaywrightWebScraper()
+          try {
+            console.log(`[XTools:scrape] ${url} with ${fields.length} fields`)
+            const result = await scraper.scrape(url, fields)
+            if (result.error) return `scrape failed: ${result.error}`
+            if (!result.rawText.trim()) return `scraped ${url} but got no data — page may require login or JS not supported`
+            // Telegram has 4096 char limit — trim if needed
+            const out = result.rawText.length > 3800
+              ? result.rawText.slice(0, 3800) + `\n\n... (${result.rawText.length - 3800} more chars)`
+              : result.rawText
+            return out
+          } finally {
+            await scraper.close()
+          }
         }
 
         default:

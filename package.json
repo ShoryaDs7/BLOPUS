@@ -5,6 +5,8 @@
   "main": "dist/agent/BlopusAgent.js",
   "scripts": {
     "setup": "npx tsx scripts/setup.ts",
+    "bot-setup": "npx tsx scripts/setup-bot.ts",
+    "dm-setup": "npx tsx scripts/dm-interview.ts",
     "blopus:bot": "tsx agent/run-blopus-bot.ts",
     "blopus:owner": "tsx agent/run-blopus-owner.ts",
     "start": "node dist/agent/BlopusAgent.js",

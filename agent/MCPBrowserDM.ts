@@ -6,8 +6,8 @@
  * finds buttons by their label, not by hardcoded CSS selectors.
  *
  * Works for both accounts:
- *   - OsBot (@aiblopus): autonomous pack DMs
- *   - Owner (@shoryaDs7): polling inbox, drafting replies
+ *   - OsBot (bot account): autonomous pack DMs
+ *   - Owner (owner account): polling inbox, drafting replies
  *
  * Never breaks on X UI changes — Claude reads the page semantically.
  */

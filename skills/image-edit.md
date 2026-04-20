@@ -17,7 +17,7 @@ print("skia ready")
 ```
 
 ## Always save output to
-`C:/Blopus/output/image_output.png`
+`{BLOPUS_DIR}/output/image_output.png`
 
 ---
 
@@ -27,8 +27,9 @@ print("skia ready")
 import skia
 import os
 
-OUTPUT = "C:/Blopus/output/image_output.png"
-os.makedirs("C:/Blopus/output", exist_ok=True)
+_bdir = os.environ.get("BLOPUS_DIR", os.getcwd())
+OUTPUT = os.path.join(_bdir, "output", "image_output.png")
+os.makedirs(os.path.join(_bdir, "output"), exist_ok=True)
 
 # Canvas size — adjust per task
 WIDTH, HEIGHT = 1280, 720
@@ -222,9 +223,9 @@ canvas.drawString("subtitle goes here", 80, 450, font_sub, yellow)
 ## Rules — follow every time
 1. Always use skia for ALL drawing, text, shapes, compositing
 2. Pillow ONLY for opening source images before passing to skia — never for drawing
-3. Always save to `C:/Blopus/output/image_output.png`
-4. Always tell owner: "Saved at C:/Blopus/output/image_output.png — open it to check"
-5. When user sends an image — it gets saved to C:/Blopus/tmp/ — use that path as source
+3. Always save to `{BLOPUS_DIR}/output/image_output.png`
+4. Always tell owner: "Saved at {BLOPUS_DIR}/output/image_output.png — open it to check"
+5. When user sends an image — it gets saved to {BLOPUS_DIR}/tmp/ — use that path as source
 6. Never hardcode font paths — use font names like 'Arial'
 7. This skill is for EDITING only — not AI image generation
 8. By default, do NOT alter source image colours — load and draw as-is. Only change colours if the user explicitly asks.

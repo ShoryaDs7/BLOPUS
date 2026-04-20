@@ -10,7 +10,7 @@ The current token covers `meetings.space.created` — this lets you create and m
 
 ## Get Meet service
 ```python
-import sys; sys.path.insert(0, 'C:/Blopus')
+import sys, os; sys.path.insert(0, os.environ.get("BLOPUS_DIR", os.getcwd()))
 from google_auth import get_service
 meet = get_service('meet', 'v2')
 ```

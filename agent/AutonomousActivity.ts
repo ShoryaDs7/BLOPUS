@@ -1,7 +1,7 @@
 import { MemoryEngine } from '../core/memory/MemoryEngine'
 import { LLMReplyEngine, AutonomousPostContext, RecentInteraction } from '../core/personality/LLMReplyEngine'
 import { XAdapter } from '../adapters/x/XAdapter'
-import { ThreadsAdapter } from '../adapters/threads'
+// import { ThreadsAdapter } from '../adapters/threads' // Threads disabled — X-only launch. See docs/threads-wiring.md to re-enable.
 import { TavilyClient } from '../adapters/search/TavilyClient'
 import { Mood } from '../core/memory/types'
 import { extractTopics } from '../core/memory/topicExtractor'
@@ -19,7 +19,7 @@ export class AutonomousActivity {
     private llmEngine: LLMReplyEngine,
     private xAdapter: XAdapter,
     private xAccountKey: string = 'x:bot-own',
-    private threadsAdapter: ThreadsAdapter | null = null,
+    private threadsAdapter: null = null, // Threads disabled — see docs/threads-wiring.md
     private threadsAccountKey: string = 'threads:owner-own',
     private ownerHandle: string = '',
     private personalityProfile?: PersonalityProfile,
@@ -60,7 +60,7 @@ export class AutonomousActivity {
       }
 
       // Time-of-day gate — only post during hours matching archive behavior (±2h window)
-      // typicalPostingHours are UTC hours when Shorya actually posts most
+      // typicalPostingHours are UTC hours when the owner actually posts most
       if (bp?.typicalPostingHours && bp.typicalPostingHours.length > 0) {
         const nowUTC = new Date().getUTCHours()
         const isTypicalHour = bp.typicalPostingHours.some(h => {
@@ -73,7 +73,12 @@ export class AutonomousActivity {
         }
       }
 
-      const currentEvents = await this.tavily.fetchCurrentEvents()
+      const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
+      const postTopics = opp?.topics ?? this.personalityProfile?.postTopics ?? this.personalityProfile?.dominantTopics
+      const postSourceType: string = opp?.postSourceType ?? 'mixed'
+      // Only fetch news if user actually posts news-driven content
+      const needsNews = ['news-driven', 'mixed', 'opinions-hot-takes'].includes(postSourceType)
+      const currentEvents = needsNews ? await this.tavily.fetchCurrentEvents(postTopics) : []
 
       // Inject personal context from Telegram memory — but only if user actually posts personal content
       // Check their archive's dominant topics for personal/lifestyle signals
@@ -120,25 +125,7 @@ export class AutonomousActivity {
         }
       }
 
-      // Post on Threads independently — different voice, same world knowledge
-      if (this.threadsAdapter) {
-        try {
-          const tCtx = this.gatherContext(mood, currentEvents, this.threadsAccountKey)
-          const tText = await this.llmEngine.generateAutonomousPost(tCtx)
-          if (tText) {
-            const threadId = await this.threadsAdapter.postThread(tText)
-            this.memory.recordPlatformEvent({
-              platform: 'threads',
-              type: 'post_published',
-              summary: `posted on threads: "${tText.slice(0, 80)}"`,
-            })
-            this.memory.updateTopicPerformance(this.threadsAccountKey, extractTopics([tText]))
-            console.log(`[AutonomousActivity] Posted on Threads ${threadId}: "${tText.slice(0, 60)}..."`)
-          }
-        } catch (e) {
-          console.log(`[AutonomousActivity] Threads post failed: ${e}`)
-        }
-      }
+      // Threads posting disabled — X-only launch. See docs/threads-wiring.md to re-enable.
     } catch {
       // fail silently — never interrupt mention processing
     }

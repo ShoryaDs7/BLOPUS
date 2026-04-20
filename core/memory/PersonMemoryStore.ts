@@ -33,6 +33,8 @@ export interface Conversation {
   lastMessageAt: string
   topic: string             // inferred topic (single phrase)
   messages: Message[]
+  summary?: string          // arc in signal format: "user asked → owner explained → agreed"
+  facts?: string[]          // specific entities: names, objects, brands, numbers, outcomes
 }
 
 export type RelationshipType =
@@ -71,7 +73,7 @@ export interface PendingClassification {
  * Lets OsBot know who the other bot's owner is and when they first met.
  */
 export interface BlopusMeta {
-  ownerHandle: string    // e.g. "shoryaDs7" — the human behind this OsBot
+  ownerHandle: string    // the human behind this OsBot
   packId: string         // e.g. "blopus:bbbbbb"
   connectedAt: string    // ISO — when PackDiscovery first linked them
 }
@@ -112,6 +114,10 @@ export interface PersonMemory {
   // Owner note — set manually via Telegram when no DM history exists
   // e.g. "this is my investor, always formal, no jokes"
   ownerNote: string | null
+
+  // Haiku-computed overall tone — how this person engages across all history
+  // Recomputed every 5 conversations. Injected into every reply context.
+  overallTone?: string
 
   // Full conversation log — EVERY exchange, nothing omitted
   conversations: Conversation[]
@@ -190,7 +196,7 @@ export class PersonMemoryStore {
   private dir: string
   private indexPath: string
 
-  constructor(memoryStoreDir: string) {
+  constructor(memoryStoreDir: string, private anthropicApiKey?: string) {
     this.dir = path.join(memoryStoreDir, 'persons')
     this.indexPath = path.join(this.dir, '_index.json')
     fs.mkdirSync(this.dir, { recursive: true })
@@ -371,6 +377,131 @@ export class PersonMemoryStore {
 
     this.save(mem)
     this.updateIndex(mem)
+
+    // Background: summarize old convos + recompute overall tone every 5 conversations
+    if (this.anthropicApiKey) {
+      this.ensureConversationSummaries(handle).catch(() => {})
+      if (mem.conversationCount > 0 && mem.conversationCount % 5 === 0) {
+        this.computeOverallTone(handle).catch(() => {})
+      }
+    }
+  }
+
+  /**
+   * Haiku reads ALL messages from this person across all conversations and
+   * writes a one-line tone assessment. Saved to overallTone field in their JSON.
+   * Called every 5 conversations — smart, not keyword matching.
+   */
+  async computeOverallTone(handle: string, apiKey?: string): Promise<void> {
+    const key = apiKey ?? this.anthropicApiKey
+    if (!key) return
+    const mem = this.load(handle)
+    if (!mem) return
+
+    const theirMessages = mem.conversations
+      .flatMap(c => c.messages.filter(m => m.by === 'them'))
+    if (theirMessages.length < 3) return  // not enough data
+
+    const sample = theirMessages.slice(-60).map(m => `"${m.text.replace(/"/g, "'")}"`)
+
+    const Anthropic = require('@anthropic-ai/sdk').default
+    const client = new Anthropic({ apiKey: key })
+
+    try {
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 40,
+        messages: [{
+          role: 'user',
+          content: `These are messages sent to you by @${handle} across all your conversations with them:
+${sample.join('\n')}
+
+Write ONE line (under 15 words) describing how they engage overall.
+Examples:
+"consistently supportive, asks good questions, engages in good faith"
+"often hostile and dismissive, low effort, rarely constructive"
+"pushes back a lot but always respectful and substantive"
+"fan-like praise, low depth, no real engagement"
+No preamble. Just the line.`
+        }]
+      })
+      const tone = res.content[0].type === 'text' ? res.content[0].text.trim() : ''
+      if (tone) {
+        mem.overallTone = tone
+        this.save(mem)
+      }
+    } catch {
+      // leave existing tone — will retry next cycle
+    }
+  }
+
+  /**
+   * Summarize old conversations (>30 days) that don't have cached summaries yet.
+   * Saves summary+facts back to the JSON so getContextForClaude can use them.
+   * Fire-and-forget safe — never throws.
+   */
+  async ensureConversationSummaries(handle: string, apiKey?: string): Promise<void> {
+    const key = apiKey ?? this.anthropicApiKey
+    if (!key) return
+    const mem = this.load(handle)
+    if (!mem) return
+
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const needsSummary = mem.conversations.filter(c =>
+      new Date(c.startedAt).getTime() <= cutoff && !c.summary
+    )
+    if (needsSummary.length === 0) return
+
+    const Anthropic = require('@anthropic-ai/sdk').default
+    const client = new Anthropic({ apiKey: key })
+    let changed = false
+
+    for (const conv of needsSummary) {
+      try {
+        const msgs = conv.messages.map(m =>
+          `${m.by === 'owner' ? 'you' : 'them'}: "${m.text.replace(/"/g, "'")}"`
+        ).join('\n')
+        const res = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          messages: [
+            {
+              role: 'user',
+              content: `Read every message carefully. Extract:
+
+summary: one line using arrows showing what happened. Example: "user tried gym → resisted → hit PR → success"
+facts: every specific detail mentioned — brand names, objects, people, numbers, outcomes. Example: ["grandma gave red cap from 1980s", "Tesla Model 3", "client ghosted after 3 weeks"]
+
+RULES:
+- Read ALL messages, not just the first one
+- facts must include every specific noun or named thing mentioned
+- If someone mentions a person (grandma, client, friend) extract what happened with them
+- Return ONLY valid JSON, no markdown, no explanation
+
+Messages:
+${msgs}
+
+Return JSON like: {"summary": "...", "facts": ["...", "..."]}`
+            },
+            {
+              role: 'assistant',
+              content: '{"summary": "'
+            }
+          ]
+        })
+        const raw = res.content[0].type === 'text' ? res.content[0].text.trim() : ''
+        const parsed = JSON.parse('{"summary": "' + raw)
+        conv.summary = parsed.summary ?? conv.topic
+        conv.facts = parsed.facts ?? []
+        changed = true
+      } catch {
+        // leave without summary — will retry next call
+      }
+    }
+
+    if (changed) {
+      this.save(mem)
+    }
   }
 
   /**
@@ -1066,6 +1197,14 @@ Reply with ONLY:
   /**
    * Full context block for Claude — aware of DM vs comment history separately.
    * Pass channel='dm' when replying to a DM, channel='x' for public replies.
+   *
+   * Dual-layer memory:
+   *   - All but last 5 conversations → injected as 1-line summary + facts (if cached)
+   *   - Last 5 conversations → injected as full messages
+   *
+   * Old summaries are built lazily in the background by ensureConversationSummaries()
+   * (called after each recordExchange). Until a summary exists, just the topic is shown.
+   * This means the LLM always sees the full history — nothing is ever dropped.
    */
   getContextForClaude(handle: string, maxConversations = 5, channel: 'x' | 'dm' = 'x'): string {
     const mem = this.load(handle)
@@ -1104,19 +1243,38 @@ Reply with ONLY:
     } else {
       lines.push(`Total exchanges: ${mem.totalInteractions} across ${mem.conversationCount} conversations`)
       if (mem.dominantTopics.length) lines.push(`Topics you discuss: ${mem.dominantTopics.join(', ')}`)
+      if (mem.overallTone) lines.push(`How they engage with you overall: ${mem.overallTone}`)
       if (mem.theirPersonality !== 'unknown') lines.push(`Their personality: ${mem.theirPersonality}`)
       if (mem.ownerToneWithThem !== 'unknown') lines.push(`How you talk to them publicly: ${mem.ownerToneWithThem}`)
       if (mem.notableEvents.length) lines.push(`Notable: ${mem.notableEvents.join('; ')}`)
 
-      // Show channel-relevant conversations first, then cross-reference the other channel
       const primaryConvs = channel === 'dm' ? dmConvs : publicConvs
       const secondaryConvs = channel === 'dm' ? publicConvs : dmConvs
       const primaryLabel = channel === 'dm' ? 'DM conversations' : 'Public conversations'
       const secondaryLabel = channel === 'dm' ? 'Public X history (context)' : 'DM history (context)'
 
       if (primaryConvs.length > 0) {
+        // Split: older (everything before last maxConversations) → summaries; last N → full
+        const older = primaryConvs.slice(0, -maxConversations)
+        const recent = primaryConvs.slice(-maxConversations)
+
+        // Inject older convos as 1-line summaries (cap at 300 to avoid token overload)
+        if (older.length > 0) {
+          lines.push('\nOlder conversation history (summarized):')
+          for (const conv of older.slice(-300)) {
+            const date = new Date(conv.startedAt).toDateString()
+            if (conv.summary) {
+              const facts = conv.facts?.length ? ` | ${conv.facts.join(', ')}` : ''
+              lines.push(`[${date} — ${conv.topic}] ${conv.summary}${facts}`)
+            } else {
+              lines.push(`[${date} — ${conv.topic}]`)
+            }
+          }
+        }
+
+        // Inject recent convos as full messages
         lines.push(`\nRecent ${primaryLabel}:`)
-        for (const conv of primaryConvs.slice(-maxConversations)) {
+        for (const conv of recent) {
           const date = new Date(conv.startedAt).toDateString()
           lines.push(`\n[${date} — topic: ${conv.topic}]`)
           for (const msg of conv.messages.slice(-6)) {
@@ -1126,7 +1284,7 @@ Reply with ONLY:
         }
       }
 
-      // Cross-reference: show a summary of what happened in the other channel
+      // Cross-reference: summary of the other channel
       if (secondaryConvs.length > 0) {
         lines.push(`\n${secondaryLabel}: ${secondaryConvs.length} conversations on topics: ${
           [...new Set(secondaryConvs.map(c => c.topic))].slice(0, 3).join(', ')

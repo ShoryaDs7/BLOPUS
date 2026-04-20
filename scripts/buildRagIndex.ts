@@ -5,7 +5,14 @@
 import path from 'path'
 import { buildRagIndex } from '../core/rag/ExampleRetriever'
 
+const tweetsPath = process.argv[2] ?? ''
+const creatorHandle = process.argv[3] ?? ''
+if (!tweetsPath || !creatorHandle) {
+  console.error('Usage: npx ts-node scripts/buildRagIndex.ts <path/to/tweets.js> <creator-handle>')
+  process.exit(1)
+}
+
 buildRagIndex(
-  'C:/Users/DS7/Downloads/data/tweets.js',
-  path.resolve('./creators/shoryaDs7/rag_index.json'),
+  tweetsPath,
+  path.resolve(`./creators/${creatorHandle}/rag_index.json`),
 )

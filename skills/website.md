@@ -1,307 +1,86 @@
 ---
 name: website
-description: Use this skill when the user wants to build a website, landing page, portfolio, or any web page. Produces professional, modern websites using Tailwind CSS + Aceternity-style animations. No npm, no build step, works instantly in browser.
+description: Use this skill when the user wants to build a website, landing page, portfolio, or any web page. Produces professional, modern websites using Tailwind CSS + GSAP animations. No npm, no build step, works instantly in browser.
 ---
 
-# Website Builder Guide
+# Website Builder
 
-## Stack — always use this, no exceptions
-- **Tailwind CSS** via CDN — no install needed
-- **Alpine.js** via CDN — lightweight interactivity (dropdowns, toggles, counters)
-- **AOS (Animate On Scroll)** via CDN — scroll animations like Aceternity UI
-- **Google Fonts** — Inter or Plus Jakarta Sans for clean modern look
-- Pure HTML in a single file — opens instantly, no build step
+## Stack
+Tailwind CDN + Alpine.js CDN + GSAP 3.15 CDN (ScrollTrigger+TextPlugin free) + Google Fonts. Single HTML file, save to `{BLOPUS_DIR}/output/website/index.html`.
 
-## Always start with this base template
+## Rule #1 — Structure
+**Never use a fixed section order.** Read what the user wants and build exactly that. If they say "portfolio" don't add pricing. If they say "restaurant" don't add a features grid. Match the website type. When unsure, use the Industry Guide below.
+
+## Base Template (always use these exact CDNs + CSS + GSAP script)
 ```html
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PAGE TITLE</title>
+<!DOCTYPE html><html lang="en" class="scroll-smooth"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>PAGE TITLE</title><link rel="preconnect" href="https://fonts.googleapis.com"/><link href="https://fonts.googleapis.com/css2?family=FONT_CHOICE&display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script>tailwind.config={theme:{extend:{fontFamily:{sans:['FONT','sans-serif'],display:['DISPLAY_FONT','sans-serif']},animation:{'float':'float 6s ease-in-out infinite','gradient':'gradient 8s ease infinite','pulse-slow':'pulse 4s cubic-bezier(0.4,0,0.6,1) infinite'},keyframes:{float:{'0%,100%':{transform:'translateY(0px)'},'50%':{transform:'translateY(-20px)'}},gradient:{'0%,100%':{backgroundPosition:'0% 50%'},'50%':{backgroundPosition:'100% 50%'}}}}}}</script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/gsap.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/ScrollTrigger.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/TextPlugin.min.js"></script><style>body{font-family:'FONT',sans-serif;}.gradient-text{background:linear-gradient(135deg,VAR_COLOR1 0%,VAR_COLOR2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}.gradient-bg{background:linear-gradient(135deg,VAR_COLOR1 0%,VAR_COLOR2 100%);background-size:200% 200%;}.glass{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);}.glow{box-shadow:0 0 40px rgba(VAR_GLOW,0.4);}.card-hover{transition:all 0.3s ease;}.card-hover:hover{transform:translateY(-8px);box-shadow:0 20px 60px rgba(0,0,0,0.3);}body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;opacity:0.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;}</style></head>
+<body class="bg-[BG_COLOR] text-white" x-data="{mobileMenu:false}">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- SECTIONS HERE — based on user request + industry guide -->
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Plus Jakarta Sans', 'sans-serif'] },
-          animation: {
-            'fade-up': 'fadeUp 0.6s ease-out forwards',
-            'fade-in': 'fadeIn 0.8s ease-out forwards',
-            'float': 'float 6s ease-in-out infinite',
-            'gradient': 'gradient 8s ease infinite',
-            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            fadeUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-            float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-20px)' } },
-            gradient: { '0%, 100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Alpine.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-  <!-- AOS Animations -->
-  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css" />
-  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .gradient-text {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .gradient-bg {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      background-size: 200% 200%;
-    }
-    .glass {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .glow {
-      box-shadow: 0 0 40px rgba(102, 126, 234, 0.4);
-    }
-    .card-hover {
-      transition: all 0.3s ease;
-    }
-    .card-hover:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    /* Noise texture overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      opacity: 0.03;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 9999;
-    }
-  </style>
-</head>
-<body class="bg-[#0a0a0a] text-white" x-data="{ mobileMenu: false }" x-init="AOS.init({ duration: 700, once: true, offset: 80 })">
-  <!-- PAGE CONTENT HERE -->
-</body>
-</html>
+<script>
+gsap.registerPlugin(ScrollTrigger,TextPlugin);
+gsap.set(['.hero-badge','.hero-title','.hero-sub','.hero-cta','.hero-stats'],{autoAlpha:0,y:30});
+gsap.timeline({defaults:{ease:'power3.out'}}).to('.hero-badge',{autoAlpha:1,y:0,duration:0.6}).to('.hero-title',{autoAlpha:1,y:0,duration:0.9},'-=0.3').to('.hero-sub',{autoAlpha:1,y:0,duration:0.7},'-=0.4').to('.hero-cta',{autoAlpha:1,y:0,duration:0.6},'-=0.3').to('.hero-stats',{autoAlpha:1,y:0,duration:0.6},'-=0.2');
+document.querySelectorAll('.count-up').forEach(el=>{const o={v:0};gsap.to(o,{v:+el.dataset.target,duration:2,delay:1,ease:'power2.out',onUpdate(){el.textContent=Math.floor(o.v).toLocaleString();}});});
+gsap.utils.toArray('.section-heading').forEach(el=>gsap.from(el,{scrollTrigger:{trigger:el,start:'top 85%',once:true},autoAlpha:0,y:40,duration:0.8,ease:'power2.out'}));
+gsap.utils.toArray('.card-group').forEach(g=>gsap.from(g.querySelectorAll('.gsap-card'),{scrollTrigger:{trigger:g,start:'top 80%',once:true},autoAlpha:0,y:50,duration:0.7,ease:'power2.out',stagger:{each:0.15,from:'start'}}));
+gsap.utils.toArray('.pricing-card').forEach((c,i)=>gsap.from(c,{scrollTrigger:{trigger:c,start:'top 85%',once:true},autoAlpha:0,y:40,duration:0.7,ease:'back.out(1.7)',delay:i*0.15}));
+gsap.utils.toArray('.testimonial-card').forEach((c,i)=>gsap.from(c,{scrollTrigger:{trigger:c,start:'top 85%',once:true},autoAlpha:0,y:30,duration:0.6,ease:'power2.out',delay:i*0.1}));
+gsap.utils.toArray('.orb').forEach((o,i)=>gsap.to(o,{scrollTrigger:{trigger:'body',start:'top top',end:'bottom bottom',scrub:1},y:i%2===0?-150:150,ease:'none'}));
+</script>
+</body></html>
 ```
 
----
+## Unsplash Images
+Use real images via `https://images.unsplash.com/photo-PHOTO_ID?w=800&q=80&fit=crop` — always use relevant IDs per industry below. For `<img>` use `object-cover w-full h-full`. For bg use `style="background-image:url(...);background-size:cover"`.
 
-## Components — copy and use as needed
+## Industry Guide — design + sections + images per type
 
-### Navbar (sticky, glass effect)
-```html
-<nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
-  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <a href="#" class="text-xl font-bold font-display gradient-text">LOGO</a>
-    <!-- Desktop links -->
-    <div class="hidden md:flex items-center gap-8">
-      <a href="#features" class="text-sm text-gray-400 hover:text-white transition-colors">Features</a>
-      <a href="#pricing" class="text-sm text-gray-400 hover:text-white transition-colors">Pricing</a>
-      <a href="#" class="bg-white text-black text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-gray-100 transition-colors">Get Started</a>
-    </div>
-    <!-- Mobile hamburger -->
-    <button @click="mobileMenu = !mobileMenu" class="md:hidden text-gray-400">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-    </button>
-  </div>
-  <!-- Mobile menu -->
-  <div x-show="mobileMenu" x-transition class="md:hidden px-6 pb-4 flex flex-col gap-4">
-    <a href="#features" class="text-gray-400 hover:text-white">Features</a>
-    <a href="#pricing" class="text-gray-400 hover:text-white">Pricing</a>
-    <a href="#" class="bg-white text-black text-sm font-semibold px-5 py-2.5 rounded-full text-center">Get Started</a>
-  </div>
-</nav>
-```
+**SaaS / AI Tool** → bg `#0a0a0a`, colors `#667eea→#764ba2`, fonts Inter+Plus Jakarta Sans, style glassmorphism dark | sections: hero(headline+subtext+CTA+stats) → features grid → how-it-works steps → pricing tiers → testimonials → CTA banner → footer | images: abstract tech/code `1181671` `574077` `373543` — use as subtle hero bg or feature illustrations
 
-### Hero Section (dark, animated gradient orbs)
-```html
-<section class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-  <!-- Background orbs -->
-  <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse-slow"></div>
-  <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 2s"></div>
+**Fintech / Finance** → bg `#0d1117`, colors `#2563eb→#1d4ed8`, fonts IBM Plex Sans, style minimal data-dense professional | sections: hero(trust-focused headline+badges) → KPI stats row → features → security/compliance badges → testimonials → pricing → footer | images: business/finance `6801648` `669610` `3943716` — trading screens, city skylines, professional meetings
 
-  <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
-    <!-- Badge -->
-    <div class="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 text-sm text-gray-300 animate-fade-in">
-      <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-      BADGE TEXT HERE
-    </div>
+**Health / Medical / Wellness** → bg `#0d1a1a`, colors `#10b981→#059669`, fonts Figtree+Noto Sans, style clean soft accessible | sections: hero(empathy headline+CTA) → trust badges/certifications → services/features → testimonials → FAQ → contact/booking → footer | images: wellness/health `3822622` `1640770` `4386431` — nature, calm people, medical clean
 
-    <!-- Headline -->
-    <h1 class="text-5xl md:text-7xl font-black font-display mb-6 leading-tight animate-fade-up">
-      Main Headline<br/>
-      <span class="gradient-text">Gradient Part</span>
-    </h1>
+**E-commerce / Product** → bg `#0a0a0a`, colors vibrant brand accent, fonts Rubik+Nunito Sans, style visual-heavy high-contrast | sections: hero(product visual+offer) → product showcase grid → features/benefits → social proof/ratings → comparison table → CTA → footer | images: product/lifestyle `1598515` `1598452` `3962285` — use as product card backgrounds or hero visual
 
-    <!-- Subheading -->
-    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 animate-fade-up" style="animation-delay: 0.2s">
-      Subheading description goes here. Keep it short and punchy.
-    </p>
+**Portfolio / Creative / Agency** → bg `#0a0a0a`, bold accent color, fonts Syne+Manrope, style editorial storytelling | sections: hero(name+role+tagline) → work/projects grid → about/story → skills/services → testimonials → contact → footer | images: creative/design work `1779487` `196644` `3184291` — use as project mockup cards in work grid
 
-    <!-- CTA Buttons -->
-    <div class="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up" style="animation-delay: 0.4s">
-      <a href="#" class="gradient-bg text-white font-semibold px-8 py-4 rounded-full hover:opacity-90 transition-opacity glow animate-gradient">
-        Primary CTA →
-      </a>
-      <a href="#" class="glass text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 transition-colors">
-        Secondary CTA
-      </a>
-    </div>
+**Education / Course** → bg `#0f0f23`, colors `#7c3aed→#4f46e5`, fonts Space Grotesk+DM Sans, style engaging progressive | sections: hero(outcome promise+social proof) → what you'll learn → curriculum/modules → instructor → testimonials → pricing → FAQ → enroll CTA → footer | images: learning/study `4144923` `3769021` `5905492` — students, notebooks, laptops
 
-    <!-- Social proof numbers -->
-    <div class="flex flex-wrap justify-center gap-8 mt-16 animate-fade-up" style="animation-delay: 0.6s">
-      <div class="text-center">
-        <div class="text-3xl font-bold">10K+</div>
-        <div class="text-sm text-gray-500 mt-1">Users</div>
-      </div>
-      <div class="w-px bg-white/10"></div>
-      <div class="text-center">
-        <div class="text-3xl font-bold">99%</div>
-        <div class="text-sm text-gray-500 mt-1">Uptime</div>
-      </div>
-      <div class="w-px bg-white/10"></div>
-      <div class="text-center">
-        <div class="text-3xl font-bold">4.9★</div>
-        <div class="text-sm text-gray-500 mt-1">Rating</div>
-      </div>
-    </div>
-  </div>
-</section>
-```
+**Startup / General** → bg `#0a0a0a`, colors from brand, fonts Space Grotesk+DM Sans, style hero-centric minimal | sections: hero → 3 key benefits → how it works → social proof → CTA → footer | images: team/office `3184418` `1181406` `3182812` — team collaboration, modern workspace
 
-### Features Grid (3 columns, cards with icons)
-```html
-<section id="features" class="py-24 px-6">
-  <div class="max-w-7xl mx-auto">
-    <div class="text-center mb-16" data-aos="fade-up">
-      <p class="text-sm font-semibold text-purple-400 uppercase tracking-widest mb-3">Features</p>
-      <h2 class="text-4xl md:text-5xl font-black font-display mb-4">Everything you need</h2>
-      <p class="text-gray-400 max-w-xl mx-auto">Description of the features section.</p>
-    </div>
+**Food / Restaurant** → bg `#1a0a00`, colors warm `#f59e0b→#ef4444`, fonts Rubik+Nunito Sans, style visual-heavy appetite-first | sections: hero(full-bleed food image+tagline) → menu highlights → story/about → gallery grid → reservations/order CTA → reviews → footer | images: food `1640777` `299347` `1279330` `718742` `769289` — hero needs full-bleed food photo, gallery needs 6+ food images
 
-    <div class="grid md:grid-cols-3 gap-6">
-      <!-- Feature Card -->
-      <div class="glass rounded-2xl p-8 card-hover" data-aos="fade-up" data-aos-delay="0">
-        <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center mb-6">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        </div>
-        <h3 class="text-xl font-bold mb-3">Feature Title</h3>
-        <p class="text-gray-400 leading-relaxed">Feature description goes here. Keep it concise and benefit-focused.</p>
-      </div>
+**Real Estate** → bg `#0f1623`, colors `#0ea5e9→#0284c7`, fonts clean professional sans-serif, style trust-authority visual | sections: hero(location+value prop) → property grid/listings → why choose us → agent profiles → testimonials → contact/map → footer | images: property/architecture `1396122` `323780` `1029599` — use as property listing cards, hero background
 
-      <!-- Repeat cards with data-aos-delay="100", "200" etc -->
-    </div>
-  </div>
-</section>
-```
+## GSAP Classes
+`hero-badge` `hero-title` `hero-sub` `hero-cta` `hero-stats` → hero sequence (set these on hero elements)
+`count-up` + `data-target="N"` → animated counter on any stat span
+`section-heading` → fade up on scroll | `card-group`+`gsap-card` → stagger cards | `pricing-card` → back.out | `testimonial-card` → stagger | `orb` → parallax bg blur
 
-### Pricing Section (2-3 tiers)
-```html
-<section id="pricing" class="py-24 px-6">
-  <div class="max-w-5xl mx-auto">
-    <div class="text-center mb-16" data-aos="fade-up">
-      <h2 class="text-4xl md:text-5xl font-black font-display mb-4">Simple pricing</h2>
-      <p class="text-gray-400">No hidden fees. Cancel anytime.</p>
-    </div>
+## Easing
+`power2.out` default | `power3.out` headlines | `back.out(1.7)` pricing | `none` parallax
 
-    <div class="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-      <!-- Free tier -->
-      <div class="glass rounded-2xl p-8" data-aos="fade-up">
-        <h3 class="text-lg font-bold mb-2">Free</h3>
-        <div class="text-4xl font-black mb-6">$0<span class="text-lg text-gray-400 font-normal">/mo</span></div>
-        <ul class="space-y-3 mb-8">
-          <li class="flex items-center gap-3 text-gray-300"><span class="text-green-400">✓</span> Feature one</li>
-          <li class="flex items-center gap-3 text-gray-300"><span class="text-green-400">✓</span> Feature two</li>
-          <li class="flex items-center gap-3 text-gray-500"><span class="text-gray-600">✗</span> Pro feature</li>
-        </ul>
-        <a href="#" class="block text-center glass border border-white/20 text-white font-semibold px-6 py-3 rounded-full hover:bg-white/10 transition-colors">Get started free</a>
-      </div>
+## CSS Utilities available
+`gradient-text` `gradient-bg` `glass` `glow` `card-hover` `animate-pulse-slow` `animate-float` `animate-gradient`
 
-      <!-- Pro tier (highlighted) -->
-      <div class="gradient-bg rounded-2xl p-8 glow" data-aos="fade-up" data-aos-delay="100">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-bold">Pro</h3>
-          <span class="text-xs bg-white/20 px-3 py-1 rounded-full">Most Popular</span>
-        </div>
-        <div class="text-4xl font-black mb-6">$29<span class="text-lg font-normal opacity-70">/mo</span></div>
-        <ul class="space-y-3 mb-8">
-          <li class="flex items-center gap-3"><span class="text-white">✓</span> Everything in Free</li>
-          <li class="flex items-center gap-3"><span class="text-white">✓</span> Pro feature one</li>
-          <li class="flex items-center gap-3"><span class="text-white">✓</span> Pro feature two</li>
-        </ul>
-        <a href="#" class="block text-center bg-white text-black font-semibold px-6 py-3 rounded-full hover:bg-gray-100 transition-colors">Start free trial</a>
-      </div>
-    </div>
-  </div>
-</section>
-```
+## Image Usage Rules
+Only place images in these specific ways — never randomly:
+- **Hero bg**: `<section style="background-image:url(https://images.unsplash.com/photo-ID?w=1600&q=80&fit=crop);background-size:cover;background-position:center">` + dark overlay div `class="absolute inset-0 bg-black/60"` so text stays readable
+- **Card/grid image**: `<img src="https://images.unsplash.com/photo-ID?w=800&q=80&fit=crop" class="w-full h-48 object-cover rounded-xl mb-4">`
+- **Profile/avatar**: `<img src="..." class="w-16 h-16 rounded-full object-cover">`
+- **Gallery grid**: CSS grid of `<img>` with `object-cover h-64 w-full rounded-2xl`
+- **Never**: floating images with no container, images without `object-cover`, images as decoration without purpose
+- Use industry photo IDs from industry guide — pick the most relevant one per placement
 
-### Testimonials
-```html
-<section class="py-24 px-6">
-  <div class="max-w-7xl mx-auto">
-    <h2 class="text-4xl font-black font-display text-center mb-16" data-aos="fade-up">What people say</h2>
-    <div class="grid md:grid-cols-3 gap-6">
-      <div class="glass rounded-2xl p-8 card-hover" data-aos="fade-up">
-        <div class="flex gap-1 mb-4">★★★★★</div>
-        <p class="text-gray-300 mb-6 leading-relaxed">"Quote goes here. Make it specific and credible."</p>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 gradient-bg rounded-full flex items-center justify-center font-bold text-sm">JD</div>
-          <div>
-            <div class="font-semibold text-sm">John Doe</div>
-            <div class="text-xs text-gray-500">CEO at Company</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-```
-
-### Footer
-```html
-<footer class="border-t border-white/5 py-12 px-6">
-  <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-    <div class="font-bold text-xl gradient-text">LOGO</div>
-    <p class="text-gray-500 text-sm">© 2026 Company. All rights reserved.</p>
-    <div class="flex gap-6">
-      <a href="#" class="text-sm text-gray-500 hover:text-white transition-colors">Privacy</a>
-      <a href="#" class="text-sm text-gray-500 hover:text-white transition-colors">Terms</a>
-      <a href="#" class="text-sm text-gray-500 hover:text-white transition-colors">Contact</a>
-    </div>
-  </div>
-</footer>
-```
-
----
-
-## Rules — follow every time
-1. Always save to `C:/Blopus/output/website/index.html` (create folder if needed)
-2. Always use dark background `#0a0a0a` — never white background unless owner asks
-3. Always use gradient-text for brand name and key headlines
-4. Always use glass cards for features and testimonials
-5. Always add AOS `data-aos="fade-up"` to every section heading and card
-6. Always use animate-pulse-slow orbs in hero background
-7. Never use placeholder lorem ipsum — generate real content based on what the user asks for
-8. After saving, tell owner: "Open `C:/Blopus/output/website/index.html` in your browser"
-9. Single HTML file only — no separate CSS/JS files needed
-10. Mobile responsive by default using Tailwind responsive prefixes (md:, lg:)
+## Rules
+1. Save to `{BLOPUS_DIR}/output/website/index.html`
+2. Build sections the user asked for — don't add sections they didn't ask for
+3. Use industry guide when type is clear; use Startup/General when unclear
+4. Never lorem ipsum — write real content
+5. Apply GSAP classes to every relevant element
+6. `count-up`+`data-target` on every stat number
+7. Single HTML file, mobile responsive via `md:` prefixes
+8. After save: tell owner to open `{BLOPUS_DIR}/output/website/index.html`

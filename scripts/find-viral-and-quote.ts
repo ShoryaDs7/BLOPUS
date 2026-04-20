@@ -6,7 +6,8 @@ import * as path from 'path'
 const CHROME_PROFILE_BASE = path.resolve('./memory-store/chrome-profiles')
 
 async function main() {
-  const handle = 'shoryaDs7'
+  const handle = process.env.OWNER_HANDLE ?? ''
+  if (!handle) { console.error('OWNER_HANDLE not set in .env'); await context.close(); return }
   const profileDir = path.resolve(CHROME_PROFILE_BASE, handle)
   fs.mkdirSync(profileDir, { recursive: true })
 

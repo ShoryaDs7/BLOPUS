@@ -7,7 +7,7 @@ description: Use this skill when the user wants to search YouTube, upload videos
 
 ## Get YouTube service
 ```python
-import sys; sys.path.insert(0, 'C:/Blopus')
+import sys, os; sys.path.insert(0, os.getcwd())
 from google_auth import get_service
 yt = get_service('youtube', 'v3')
 ```
@@ -389,7 +389,7 @@ def list_broadcasts(broadcast_status: str = 'upcoming'):
 ## YouTube Analytics
 
 ```python
-import sys; sys.path.insert(0, 'C:/Blopus')
+import sys, os; sys.path.insert(0, os.getcwd())
 from google_auth import get_service
 analytics = get_service('youtubeAnalytics', 'v2')
 ```

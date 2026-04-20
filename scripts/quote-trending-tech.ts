@@ -5,7 +5,7 @@ import { PlaywrightXClient } from '../adapters/x/PlaywrightXClient'
 
 async function main() {
   const client = new PlaywrightXClient(
-    process.env.X_HANDLE || 'openocta',
+    process.env.X_HANDLE ?? '',
     process.env.X_PASSWORD || ''
   )
 

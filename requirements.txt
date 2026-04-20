@@ -1,16 +1,20 @@
 # Web & scraping
 requests
 beautifulsoup4
+playwright
 
 # Data
 pandas
 matplotlib
 openpyxl
+numpy
 
 # Documents
 python-docx
 python-pptx
 reportlab
+pypdf
+pdfplumber
 
 # Email (Gmail API)
 google-auth
@@ -25,6 +29,15 @@ skia-python
 # YouTube video understanding
 youtube-transcript-api
 google-genai
+
+# AI (Python — used by skills that call Claude directly)
+anthropic
+python-dotenv
+
+# Optional — require system-level installs (install separately when needed)
+# PyGithub        — github.md Python section: pip install PyGithub
+# pdf2image       — pdf.md OCR + pptx.md image export: pip install pdf2image (needs poppler)
+# pytesseract     — pdf.md OCR on scanned PDFs: pip install pytesseract (needs tesseract)
 
 # AI Image Generation (optional — installs on demand when user requests realistic images)
 # torch diffusers transformers accelerate

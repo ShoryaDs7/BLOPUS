@@ -17,7 +17,7 @@ description: Use this skill when the user wants to deploy a website or backend t
 
 ## SURGE — Static HTML Site (zero login, zero API key)
 
-Use when: user has `C:/Blopus/output/website/index.html` and no backend.
+Use when: user has `{BLOPUS_DIR}/output/website/index.html` and no backend.
 
 ### Step 1 — Install Surge
 ```bash
@@ -31,23 +31,24 @@ python -c "import random, string, time; slug = ''.join(random.choices(string.asc
 ```
 Use the output as the domain. Example: `blopus-xkqmvr.surge.sh`
 
-### Step 3 — Read saved credentials (no interactive prompt)
-Surge saves credentials in ~/.netrc after first login. Read them:
+### Step 3 — Get credentials from .env (always do this)
 ```bash
 python -c "
-import re, os
-netrc = open(os.path.expanduser('~/.netrc')).read()
-m = re.search(r'machine surge\.surge\.sh\s+login (\S+)\s+password (\S+)', netrc)
-if m: print(f'SURGE_LOGIN={m.group(1)}'); print(f'SURGE_TOKEN={m.group(2)}')
-else: print('NOT_FOUND')
+import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.environ.get('BLOPUS_DIR', '.'), '.env'))
+login = os.getenv('SURGE_LOGIN', '')
+token = os.getenv('SURGE_TOKEN', '')
+print(f'SURGE_LOGIN={login}')
+print(f'SURGE_TOKEN={token}')
 "
 ```
 
-### Step 4 — Deploy using saved credentials (no prompt)
+### Step 4 — Deploy using credentials (no prompt)
 ```bash
-SURGE_LOGIN=$(python -c "import re,os; netrc=open(os.path.expanduser('~/.netrc')).read(); m=re.search(r'machine surge\.surge\.sh\s+login (\S+)', netrc); print(m.group(1) if m else '')")
-SURGE_TOKEN=$(python -c "import re,os; netrc=open(os.path.expanduser('~/.netrc')).read(); m=re.search(r'machine surge\.surge\.sh\s+password (\S+)', netrc); print(m.group(1) if m else '')")
-SURGE_LOGIN=$SURGE_LOGIN SURGE_TOKEN=$SURGE_TOKEN surge C:/Blopus/output/website blopus-RANDOMSLUG.surge.sh
+SURGE_LOGIN=$(python -c "import os; from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('BLOPUS_DIR','.'),'.env')); print(os.getenv('SURGE_LOGIN',''))")
+SURGE_TOKEN=$(python -c "import os; from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('BLOPUS_DIR','.'),'.env')); print(os.getenv('SURGE_TOKEN',''))")
+SURGE_LOGIN=$SURGE_LOGIN SURGE_TOKEN=$SURGE_TOKEN surge "${BLOPUS_DIR:-.}/output/website" blopus-RANDOMSLUG.surge.sh
 ```
 Replace RANDOMSLUG with the slug generated in Step 2.
 
@@ -57,14 +58,14 @@ Anyone in the world can open it now. Share that link."
 
 ### Update the site later (re-deploy to same URL):
 ```bash
-cmd /c "surge C:/Blopus/output/website blopus-RANDOMSLUG.surge.sh"
+surge "${BLOPUS_DIR:-.}/output/website blopus-RANDOMSLUG.surge.sh"
 ```
 Use the same slug as the first deploy to update in place.
 
 ### Custom name (optional):
 If owner wants a specific name like `fitflow.surge.sh`:
 ```bash
-cmd /c "surge C:/Blopus/output/website fitflow.surge.sh"
+surge "${BLOPUS_DIR:-.}/output/website fitflow.surge.sh"
 ```
 If it fails with "no permission" — name is taken, generate a random one instead.
 
@@ -131,7 +132,7 @@ railway domain
 
 ## RAILWAY — Node.js Backend
 
-Use when: user has `C:/Blopus/output/backend/server.js`.
+Use when: user has `{BLOPUS_DIR}/output/backend/server.js`.
 
 ### Step 1 — Check if Railway CLI installed
 ```bash
@@ -152,28 +153,28 @@ Opens browser — tell owner to sign up free at railway.com then authorize.
 ### Step 3 — Add package.json start script (required by Railway)
 Check if start script exists:
 ```bash
-cmd /c "cd C:/Blopus/output/backend && node -e \"const p=require('./package.json'); console.log(p.scripts?.start || 'MISSING')\""
+cd "${BLOPUS_DIR:-.}/output/backend" && node -e "const p=require('./package.json'); console.log(p.scripts?.start || 'MISSING')"
 ```
 
 If MISSING, add it:
 ```bash
-cmd /c "cd C:/Blopus/output/backend && node -e \"const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.scripts=p.scripts||{}; p.scripts.start='node server.js'; fs.writeFileSync('package.json', JSON.stringify(p,null,2)); console.log('Added start script')\""
+cd "${BLOPUS_DIR:-.}/output/backend" && node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.scripts=p.scripts||{}; p.scripts.start='node server.js'; fs.writeFileSync('package.json', JSON.stringify(p,null,2)); console.log('Added start script')"
 ```
 
 ### Step 4 — Init Railway project
 ```bash
-cmd /c "cd C:/Blopus/output/backend && railway init"
+cd "${BLOPUS_DIR:-.}/output/backend" && railway init
 ```
 When prompted: create a new project, name it anything (e.g. "blopus-backend").
 
 ### Step 5 — Deploy
 ```bash
-cmd /c "cd C:/Blopus/output/backend && railway up"
+cd "${BLOPUS_DIR:-.}/output/backend" && railway up
 ```
 
 ### Step 6 — Get public URL
 ```bash
-cmd /c "cd C:/Blopus/output/backend && railway domain"
+cd "${BLOPUS_DIR:-.}/output/backend" && railway domain
 ```
 This gives a public URL like `https://yourapp.up.railway.app`
 
@@ -184,7 +185,7 @@ Anyone can now hit your API from anywhere."
 
 ### Update backend later (re-deploy):
 ```bash
-cmd /c "cd C:/Blopus/output/backend && railway up"
+cd "${BLOPUS_DIR:-.}/output/backend" && railway up
 ```
 
 ---
@@ -199,12 +200,12 @@ One Railway URL = frontend + API together.
 
 Before deploying, update the frontend API URL:
 ```bash
-cmd /c "powershell -Command \"(Get-Content C:/Blopus/output/website/index.html) -replace 'http://localhost:3001', 'RAILWAY_URL_HERE' | Set-Content C:/Blopus/output/website/index.html\""
+sed -i 's|http://localhost:3001|RAILWAY_URL_HERE|g' "${BLOPUS_DIR:-.}/output/website/index.html"
 ```
 
 Then copy frontend into backend folder:
 ```bash
-cmd /c "xcopy C:/Blopus/output/website C:/Blopus/output/backend/website /E /I /Y"
+cp -r "${BLOPUS_DIR:-.}/output/website" "${BLOPUS_DIR:-.}/output/backend/website"
 ```
 
 Then deploy backend to Railway as above — it will serve both.
@@ -215,15 +216,14 @@ Then deploy backend to Railway as above — it will serve both.
 
 If backend uses secrets (JWT_SECRET, API keys etc):
 ```bash
-cmd /c "cd C:/Blopus/output/backend && railway variables set JWT_SECRET=your-secret-here"
-cmd /c "cd C:/Blopus/output/backend && railway variables set NODE_ENV=production"
+cd "${BLOPUS_DIR:-.}/output/backend" && railway variables set JWT_SECRET=your-secret-here
+cd "${BLOPUS_DIR:-.}/output/backend" && railway variables set NODE_ENV=production
 ```
 
 ---
 
 ## Rules — follow every time
 1. Static HTML only → Netlify. Has server.js → Railway.
-2. Never use & to background processes on Windows — use cmd /c
 3. After deploy always give owner the live URL
 4. If login step opens browser — tell owner to authorize then confirm back
 5. If Railway asks to select environment — choose "production"

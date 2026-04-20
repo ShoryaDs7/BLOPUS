@@ -115,7 +115,7 @@ export class TelegramAdapter {
         // Save to temp location
         const fs = await import('fs')
         const path = await import('path')
-        const tmpDir = path.join(process.env.BLOPUS_DIR ?? 'C:/Blopus', 'tmp')
+        const tmpDir = path.join(process.env.BLOPUS_DIR ?? '.', 'tmp')
         fs.mkdirSync(tmpDir, { recursive: true })
         const savePath = path.join(tmpDir, fileName)
         fs.writeFileSync(savePath, buffer)
@@ -419,7 +419,7 @@ export class TelegramAdapter {
     }
 
     // Direct file send — intercept before brain if message contains a local file path
-    const filePathMatch = text.match(/[A-Za-z]:[\\/][\w\\/\-. ]+\.\w+/)
+    const filePathMatch = text.match(/(?:[A-Za-z]:[\\/]|\/(?!\/))[\w\\/\-. ]+\.\w+/)
     if (filePathMatch) {
       const filePath = filePathMatch[0].replace(/\\/g, '/')
       const fsSync = await import('fs')
@@ -438,17 +438,19 @@ export class TelegramAdapter {
         // Intercept file delivery JSON — e.g. from NotebookLM skill
         // {"telegramFile": "/path/to/file.mp3", "fileType": "audio"}
         // Also check if reply itself contains a local file path to an existing file
-        const replyPathMatch = reply.match(/[A-Za-z]:[\\/][\w\\/\-. ]+\.\w+/)
+        let textReply = reply
+
+        const replyPathMatch = reply.match(/(?:[A-Za-z]:[\\/]|\/(?!\/))[\w\\/\-. ]+\.\w+/)
         if (replyPathMatch) {
           const rPath = replyPathMatch[0].replace(/\\/g, '/')
           const fsCheck = await import('fs')
           if (fsCheck.existsSync(rPath)) {
             await this.sendFile(rPath)
-            return
+            textReply = textReply.replace(replyPathMatch[0], '').trim()
           }
         }
 
-        const strippedReply = reply.replace(/```(?:json)?\s*/g, '').replace(/```/g, '')
+        const strippedReply = textReply.replace(/```(?:json)?\s*/g, '').replace(/```/g, '')
         const fileMatch = strippedReply.match(/\{[^{}]*"telegramFile"\s*:[^{}]*\}/)
         if (fileMatch) {
           try {
@@ -457,7 +459,7 @@ export class TelegramAdapter {
             const fs = await import('fs')
             if (fs.existsSync(filePath)) {
               await this.sendFile(filePath)
-              return
+              textReply = textReply.replace(fileMatch[0], '').trim()
             } else {
               await ctx.reply(`file not found: ${filePath}`).catch(() => {})
               return
@@ -465,7 +467,7 @@ export class TelegramAdapter {
           } catch {}
         }
 
-        const chunks = reply.match(/[\s\S]{1,4000}/g) ?? ['done.']
+        const chunks = (textReply || reply).match(/[\s\S]{1,4000}/g) ?? ['done.']
         for (const chunk of chunks) {
           await ctx.reply(chunk).catch(async () => {
             await ctx.reply(chunk.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&')).catch(() => {})

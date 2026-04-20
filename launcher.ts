@@ -6,7 +6,7 @@
  *
  * Usage:
  *   npm run launch                    — start all creators
- *   CREATOR=openocta npm run launch  — start one specific creator
+ *   CREATOR=yourhandle npm run launch  — start one specific creator
  *
  * Each creator folder must contain:
  *   config.json  — bot identity, personality, platform settings

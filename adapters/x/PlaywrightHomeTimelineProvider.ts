@@ -1,7 +1,7 @@
 /**
  * PlaywrightHomeTimelineProvider — Phase 2 only.
  *
- * Instead of searching by topic, reads tweets directly from @shoryaDs7's
+ * Instead of searching by topic, reads tweets directly from the owner's
  * For You home timeline — exactly like a human scrolling their feed.
  * X's algorithm already curates it for the account's interests.
  */

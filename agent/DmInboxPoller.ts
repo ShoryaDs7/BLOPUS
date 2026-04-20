@@ -50,6 +50,7 @@ export class DmInboxPoller {
     private onNeedsApproval?: (draft: DmDraft) => Promise<void>,
     private ownerHandle?: string,   // the human who built/owns this bot — injected into self-knowledge
   ) {
+    this.loadSeenLastMessage()
     this.loadApprovedHandles()
     this.reconcileStaleDrafts()
   }
@@ -166,6 +167,7 @@ export class DmInboxPoller {
       if (lastSeen === convo.lastMessage) continue
 
       this.seenLastMessage.set(dedupKey, convo.lastMessage)
+      this.saveSeenLastMessage()
       newDms.push({ handle, lastMessage: convo.lastMessage, userId: convo.userId })
     }
 

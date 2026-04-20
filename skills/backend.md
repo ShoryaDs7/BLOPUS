@@ -15,21 +15,21 @@ description: Use this skill when the user wants to build a backend API, server, 
 ## Setup — always do this first
 ```bash
 # Create backend folder
-mkdir -p C:/Blopus/output/backend
-cd C:/Blopus/output/backend
+mkdir -p "${BLOPUS_DIR:-.}/output/backend"
+cd "${BLOPUS_DIR:-.}/output/backend"
 
 # Init project
-cmd /c "cd C:/Blopus/output/backend && npm init -y"
+npm init -y
 
 # Install dependencies
-cmd /c "cd C:/Blopus/output/backend && npm install express better-sqlite3 jsonwebtoken bcryptjs cors dotenv"
+npm install express better-sqlite3 jsonwebtoken bcryptjs cors dotenv
 ```
 
 ---
 
 ## Full Backend Template (server.js)
 
-Always save to `C:/Blopus/output/backend/server.js`:
+Always save to `{BLOPUS_DIR}/output/backend/server.js`:
 
 ```javascript
 const express = require('express')
@@ -325,9 +325,9 @@ async function handleSignup(e) {
 
 ## Start the Server
 
-IMPORTANT — on Windows, never use `&` or `&&` to background a server. Use this exact command:
+IMPORTANT — never background the server. Run it directly:
 ```bash
-cmd /c "cd C:/Blopus/output/backend && node server.js"
+cd "${BLOPUS_DIR:-.}/output/backend" && node server.js
 ```
 
 This runs the server in the foreground. It will keep running until stopped.
@@ -341,11 +341,11 @@ API health check: `http://localhost:3001/api/health`
 ---
 
 ## Rules — follow every time
-1. Always save server to `C:/Blopus/output/backend/server.js`
+1. Always save server to `{BLOPUS_DIR}/output/backend/server.js`
 2. Always install dependencies before running
 3. Always include signup + login + /api/me routes — minimum auth set
 4. Always use bcrypt for passwords — never store plain text
-5. Always tell owner to run: `cd C:/Blopus/output/backend && node server.js`
+5. Always tell owner to run: `cd {BLOPUS_DIR}/output/backend && node server.js`
 6. If user asked for a website too — connect them: update frontend API URL and serve frontend from backend
 7. After starting server tell owner: "Open http://localhost:3001 in browser"
 8. For custom app features — add tables and routes AFTER the base auth setup

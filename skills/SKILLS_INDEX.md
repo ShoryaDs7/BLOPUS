@@ -41,7 +41,6 @@ All available skills for the Telegram brain. Each is a markdown file in this fol
 ## Content Creation
 | Skill | File | What it does |
 |-------|------|-------------|
-| NotebookLM | notebooklm.md | Generate podcasts (MP3), slides, quizzes, flashcards, infographics, mind maps, reports from any URLs/YouTube/text via Google NotebookLM |
 | Resume | resume.md | Generate professional resume PDFs |
 | Video Script | video-script.md | YouTube scripts, hooks, shorts, podcast outlines |
 | Image Gen | image-gen.md | Stable Diffusion local (free) or Replicate/fal.ai |

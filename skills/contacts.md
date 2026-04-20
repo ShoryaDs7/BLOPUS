@@ -7,7 +7,7 @@ description: Use this skill when the user wants to list, search, create, update,
 
 ## Get People service
 ```python
-import sys; sys.path.insert(0, 'C:/Blopus')
+import sys, os; sys.path.insert(0, os.environ.get("BLOPUS_DIR", os.getcwd()))
 from google_auth import get_service
 people = get_service('people', 'v1')
 ```

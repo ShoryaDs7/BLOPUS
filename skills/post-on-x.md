@@ -1,6 +1,6 @@
 ---
 name: post-on-x
-description: Post tweet, reply, or quote tweet on X as @openocta or @shoryaDs7
+description: Post tweet, reply, or quote tweet on X as the bot or owner account
 ---
 
 # Posting on X
@@ -8,14 +8,14 @@ description: Post tweet, reply, or quote tweet on X as @openocta or @shoryaDs7
 ## Tool to use
 `npx tsx tools/x-cli.ts <command> <handle> [args]`
 
-Run from: `C:/Blopus`
+Run from: the Blopus project root (`$BLOPUS_DIR`)
 
 ## Posting a new tweet (x-cli — reliable)
 ```
-cd C:/Blopus && npx tsx tools/x-cli.ts post <handle> "text"
+npx tsx tools/x-cli.ts post <handle> "text"
 ```
-- Bot account handle: `aiblopus`
-- Owner account handle: `shoryaDs7`
+- Bot account handle: value of `BOT_HANDLE` in `.env`
+- Owner account handle: value of `OWNER_HANDLE` in `.env`
 - **ALWAYS count characters before posting. If over 280, NEVER truncate — split into a thread instead.**
 
 ## Splitting into a thread (when content exceeds 280 chars)
@@ -41,5 +41,5 @@ cd C:/Blopus && npx tsx tools/x-cli.ts post <handle> "text"
 3. Pick the tweet with highest engagement from what you see in the screenshot
 4. `browser_snapshot()` — get the element refs for that tweet, click into it to get the tweetId from URL
 
-## BEFORE posting — always tell Shorya
+## BEFORE posting — always confirm with the owner
 "Found: @handle — '[tweet text]' → replying: '[your reply]' → posting now..."

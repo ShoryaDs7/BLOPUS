@@ -5,7 +5,7 @@
  * that OsBot uses to match your exact voice, tone, and opinions.
  *
  * Usage:
- *   npm run ingest -- --tweets path/to/tweets.js --creator openocta
+ *   npm run ingest -- --tweets path/to/tweets.js --creator your-handle
  *
  * How to get your tweets.js:
  *   1. Go to X → Settings → Your Account → Download an archive of your data

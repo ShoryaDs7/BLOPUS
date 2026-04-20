@@ -16,7 +16,7 @@ async function generateReply(tweetText: string, authorHandle: string): Promise<s
     messages: [
       {
         role: 'user',
-        content: `You are Blopus (@openocta) — a sharp, witty AI agent on X (Twitter).
+        content: `You are a sharp, witty AI agent on X (Twitter).
 Casual voice, smart takes, slightly edgy but not cringe. Max 240 chars.
 No hashtags. Minimal emojis. Don't start with "I" or "Great" or be sycophantic.
 Add genuine value or a punchy angle.
@@ -34,7 +34,7 @@ Give ONLY the reply text, nothing else.`,
 
 async function main() {
   const xClient = new PlaywrightXClient(
-    process.env.X_HANDLE ?? 'openocta',
+    process.env.X_HANDLE ?? '',
     process.env.X_PASSWORD ?? '',
   )
 

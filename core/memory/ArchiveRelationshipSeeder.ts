@@ -2,7 +2,7 @@
  * ArchiveRelationshipSeeder — bootstrap RelationshipMemory from Twitter archive.
  *
  * Reads tweets.js (the full Twitter data export), finds every reply ever sent,
- * groups by who Shorya was talking to, computes reputation scores, and seeds
+ * groups by who the owner was talking to, computes reputation scores, and seeds
  * relationships.json. This runs on startup — automatically.
  *
  * When the same person appears in live mentions, OsBot already knows them:

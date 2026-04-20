@@ -13,8 +13,7 @@
  */
 
 import * as dotenv from 'dotenv'
-dotenv.config({ path: './creators/openocta/.env' })
-dotenv.config({ path: './.env', override: false })
+dotenv.config()
 
 import fs from 'fs'
 import path from 'path'
@@ -82,7 +81,7 @@ async function fetchTweetText(context: BrowserContext, tweetId: string): Promise
 }
 
 async function main() {
-  // Inject @openocta cookies
+  // Inject auth cookies from env
   const authToken = process.env.X_AUTH_TOKEN
   const ct0 = process.env.X_CT0
   if (!authToken || !ct0) {

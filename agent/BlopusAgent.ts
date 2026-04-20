@@ -17,11 +17,12 @@ import { RateLimiter } from '../adapters/x/RateLimiter'
 import { TelegramAdapter } from '../adapters/telegram'
 import { XTools } from '../adapters/control/XTools'
 import { startXToolsServer } from '../adapters/control/XToolsServer'
-import { ThreadsClient, ThreadsAdapter } from '../adapters/threads'
+// import { ThreadsClient, ThreadsAdapter } from '../adapters/threads' // Threads disabled — X-only launch. See docs/threads-wiring.md to re-enable.
 import { DecisionEngine } from './DecisionEngine'
 import { AutonomousActivity } from './AutonomousActivity'
 import { ViralReplyHunter } from './ViralReplyHunter'
 import { OwnerViralReplyHunter } from './OwnerViralReplyHunter'
+import { EngagementEngine } from './EngagementEngine'
 import { OwnerDefender } from './OwnerDefender'
 import { PackDiscovery } from './PackDiscovery'
 import { PackChatter } from './PackChatter'
@@ -33,7 +34,6 @@ import { TopicSearchProvider } from '../adapters/x/TopicSearchProvider'
 import { ExampleRetriever } from '../core/rag/ExampleRetriever'
 import { parseTweetsJsFull, analyzePersonalityFull } from '../core/personality/PersonalityIngester'
 import { UserContext } from '../adapters/control/UserContext'
-import { RelationshipMemory } from '../core/memory/RelationshipMemory'
 import { PersonMemoryStore } from '../core/memory/PersonMemoryStore'
 import { seedRelationshipsFromArchive } from '../core/memory/ArchiveRelationshipSeeder'
 import { ingestContextFromArchive } from '../core/memory/ArchiveContextIngestor'
@@ -288,9 +288,20 @@ async function boot(): Promise<void> {
 
   const isOwnerMode = (config as any).mode === 'MODE_B'
 
-  // RAG: load (or auto-build) reply examples for owner mode (Phase 2 only)
+  // Mode 1 (voice): load voice_profile.json → inject into personalityProfile, skip RAG
+  // Mode 2 (rag): load archive → build RAG index (current behaviour)
+  const replyEngineMode = (config as any).replyEngine ?? 'rag'
   let ragRetriever: ExampleRetriever | undefined
-  if (isOwnerMode) {
+  if (isOwnerMode && replyEngineMode === 'voice') {
+    const vpPath = path.resolve(path.dirname(path.resolve(configPath)), 'voice_profile.json')
+    if (fs.existsSync(vpPath)) {
+      if (personalityProfile) personalityProfile.voiceProfile = { ...personalityProfile.voiceProfile, ...JSON.parse(fs.readFileSync(vpPath, 'utf8')) }
+      log('info', `[replyEngine] Mode 1 — voice profile loaded from ${vpPath}`)
+    } else {
+      log('warn', `[replyEngine] Mode 1 set but voice_profile.json not found — falling back to RAG`)
+    }
+  }
+  if (isOwnerMode && replyEngineMode !== 'voice') {
     const ragIndexPath = path.resolve(path.dirname(path.resolve(configPath)), 'rag_index.json')
     const archivePath = process.env.TWITTER_ARCHIVE_PATH ?? path.resolve(path.dirname(path.resolve(configPath)), 'tweets.js')
     ragRetriever = new ExampleRetriever(ragIndexPath)
@@ -298,6 +309,7 @@ async function boot(): Promise<void> {
     if (personalityProfile?.signaturePatterns?.length) {
       ragRetriever.setSignaturePatterns(personalityProfile.signaturePatterns)
     }
+    log('info', `[replyEngine] Mode 2 — RAG loaded`)
   }
 
   const fallbackTemplates = config.personality.replyTemplates ?? {
@@ -319,28 +331,17 @@ async function boot(): Promise<void> {
   const xAdapter = new XAdapter(xClient, config.blopus.handle)
   const branchProvider = new BranchContextProvider()
 
-  // Threads adapter (optional — only if THREADS_ACCESS_TOKEN is set and threads.enabled)
-  const threadsToken = process.env.THREADS_ACCESS_TOKEN
-  const threadsAdapter = (threadsToken && config.threads?.enabled && config.threads.userId)
-    ? new ThreadsAdapter(new ThreadsClient(threadsToken, config.threads.userId, config.blopus.handle))
-    : null
-
-  if (threadsAdapter) {
-    log('info', `Threads adapter active for user ID ${config.threads!.userId}`)
-  }
-
+  // Threads disabled — X-only launch. See docs/threads-wiring.md to re-enable.
+  const threadsAdapter = null
   const xAccountKey = 'x:bot-own'
   const threadsAccountKey = 'threads:owner-own'
 
   // Shared user context — persists what owner says via Telegram across restarts
   const userContext = new UserContext(configPath)
 
-  // Social graph — tracks every person OsBot replies to with quality scores
-  const relationshipMemory = new RelationshipMemory(configPath)
-
   // Per-person deep memory — full conversation history, both sides, per person file
   const memoryStoreDir = path.resolve(path.dirname(path.resolve(configPath)), '../memory-store')
-  const personMemory = new PersonMemoryStore(memoryStoreDir)
+  const personMemory = new PersonMemoryStore(memoryStoreDir, process.env.ANTHROPIC_API_KEY)
 
   // Owner post index — every post ever made, searchable by date/keyword via Telegram
   const postIndex = new OwnerPostIndex(memoryStoreDir)
@@ -383,6 +384,17 @@ async function boot(): Promise<void> {
     config.blopus.handle,
     true,
   )
+
+  // Engagement engine — like / retweet / quote tweet based on voice profile rules
+  const engagementEngine = isOwnerMode ? new EngagementEngine(
+    xAdapter,
+    config.owner.handle,
+    personalityProfile?.likeBehavior as any,
+    (personalityProfile as any)?.retweetBehavior,
+    personalityProfile?.quoteTweetBehavior as any,
+    personalityProfile?.voiceProfile?.synthesized,
+    personalityProfile?.topicKeywords as any,
+  ) : null
 
   // Auto-generate packId if not in config — bot account only
   const configPathResolved = path.resolve(configPath)
@@ -429,10 +441,10 @@ async function boot(): Promise<void> {
   // OsBots autonomously chat with known pack members — memory-aware, no human trigger
   const packChatter = new PackChatter(xAdapter, llmEngine, config.blopus.handle, personMemory, mcpDm ?? undefined)
 
-  // Polls inbox every 20min — replies autonomously (OsBot) or drafts to Telegram (owner)
-  // Owner account: config.blopus.handle === config.owner.handle (running as themselves)
+  // DM replies — disabled until voice profiles are wired (run npm run dm-setup first)
+  // eslint-disable-next-line no-constant-condition
   const isOwnerAccount = config.blopus.handle.toLowerCase() === config.owner.handle.toLowerCase()
-  const dmPoller = mcpDm ? new DmInboxPoller(
+  const dmPoller = (false && mcpDm) ? new DmInboxPoller(
     mcpDm,
     personMemory,
     llmEngine,
@@ -633,12 +645,13 @@ async function boot(): Promise<void> {
   log('info', `OsBot @${config.blopus.handle} ready. Polling every ${config.platform.pollIntervalMinutes}min.`)
   log('info', `Monthly usage: ${rateLimiter.getMonthlyUsage()}/${rateLimiter.getEffectiveBudget()}`)
   log('info', `LLM: ${config.llm.enabled ? config.llm.model : 'disabled (template fallback)'}`)
+  log('info', `Reply engine: ${replyEngineMode === 'voice' ? 'Mode 1 — VOICE (golden examples + behavior rules)' : 'Mode 2 — RAG (archive-based)'}`)
   if (personalityProfile?.behaviorProfile) {
     const bp = personalityProfile.behaviorProfile
     log('info', `[Archive behavior] posts/day=${bp.avgPostsPerDay} | interval=${bp.avgIntervalHours}h | replies/day=${bp.avgRepliesPerDay} | cooldown=${Math.round((24*60)/bp.avgRepliesPerDay)}min | typical hours (UTC)=[${bp.typicalPostingHours.join(',')}]`)
   }
   if (personalityProfile?.dominantTopics?.length) {
-    const configPath = process.env.BLOPUS_CONFIG_PATH ?? './creators/shoryaDs7/config.json'
+    const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
     let replyMode = 'domain'
     try { replyMode = JSON.parse(fs.readFileSync(path.resolve(configPath), 'utf-8')).replyMode ?? 'domain' } catch {}
     if (replyMode === 'domain') {
@@ -681,9 +694,21 @@ async function boot(): Promise<void> {
 
     // Autonomous posting — run every cycle regardless of mention activity
     await autonomousActivity.maybePost(moodEngine.getCurrentMood())
-    await viralReplyHunter.maybeReply(moodEngine.getCurrentMood())
+    // Growth mode only — engagement mode users don't hunt viral tweets
+    const replyStrategyMode = (config as any).replyStrategy ?? 'growth'
+    if (replyStrategyMode !== 'engagement') {
+      await viralReplyHunter.maybeReply(moodEngine.getCurrentMood())
+    }
 
-    // Bot account only (aiblopus) — defend owner, discover pack, chat with pack
+    // Like / retweet / quote tweet
+    // Growth mode: uses viral hunter candidates. Engagement mode: searchFallback finds its own.
+    if (engagementEngine) {
+      const repliedId = viralReplyHunter.lastRepliedTweetId
+      const candidates = viralReplyHunter.lastCandidates.filter(c => c.id !== repliedId)
+      await engagementEngine.run(candidates)
+    }
+
+    // Bot account only — defend owner, discover pack, chat with pack
     if (!isOwnerAccount) {
       await ownerDefender.maybeDefend(moodEngine.getCurrentMood())
       await packDiscovery.maybeDiscover(moodEngine.getCurrentMood())
@@ -705,13 +730,14 @@ async function boot(): Promise<void> {
     )
     memory.updateSinceId(maxId)
 
-    const decisions = mentions
-      .map(m => {
-        const d = decisionEngine.classify(m)
-        log('info', `Mention ${m.tweetId} @${m.authorHandle} → classified as ${d.type}`)
-        return d
-      })
-      .filter(d => {
+    const allDecisions = mentions.map(m => {
+      const d = decisionEngine.classify(m)
+      log('info', `Mention ${m.tweetId} @${m.authorHandle} → classified as ${d.type}`)
+      return d
+    })
+    const decisions: typeof allDecisions = []
+    for (const d of allDecisions) {
+      const keep = await (async () => {
         if (d.type === 'IGNORE') {
           log('info', `Skipping ${d.mention.tweetId}: IGNORE (not a trigger)`)
           return false
@@ -720,18 +746,73 @@ async function boot(): Promise<void> {
           log('info', `Skipping ${d.mention.tweetId}: already replied`)
           return false
         }
-        // MODE_B (owner account): only reply if the ROOT tweet was posted by the owner
-        // This ensures we only engage in threads that @shoryaDs7 started, not threads
-        // where they replied to someone else and a third party replied to that reply
+        // MODE_B (owner account): filter based on replyBackRules from interview
         if (isOwnerMode) {
+          const rules = personalityProfile?.voiceProfile?.replyBackRules
           const root = d.mention.threadContext?.rootTweet
-          if (!root || root.authorHandle?.toLowerCase() !== config.blopus.handle.toLowerCase()) {
-            log('info', `Skipping ${d.mention.tweetId}: MODE_B — thread not started by owner`)
-            return false
+          const isOwnPost = !!(root && root.authorHandle?.toLowerCase() === config.blopus.handle.toLowerCase())
+          const isDirectMention = !d.mention.inReplyToTweetId
+          const isReplyToReply = !isOwnPost && !isDirectMention
+
+          // Evaluate condition — always LLM, reads intent with full context
+          const rootText = root?.text ?? ''
+          const checkCondition = async (condition: string, text: string): Promise<boolean> => {
+            try {
+              const context = rootText ? `Original post: "${rootText.slice(0, 200)}"\nComment on it: "${text.slice(0, 300)}"` : `Comment: "${text.slice(0, 300)}"`
+              const res = await llmEngine['client'].messages.create({
+                model: 'claude-haiku-4-5-20251001', max_tokens: 5,
+                messages: [{ role: 'user', content: `You are deciding whether to reply to a comment. Consider the full context — a comment can express doubt or disagreement without a question mark.\nCondition to reply: "${condition}"\n${context}\nDoes this comment meet the condition? Reply only YES or NO.` }],
+              })
+              const ans = res.content[0].type === 'text' ? res.content[0].text.trim().toUpperCase() : 'NO'
+              return ans.startsWith('YES')
+            } catch { return false }
+          }
+
+          if (rules) {
+            // neverReplyTo — check first
+            if (rules.neverReplyTo?.length) {
+              const handle = d.mention.authorHandle.toLowerCase()
+              if (rules.neverReplyTo.some((h: string) => h.replace('@', '').toLowerCase() === handle)) {
+                log('info', `Skipping ${d.mention.tweetId}: replyBackRules — @${d.mention.authorHandle} in neverReplyTo`)
+                return false
+              }
+            }
+            if (isOwnPost) {
+              if (!rules.replyToOwnPostComments) {
+                log('info', `Skipping ${d.mention.tweetId}: replyBackRules — own post comments disabled`)
+                return false
+              }
+              if (rules.ownPostCommentCondition) {
+                const met = await checkCondition(rules.ownPostCommentCondition, d.mention.text)
+                if (!met) {
+                  log('info', `Skipping ${d.mention.tweetId}: replyBackRules — own post condition not met`)
+                  return false
+                }
+              }
+            } else if (isReplyToReply) {
+              if (!rules.replyToRepliesOnOthers) {
+                log('info', `Skipping ${d.mention.tweetId}: replyBackRules — replies on others disabled`)
+                return false
+              }
+              if (rules.replyToRepliesCondition) {
+                const met = await checkCondition(rules.replyToRepliesCondition, d.mention.text)
+                if (!met) {
+                  log('info', `Skipping ${d.mention.tweetId}: replyBackRules — replies-on-others condition not met`)
+                  return false
+                }
+              }
+            }
+          } else {
+            if (!isOwnPost) {
+              log('info', `Skipping ${d.mention.tweetId}: MODE_B — thread not started by owner`)
+              return false
+            }
           }
         }
         return true
-      })
+      })()
+      if (keep) decisions.push(d)
+    }
 
     if (decisions.length === 0) {
       log('debug', 'All mentions filtered out.')
@@ -740,13 +821,12 @@ async function boot(): Promise<void> {
 
     const prioritized = decisionEngine.prioritize(decisions).slice(0, rateLimiter.getCycleLimit())
 
-    // Guard against same tweetId being queued twice in one cycle
-    // (Twitter API sometimes returns duplicate mentions; recordReply is async so hasReplied won't catch it mid-loop)
+    // Guard against same tweetId or same conversation being replied to twice in one cycle
     const queuedThisCycle = new Set<string>()
 
     for (const decision of prioritized) {
-      if (queuedThisCycle.has(decision.mention.tweetId)) {
-        log('info', `Skipping ${decision.mention.tweetId}: duplicate in this cycle`)
+      if (queuedThisCycle.has(decision.mention.tweetId) || queuedThisCycle.has(decision.mention.conversationId)) {
+        log('info', `Skipping ${decision.mention.tweetId}: already replied to this conversation this cycle`)
         continue
       }
 
@@ -781,7 +861,7 @@ async function boot(): Promise<void> {
         const emptyReply = EMPTY_MENTION_REPLIES[Math.floor(Math.random() * EMPTY_MENTION_REPLIES.length)]
         log('info', `Empty mention from @${decision.mention.authorHandle} — firing confused response`)
         log('debug', `Empty reply text: "${emptyReply}"`)
-        queuedThisCycle.add(decision.mention.tweetId)
+        queuedThisCycle.add(decision.mention.tweetId); queuedThisCycle.add(decision.mention.conversationId)
         if (!isDryRun) {
           await xAdapter.postReply({ text: emptyReply, inReplyToTweetId: decision.mention.tweetId })
           rateLimiter.recordPost()
@@ -822,39 +902,30 @@ async function boot(): Promise<void> {
 
       // Conversation reply cap — prevent infinite bot loops
       // Owner is never capped. Known bots (Grok, AI agents, spam pattern) get cap of 2.
-      // Everyone else: 3. RelationshipMemory detects spam pattern over time.
       const isOwner = decision.mention.authorHandle.toLowerCase() === config.owner.handle.toLowerCase()
       const handleLower = decision.mention.authorHandle.toLowerCase()
       const BOT_HANDLE_PATTERNS = ['grok', 'bot', '_ai', 'ai_', 'gpt', 'claude', 'agent', 'llm', 'assistant']
       const looksLikeBot = BOT_HANDLE_PATTERNS.some(p => handleLower.includes(p))
-      const isKnownSpammer = relationshipMemory.isBotLike(decision.mention.authorHandle)
+      // Spam pattern: high replies-per-conversation ratio from PersonMemoryStore data
+      const personMem = personMemory.load(decision.mention.authorHandle)
+      const isKnownSpammer = personMem && personMem.conversationCount > 0
+        ? (personMem.totalInteractions / personMem.conversationCount) >= 4
+        : false
       const isBot = looksLikeBot || isKnownSpammer
-      const MAX_REPLIES_PER_CONVERSATION = isOwner ? Infinity : isBot ? 2 : 3
+      const replyBackRules = personalityProfile?.voiceProfile?.replyBackRules
+      const configuredLimit = replyBackRules?.conversationLimit ?? 3
+      const MAX_REPLIES_PER_CONVERSATION = isOwner ? Infinity : isBot ? 2 : configuredLimit
       const convReplyCount = memory.getConversationReplyCount(decision.mention.conversationId)
       if (convReplyCount >= MAX_REPLIES_PER_CONVERSATION) {
         log('info', `Skipping @${decision.mention.authorHandle} — conv cap reached (${convReplyCount}/${MAX_REPLIES_PER_CONVERSATION})${isBot ? ' [bot]' : ''} in conv ${decision.mention.conversationId}`)
-        // Still record this as a negative interaction — spamming after cap = bad signal
-        // This makes the reputation score go negative even without OsBot replying
-        relationshipMemory.recordInteraction(decision.mention.authorHandle, -1, false)
         continue
       }
 
-      // On the final reply: bots get a canned exit line, humans get a context-aware LLM closer
-      const BOT_EXIT_LINES = [
-        'ok fine. you win. i have 100 other things going on.',
-        'alright alright. you outlasted me. respect.',
-        'ok i\'m actually done here. you win this one.',
-        'fine. i\'m tired. you got it.',
-        'this could go forever but i genuinely have places to be. you win.',
-        'ok you clearly have more time than me. noted. i\'m out.',
-      ]
       const isLastReply = convReplyCount === MAX_REPLIES_PER_CONVERSATION - 1
 
       // Load full per-person memory — every conversation, both sides, tone patterns
       const personContext = personMemory.getContextForClaude(decision.mention.authorHandle)
-
-      // Fall back to shallow relationship context if no deep memory yet
-      const relationshipContext = personContext || relationshipMemory.getRelationshipContext(decision.mention.authorHandle)
+      const relationshipContext = personContext
 
       // Check if this mention is a reply to one of OsBot's own autonomous posts
       // If yes, inject the original post text so OsBot knows what it said and why
@@ -901,9 +972,7 @@ async function boot(): Promise<void> {
       }
 
       // Generate reply via LLM (or fallback)
-      let replyText = isLastReply && isBot
-        ? BOT_EXIT_LINES[Math.floor(Math.random() * BOT_EXIT_LINES.length)]
-        : await llmEngine.generateReply({
+      let replyText = await llmEngine.generateReply({
         mentionText: decision.mention.text,
         authorHandle: decision.mention.authorHandle,
         authorId: decision.mention.authorId,
@@ -927,6 +996,15 @@ async function boot(): Promise<void> {
         replyText = replyText.slice(0, 280)
       }
 
+      // Save exchange immediately so subsequent mentions in the same batch see this context
+      personMemory.recordExchange(
+        decision.mention.authorHandle,
+        decision.mention.text,
+        replyText,
+        decision.mention.tweetId,
+        'x',
+      )
+
       // Schedule with human delay
       const delayMs = computeHumanDelay(config, moodEngine.getDelayMultiplier())
       const fireAt = new Date(Date.now() + delayMs).toISOString()
@@ -936,7 +1014,7 @@ async function boot(): Promise<void> {
       log('debug', `Reply text: "${replyText}"`)
 
       // Mark as queued so duplicates in this same cycle are skipped
-      queuedThisCycle.add(decision.mention.tweetId)
+      queuedThisCycle.add(decision.mention.tweetId); queuedThisCycle.add(decision.mention.conversationId)
 
       // Persist pending reply BEFORE timer (crash-safe)
       memory.addPendingReply({
@@ -983,24 +1061,6 @@ async function boot(): Promise<void> {
 
           memory.markPendingSent(pendingId)
           rateLimiter.recordPost()
-
-          // Update social graph — score this interaction and record context
-          const intScore = relationshipMemory.scoreInteraction(decision.mention.text, convReplyCount)
-          const isNewConv = convReplyCount === 0
-          const topicWords = extractTopics([decision.mention.text])
-          const highlight = isNewConv && topicWords.length > 0
-            ? `first met in thread ${decision.mention.conversationId} — topic: ${topicWords.slice(0, 3).join(', ')}`
-            : undefined
-          relationshipMemory.recordInteraction(decision.mention.authorHandle, intScore, isNewConv, highlight)
-
-          // Save full exchange to per-person deep memory (both sides — what they said + what OsBot replied)
-          personMemory.recordExchange(
-            decision.mention.authorHandle,
-            decision.mention.text,
-            replyText,
-            decision.mention.tweetId,
-            'x',
-          )
 
           // Append to owner post index — grows the searchable history going forward
           postIndex.append({

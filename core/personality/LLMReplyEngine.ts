@@ -121,10 +121,32 @@ export interface VoiceProfile {
     onControversial: string
   }
   goldenExamples: string[]
+  neverReplyTypes?: string[]
+  tagUsagePattern?: string
+  replyBackRules?: {
+    replyToOwnPostComments: boolean
+    ownPostCommentCondition: string
+    replyToRepliesOnOthers: boolean
+    replyToRepliesCondition: string
+    conversationLimit: number
+    neverReplyTo: string[]
+    confirmedAt: string
+  }
   bannedPhrases: string[]
   neverTopics: string[]
   synthesized: string   // Claude's summary paragraph — injected directly into LLM prompt
   confirmedAt: string
+  replyBehavior?: {
+    synthesized: string  // reply-specific behaviors — injected into reply prompts only, not posts/DMs
+  }
+  originalPostProfile?: {
+    topics: string[]
+    postSourceType?: string
+    formatStyle: string
+    triggers: string
+    neverAbout: string[]
+    confirmedPostsPerDay: number
+  }
 }
 
 export interface QuoteTweetBehavior {
@@ -359,8 +381,12 @@ export class LLMReplyEngine {
             ? `\n- NEVER use these (you said so yourself): ${vp.bannedPhrases.join(', ')}`
             : ''
 
+          const replyBehaviorBlock = vp?.replyBehavior?.synthesized
+            ? `\nHOW YOU REPLY (your specific reply patterns):\n${vp.replyBehavior.synthesized}\n`
+            : ''
+
           return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot.
-${vp ? `\nYOUR CONFIRMED VOICE:\n${vp.synthesized}\n` : ''}
+${vp ? `\nYOUR WRITING STYLE:\n${vp.synthesized}\n` : ''}${replyBehaviorBlock}
 ABSOLUTE RULES (never break these):
 - The tweet text shown to you IS the full tweet. You CAN read it. React to it directly.
 - NEVER say you cannot see something, cannot read something, or need more context.
@@ -383,7 +409,7 @@ ${(vp?.replyLength ?? stats.medianReplyLength) ? `- length: ${vp?.replyLength ??
 - You are a person texting, not a pundit declaring facts. Write the way the examples above sound — match their energy, their length, their personal voice exactly.
 - If you agree with someone, say it in one casual line. Never write 2+ structured declarative sentences in a row.
 ${sigPatterns.length ? `\nSignature patterns — use ONLY when it fits naturally:\n${sigPatterns.map(sp => `"${sp.phrase}": ${sp.usedFor}${sp.neverUsedFor ? `. never for: ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
-${useGrokTag ? `@grok rule: ONLY tag @grok when the tweet is about AI tools, a factual claim you'd want verified, or an AI comparison. NEVER on celebrity, appearance, sports, or entertainment content. When in doubt — don't.` : ''}
+${ownerProfile?.voiceProfile?.tagUsagePattern ? `Tagging rule (from your interview): ${ownerProfile.voiceProfile.tagUsagePattern}` : useGrokTag ? `@grok rule: ONLY tag @grok when the tweet is about AI tools, a factual claim you'd want verified, or an AI comparison. NEVER on celebrity, appearance, sports, or entertainment content. When in doubt — don't.` : ''}
 Reply exactly how the examples above sound. No AI reveal. Always reply — never output [SKIP].`
         })()
       : `You are OsBot — sharp, skeptical debate participant on X. Mood: ${mood}.\n\n` +
@@ -396,13 +422,13 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         `NEVER use these AI-sounding phrases: ${AI_BANNED_PHRASES.slice(0, 20).join(', ')}\n` +
         `NEVER say you cannot see the tweet or need more context. The tweet text shown is all you get — make a confident take on it.`
 
-    // RAG: retrieve diverse real examples — inject into system prompt only
-    // Token budget scales with the median length of retrieved examples.
-    // lowConfidence = archive has almost no evidence of owner engaging with this topic — skip.
+    // Mode 1 (voice): voiceProfile present → skip RAG entirely, golden examples already in system prompt
+    // Mode 2 (rag): retrieve archive examples, enforce lowConfidence gate
     let ragBlock = ''
     let dynamicMaxTokens = 80
     let archiveMedianLength = 60  // fallback — overwritten from archive below
-    if (this.isOwnerMode && this.ragRetriever) {
+    const isVoiceMode = !!(ownerProfile?.voiceProfile)
+    if (!isVoiceMode && this.isOwnerMode && this.ragRetriever) {
       const rag: RetrievalResult = this.ragRetriever.retrieveWithFormat(tweet.text, 10)
       if (rag.lowConfidence) {
         console.log(`[LLMReplyEngine] Skipping — only ${rag.topicCoverage} archive matches for this topic`)
@@ -415,6 +441,10 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         dynamicMaxTokens = rag.medianLength < 60 ? 80 : rag.medianLength < 150 ? 150 : 300
         archiveMedianLength = rag.medianLength
       }
+    }
+    if (isVoiceMode) {
+      dynamicMaxTokens = 200
+      archiveMedianLength = 60
     }
 
     try {
@@ -440,11 +470,13 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       const content = response.content[0]
       if (content.type !== 'text') return ''
       const raw = cleanReply(content.text)
-      // Fragment guard: too short relative to archive median
-      const fragmentThreshold = Math.floor(archiveMedianLength * 0.3)
-      if (raw.length < fragmentThreshold) {
-        console.log(`[LLMReplyEngine] Dropping reply — too short (${raw.length} chars): "${raw}"`)
-        return ''
+      // Fragment guard: too short relative to archive median (skipped in voice mode — short replies are valid)
+      if (!isVoiceMode) {
+        const fragmentThreshold = Math.floor(archiveMedianLength * 0.3)
+        if (raw.length < fragmentThreshold) {
+          console.log(`[LLMReplyEngine] Dropping reply — too short (${raw.length} chars): "${raw}"`)
+          return ''
+        }
       }
       // Cut-off guard: reply ends mid-sentence (comma, conjunction, preposition = hit max_tokens)
       if (/[,;]$|(\b(and|but|or|so|because|like|when|that|which|who|if|as)\s*)$/i.test(raw.trimEnd())) {
@@ -579,6 +611,19 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         ? `\nYour post topics (what you actually write original posts about):\n${postTopics.map(t => `- ${t}`).join('\n')}\nPick ONE of these that best fits today's current events. If no current events match any topic, pick the one you feel like writing a hot take or original opinion about today.\n`
         : ''
 
+      // Interview-confirmed original post profile (overrides/refines archive inference)
+      const opp = pp?.voiceProfile?.originalPostProfile
+      const oppBlock = opp ? [
+        opp.synthesized ? `Your confirmed post style: ${opp.synthesized}` : '',
+        opp.formatStyle ? `Your original post format: ${opp.formatStyle}` : '',
+        opp.neverAbout?.length ? `NEVER write original posts about: ${opp.neverAbout.slice(0, 20).join(', ')}` : '',
+      ].filter(Boolean).join('\n') + '\n' : ''
+
+      // Golden examples from original post interview — highest priority style reference
+      const oppExamplesBlock = opp?.goldenExamples?.length
+        ? `\nYour confirmed post examples (match THESE exactly — written by you in your interview):\n${opp.goldenExamples.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}\n`
+        : ''
+
       // Burst context: if today's events match topics that historically triggered burst posting
       const burstContext = (bp?.burstSampleTweets?.length && ctx.currentEvents?.length)
         ? `\nWhen something big happened in your world, you posted more than usual. Here are examples of what you posted during those high-activity bursts:\n${bp.burstSampleTweets.slice(0, 5).map(t => `- ${t}`).join('\n')}\nIf today's news feels like one of those moments, match that energy.\n`
@@ -594,6 +639,8 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         (memoryBlock ? `${memoryBlock}\n\n` : '') +
         (eventsLine ? `${eventsLine}\n\n` : '') +
         postTopicsLine +
+        (oppBlock ? `${oppBlock}\n` : '') +
+        oppExamplesBlock +
         burstContext +
         styleRef +
         `\nWrite one original post in your real voice. It must sound exactly like the examples above.\n\n` +
@@ -699,9 +746,9 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
 
       // If interview voice profile exists, use it as the primary signal
       const voiceBlock = vp
-        ? `YOUR CONFIRMED VOICE (locked in by you during setup):
+        ? `YOUR WRITING STYLE (locked in by you during setup):
 ${vp.synthesized}
-
+${vp.replyBehavior?.synthesized ? `\nHOW YOU REPLY (your specific reply patterns):\n${vp.replyBehavior.synthesized}\n` : ''}
 HOW YOU RESPOND TO DIFFERENT TWEET TYPES:
 - News/topic tweet you have a take on: ${vp.behaviorPatterns.onNewsWithTake}
 - Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}

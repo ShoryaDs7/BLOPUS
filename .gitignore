@@ -20,28 +20,46 @@ tmp_*
 temp_*
 notes/
 step_data.json
+snap_tabs.md
 
 # Unrelated Python scripts
 *.py
+!google_auth.py
 
 # Credentials / secrets
 .env
 .env.*
 client_secret*
 *.json.bak
-scripts/upload_yt_script.js
 
 # Not ready for public yet
 README.md
 
 # Personal data files
-config/personality_profile.json
-test/reply_audit.json
+config/
+
+# Dev test scripts — personal, not for public
+test/
+__tests__/
+scripts/testIntegration.ts
+scripts/testRealIRL.ts
+scripts/create_ai_doc.js
+scripts/do_morning_brief.ts
 
 # Unused platform adapters
 adapters/discord/
 adapters/reddit/
 adapters/threads/
+adapters/notebooklm/
+
+# Developer docs — internal only
+docs/
+
+# Dead code — no imports anywhere
+adapters/control/AgentBrain.ts
+adapters/control/WizardBrain.ts
+adapters/control/ClaudeBridge.ts
+adapters/control/ControlAdapter.ts
 agent/BlopusAgentDiscord.ts
 agent/BlopusAgentReddit.ts
 agent/run-blopus-discord.ts
@@ -53,3 +71,4 @@ claude-plugins-official/
 .claude-api-home/
 .claude/
 .playwright-mcp/
+scripts/upload_yt_script.js
