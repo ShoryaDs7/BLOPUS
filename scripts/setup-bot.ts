@@ -221,7 +221,7 @@ async function runReplyBehaviorInterview(
   askFn: (q: string) => Promise<string>
 ): Promise<{ replyMode: string, domainTopics: string[], neverTopics: string[], repliesPerDay: number }> {
 
-  section(8, 'Reply targeting (Growth mode)')
+  section(10, 'Reply targeting (Growth mode)')
   console.log(`
   Growth mode: Blopus hunts viral tweets in your bot's topics and replies to get discovered.
 
@@ -304,9 +304,21 @@ async function main() {
   Required to run the bot and conduct the personality interview.
   Get it from: https://console.anthropic.com → API Keys
 `)
-  const anthropicKey = await askRequired('Anthropic API Key')
-  const setupClient = new Anthropic({ apiKey: anthropicKey })
-  console.log('  ✓ API key saved\n')
+  let anthropicKey = ''
+  let setupClient!: Anthropic
+  while (true) {
+    anthropicKey = await askRequired('Anthropic API Key')
+    setupClient = new Anthropic({ apiKey: anthropicKey })
+    console.log('  Verifying API key...')
+    try {
+      await setupClient.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] })
+      console.log('  ✓ API key valid\n')
+      break
+    } catch (e: any) {
+      console.log(`  ✗ Invalid key: ${(e.message ?? '').slice(0, 80)}`)
+      console.log('  Get your key at: https://console.anthropic.com → API Keys\n')
+    }
+  }
 
   // ── Step 2: Bot handle ────────────────────────────────────
   section(2, 'Bot X handle')
@@ -431,14 +443,15 @@ async function main() {
   const telegramToken  = await askRequired('Telegram bot token')
   const telegramChatId = await askRequired('Your Telegram chat ID (numeric)')
 
-  // ── Step 8: Bot personality interview ────────────────────
+  // ── Step 9: Bot personality interview ────────────────────
+  section(9, 'Bot personality interview')
   const botPersonality = await runBotPersonalityInterview(anthropicKey, botHandle, ask)
 
-  // ── Step 9: Reply behavior (growth mode) ─────────────────
+  // ── Step 10: Reply behavior (growth mode) ────────────────
   const { replyMode, domainTopics, neverTopics, repliesPerDay } =
     await runReplyBehaviorInterview(setupClient, botPersonality, ask)
 
-  // ── Step 10: Quote tweets ─────────────────────────────────
+  // ── Step 11: Quote tweets ─────────────────────────────────
   let quoteTweetEnabled = false
   if (!await askSkip('QUOTE TWEETS — should the bot quote tweet others?', ask)) {
     console.log(`
@@ -453,8 +466,8 @@ async function main() {
     console.log('  Skipped — quote tweeting disabled.\n')
   }
 
-  // ── Step 11: Optional extras ──────────────────────────────
-  section(11, 'GitHub  (optional)')
+  // ── Step 12: Optional extras ──────────────────────────────
+  section(12, 'GitHub  (optional)')
   console.log(`
   Skip if you don't need it.
   With it: say "create a repo called X", "push my changes",
@@ -467,7 +480,7 @@ async function main() {
 `)
   const githubToken = await askOptional('GitHub Personal Access Token')
 
-  section(11, 'Railway deploy token  (optional)')
+  section(13, 'Railway deploy token  (optional)')
   console.log(`
   Skip if you don't need it.
   With it: say "deploy this to Railway" — bot spins up a server,
@@ -479,7 +492,7 @@ async function main() {
   const railwayToken = await askOptional('Railway token')
 
   // ── Step 12: Google Workspace (optional) ──────────────────
-  section(12, 'Google Workspace — Gmail, Calendar, Drive + more  (optional)')
+  section(14, 'Google Workspace — Gmail, Calendar, Drive + more  (optional)')
   console.log(`
   Skip if you don't need it.
   With it: "send an email to X", "schedule a meeting tomorrow 3pm",
@@ -540,7 +553,7 @@ async function main() {
   }
 
   // ── Step 13: Surge (optional) ─────────────────────────────
-  section(13, 'Surge  (optional — for static site deploys)')
+  section(15, 'Surge  (optional — for static site deploys)')
   console.log(`
   Skip if you don't need it.
   With it: say "deploy this website" — bot publishes it instantly
@@ -565,7 +578,7 @@ async function main() {
   if (surgeLogin) console.log('  ✓ Surge credentials found')
 
   // ── Write .env ────────────────────────────────────────────
-  section(14, 'Writing config files')
+  section(16, 'Writing config files')
 
   const envLines = [
     `# Blopus Bot — ${creatorName}`,

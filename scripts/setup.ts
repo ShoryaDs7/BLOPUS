@@ -1313,10 +1313,22 @@ async function main() {
   Get yours free at: https://console.anthropic.com → API Keys → Create Key
   The key starts with: sk-ant-...
 `)
-  const anthropicKey = await askRequired('Anthropic API Key (sk-ant-...)')
-  process.env.ANTHROPIC_API_KEY = anthropicKey
-  const setupClient = new Anthropic({ apiKey: anthropicKey })
-  console.log('  Claude activated — guiding the rest of setup.\n')
+  let anthropicKey = ''
+  let setupClient!: Anthropic
+  while (true) {
+    anthropicKey = await askRequired('Anthropic API Key (sk-ant-...)')
+    process.env.ANTHROPIC_API_KEY = anthropicKey
+    setupClient = new Anthropic({ apiKey: anthropicKey })
+    console.log('  Verifying API key...')
+    try {
+      await setupClient.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] })
+      console.log('  ✓ API key valid — Claude activated.\n')
+      break
+    } catch (e: any) {
+      console.log(`  ✗ Invalid key: ${(e.message ?? '').slice(0, 80)}`)
+      console.log('  Get your key at: https://console.anthropic.com → API Keys\n')
+    }
+  }
 
   // ── Step 2: Mode ─────────────────────────────────────────────
 
@@ -1686,7 +1698,7 @@ async function main() {
   let replyStrategy: 'growth' | 'engagement' | 'none' = 'growth'
 
   if (mode === 'owner' || mode === 'both') {
-    section(9, 'How do you use replies?')
+    section(11, 'How do you use replies?')
     console.log(`
   1 · Growth mode     — you reply to OTHER people's viral tweets to get discovered
                         Best for: accounts under ~10k followers trying to grow
@@ -1724,7 +1736,7 @@ async function main() {
   if (mode === 'owner' || mode === 'both') {
     // ── Domain filter — growth mode only ─────────────────────
     if (replyStrategy === 'growth') {
-      section(10, 'Reply targeting')
+      section(12, 'Reply targeting')
 
       const archiveReplyTopics = personalityProfile?.replyTopics ?? personalityProfile?.dominantTopics ?? []
 
