@@ -17,7 +17,7 @@
     "ingest": "tsx scripts/ingestPersonality.ts",
     "ingest:dms": "tsx scripts/ingestDMs.ts",
     "test": "jest --passWithNoTests",
-    "postinstall": "pip install -r requirements.txt -q && npm install -g surge @railway/cli --quiet 2>&1 | tail -2"
+    "postinstall": "pip install -r requirements.txt -q 2>/dev/null || echo \"[blopus] Python deps skipped (pip not found — install Python if using Gmail/Calendar skills)\""
   },
   "keywords": [
     "twitter",
@@ -44,7 +44,7 @@
     "snoowrap": "^1.23.0",
     "twitter-api-v2": "^1.17.2",
     "uuid": "^9.0.1",
-    "zod": "^3.22.4"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
