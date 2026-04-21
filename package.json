@@ -17,7 +17,7 @@
     "ingest": "tsx scripts/ingestPersonality.ts",
     "ingest:dms": "tsx scripts/ingestDMs.ts",
     "test": "jest --passWithNoTests",
-    "postinstall": "pip install -r requirements.txt -q 2>/dev/null || echo \"[blopus] Python deps skipped (pip not found — install Python if using Gmail/Calendar skills)\""
+    "postinstall": "node scripts/postinstall.js"
   },
   "keywords": [
     "twitter",
