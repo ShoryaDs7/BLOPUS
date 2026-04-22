@@ -1410,8 +1410,11 @@ async function main() {
      (If you skip this step, your token will be Read-only and posting will fail)
 
   5. Go to "Keys and Tokens" tab:
-     · Under "OAuth 1.0 Keys" → click Show → copy Consumer Key + Secret
+     · Under "OAuth 1.0 Keys" → click Show to reveal Consumer Key + Secret
+       (if Show is not visible or fields look empty → click Regenerate)
      · Under "Access Token" → click Generate → copy Access Token + Secret
+       (if it says "Read" next to the token → you must regenerate it after
+        setting Read+Write permissions in step 4, otherwise posting will fail)
 
   6. Add credits (required to use the API):
      → Left sidebar → Billing → Credits → add at least $5
