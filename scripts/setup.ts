@@ -1449,11 +1449,15 @@ async function main() {
   Takes 30 seconds to grab.
 
   How to get them:
-  1. Open x.com in Chrome/Edge — make sure you are logged in as yourself
-  2. Press F12 → click the "Application" tab in the top menu bar
-  3. Left sidebar → Storage → Cookies → click "https://x.com"
-  4. Find "auth_token" in the list → click it → copy the entire Value
-  5. Find "ct0" in the list → click it → copy the entire Value
+  1. Open x.com in Chrome/Edge/Brave — make sure you are logged in as yourself
+  2. Open DevTools:
+       Windows/Linux: press F12  (if F12 doesn't work: press Fn+F12)
+       Mac:           press Cmd+Option+I
+       Any browser:   right-click anywhere on the page → "Inspect"
+  3. Click the "Application" tab in the top menu bar of DevTools
+  4. Left sidebar → Storage → Cookies → click "https://x.com"
+  5. Find "auth_token" in the list → click it → copy the entire Value
+  6. Find "ct0" in the list → click it → copy the entire Value
 `)
   const xAuthToken = await askRequired('auth_token value (long string of letters/numbers)')
   const xCt0       = await askRequired('ct0 value (very long string)')
