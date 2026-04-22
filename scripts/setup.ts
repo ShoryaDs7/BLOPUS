@@ -1403,8 +1403,8 @@ async function main() {
      → App permissions: select "Read and write and Direct message"
      → Type of App: select "Web App, Automated App or Bot"
      → App info:
-         Callback URI:  https://localhost
-         Website URL:   https://localhost
+         Callback URI:  https://example.com
+         Website URL:   https://example.com
          (everything else leave blank)
      → Save Changes
      (If you skip this step, your token will be Read-only and posting will fail)
