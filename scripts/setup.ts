@@ -1564,24 +1564,34 @@ async function main() {
   2. "Your account" → "Download an archive of your data"
   3. Request it — X emails you a download link (up to 24h wait)
   4. Download the zip → extract it
-  5. Point Blopus to the extracted "data" folder
+  5. You will get a folder like: twitter-2026-04-19-.../
+     Inside it: assets/, data/, Your archive.html
 
-  Enter the full path to the extracted data/ folder below.
+  Enter the full path to that extracted folder below.
+  Blopus automatically finds the data/ inside — paste the main folder path.
   (Press Enter to skip — you can add it later via npm run ingest)
 `)
 
     const archivePath = await askOptional(
-      'Full path to your archive data/ folder',
-      'e.g.  C:/Users/you/Downloads/twitter-2025/data'
+      'Full path to your extracted Twitter archive folder',
+      'e.g.  C:/Users/you/Downloads/twitter-2025  (the whole extracted folder)'
     )
 
-    const resolvedArchiveDir = archivePath
-      ? (fs.existsSync(archivePath) && fs.statSync(archivePath).isDirectory()
-          ? archivePath
-          : fs.existsSync(archivePath) && archivePath.endsWith('.js')
-            ? path.dirname(archivePath)  // they pasted tweets.js path — use its folder
-            : null)
-      : null
+    const resolvedArchiveDir = (() => {
+      if (!archivePath) return null
+      if (!fs.existsSync(archivePath)) return null
+      if (archivePath.endsWith('.js') && fs.existsSync(archivePath)) {
+        return path.dirname(archivePath)  // they gave tweets.js directly
+      }
+      if (fs.statSync(archivePath).isDirectory()) {
+        // check if they gave the main archive folder (contains data/ inside)
+        const dataSubdir = path.join(archivePath, 'data')
+        if (fs.existsSync(dataSubdir)) return dataSubdir
+        // they gave the data/ folder directly
+        return archivePath
+      }
+      return null
+    })()
 
     if (resolvedArchiveDir) {
       console.log('\n  ✓ Archive folder found — processing everything...')
