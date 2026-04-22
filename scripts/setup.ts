@@ -1400,8 +1400,14 @@ async function main() {
 
   4. IMPORTANT — set permissions BEFORE generating tokens:
      → After app is created, go to "User authentication settings" → Set up
-     → Set "App permissions" to "Read and Write" → Save
-     (If you skip this, your token will be Read-only and posting will fail)
+     → App permissions: select "Read and write and Direct message"
+     → Type of App: select "Web App, Automated App or Bot"
+     → App info:
+         Callback URI:  https://localhost
+         Website URL:   https://localhost
+         (everything else leave blank)
+     → Save Changes
+     (If you skip this step, your token will be Read-only and posting will fail)
 
   5. Go to "Keys and Tokens" tab:
      · Under "OAuth 1.0 Keys" → click Show → copy Consumer Key + Secret
