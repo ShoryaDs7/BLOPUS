@@ -1325,8 +1325,17 @@ async function main() {
       console.log('  ✓ API key valid — Claude activated.\n')
       break
     } catch (e: any) {
-      console.log(`  ✗ Invalid key: ${(e.message ?? '').slice(0, 80)}`)
-      console.log('  Get your key at: https://console.anthropic.com → API Keys\n')
+      const msg = (e.message ?? '').toLowerCase()
+      if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
+        console.log('  ✗ No credits: Your Anthropic account has no credit balance.')
+        console.log('  Add credits at: https://console.anthropic.com → Billing\n')
+      } else if (msg.includes('auth') || msg.includes('api_key') || msg.includes('401')) {
+        console.log('  ✗ Invalid key: Double-check you copied the full key (sk-ant-...).')
+        console.log('  Get your key at: https://console.anthropic.com → API Keys\n')
+      } else {
+        console.log(`  ✗ API error: ${(e.message ?? '').slice(0, 100)}`)
+        console.log('  Check https://console.anthropic.com → Billing and API Keys\n')
+      }
     }
   }
 
