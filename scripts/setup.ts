@@ -1348,15 +1348,13 @@ async function main() {
 
   2 · Bot mode     — Blopus runs its OWN separate X bot account
                      Has its own handle and personality.
-
-  3 · Both         — Runs your real account AND a separate bot.
 `)
 
   let modeRaw = ''
-  while (!['1','2','3'].includes(modeRaw)) {
-    modeRaw = await ask('  Enter 1, 2, or 3: ')
+  while (!['1','2'].includes(modeRaw)) {
+    modeRaw = await ask('  Enter 1 or 2: ')
   }
-  const mode = modeRaw === '1' ? 'owner' : modeRaw === '2' ? 'bot' : 'both'
+  const mode = modeRaw === '1' ? 'owner' : 'bot'
   console.log(`  ✓ Mode: ${mode}`)
 
   // ── Step 2: Handles ──────────────────────────────────────────
