@@ -1376,12 +1376,42 @@ async function main() {
 
   section(4, 'Twitter / X API keys')
   console.log(`
-  How to get these:
+  ── STEP-BY-STEP ──────────────────────────────────────────
+
   1. Go to:  https://developer.twitter.com/en/portal/dashboard
-  2. Sign in with your X account → "Create Project" → create an app
-  3. Set app permissions to "Read and Write"
-  4. Go to app → "Keys and Tokens" tab
-  5. Copy: API Key, API Secret, Access Token, Access Token Secret
+     Sign in with the X account Blopus will post from.
+
+  2. If you already have an app listed under "Pay Per Use":
+     → Click it → scroll to "Access Token" → check if it says "Read"
+     → If it says "Read" only, you must fix this before continuing.
+       Click "User authentication settings" → Set up
+       Set "App permissions" to "Read and Write" → Save
+       Then come back and regenerate the Access Token.
+     → If no app exists, click "Create App" at the top.
+
+  3. Creating a new app:
+     · App name: anything (e.g. "blopus-yourhandle")
+     · Description box — paste this exactly:
+       "I am building a personal automation tool to manage my own X
+        account. It posts content, replies to mentions, and reads my
+        timeline — all on my own account only. No data is collected,
+        sold, or shared. This is for personal use only."
+     · Check all 3 boxes → Submit
+
+  4. IMPORTANT — set permissions BEFORE generating tokens:
+     → After app is created, go to "User authentication settings" → Set up
+     → Set "App permissions" to "Read and Write" → Save
+     (If you skip this, your token will be Read-only and posting will fail)
+
+  5. Go to "Keys and Tokens" tab:
+     · Under "OAuth 1.0 Keys" → click Show → copy Consumer Key + Secret
+     · Under "Access Token" → click Generate → copy Access Token + Secret
+
+  6. Add credits (required to use the API):
+     → Left sidebar → Billing → Credits → add at least $5
+     (Without credits the API will reject all requests)
+
+  ──────────────────────────────────────────────────────────
 `)
 
   const apiKey            = await askRequired('API Key (Consumer Key)')
