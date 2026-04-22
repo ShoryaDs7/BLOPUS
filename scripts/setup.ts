@@ -1383,7 +1383,7 @@ async function main() {
      → Click it → scroll to "Access Token" → check if it says "Read"
      → If it says "Read" only, you must fix this before continuing.
        Click "User authentication settings" → Set up
-       Set "App permissions" to "Read and Write" → Save
+       Set "App permissions" to "Read and write and Direct message" → Save
        Then come back and regenerate the Access Token.
      → If no app exists, click "Create App" at the top.
 
@@ -1399,6 +1399,7 @@ async function main() {
   4. IMPORTANT — set permissions BEFORE generating tokens:
      → After app is created, go to "User authentication settings" → Set up
      → App permissions: select "Read and write and Direct message"
+       (NOT just "Read and write" — you need DM access too)
      → Type of App: select "Web App, Automated App or Bot"
      → App info:
          Callback URI:  https://example.com
