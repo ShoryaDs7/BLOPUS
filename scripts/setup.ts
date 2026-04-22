@@ -1512,41 +1512,61 @@ async function main() {
   2. "Your account" → "Download an archive of your data"
   3. Request it — X emails you a download link (up to 24h wait)
   4. Download the zip → extract it
-  5. Inside: data/tweets.js — that's the file you need
+  5. Point Blopus to the extracted "data" folder
 
-  Enter the full path to tweets.js below.
+  Enter the full path to the extracted data/ folder below.
   (Press Enter to skip — you can add it later via npm run ingest)
 `)
 
     const archivePath = await askOptional(
-      'Full path to your tweets.js',
-      'e.g.  C:/Users/you/Downloads/twitter-2025/data/tweets.js'
+      'Full path to your archive data/ folder',
+      'e.g.  C:/Users/you/Downloads/twitter-2025/data'
     )
 
-    if (archivePath && fs.existsSync(archivePath)) {
-      console.log('\n  ✓ Archive found — processing...')
+    const resolvedArchiveDir = archivePath
+      ? (fs.existsSync(archivePath) && fs.statSync(archivePath).isDirectory()
+          ? archivePath
+          : fs.existsSync(archivePath) && archivePath.endsWith('.js')
+            ? path.dirname(archivePath)  // they pasted tweets.js path — use its folder
+            : null)
+      : null
+
+    if (resolvedArchiveDir) {
+      console.log('\n  ✓ Archive folder found — processing everything...')
+      console.log('  (tweets, DMs, RAG index, biography, relationships — this takes ~1-2 min)\n')
 
       try {
-        const destPath = path.join(creatorDir, 'tweets.js')
-        fs.copyFileSync(archivePath, destPath)
+        const { runFullArchiveIngest } = await import('../core/ingest/FullArchiveIngestor')
+
+        const memoryStoreDir = path.join(creatorDir, 'memory-store')
+        fs.mkdirSync(memoryStoreDir, { recursive: true })
+
+        const apiKey = process.env.ANTHROPIC_API_KEY ?? ''
+        const ownerUserIdEnv = process.env.OWNER_USER_ID ?? ''
+
+        const result = await runFullArchiveIngest({
+          archiveDir:     resolvedArchiveDir,
+          creatorDir,
+          memoryStoreDir,
+          ownerHandle,
+          ownerUserId:    ownerUserIdEnv,
+          apiKey,
+        })
+
         archiveCopied = true
 
-        const { parseTweetsJsFull, analyzePersonalityFull } = await import('../core/personality/PersonalityIngester')
-        const content = fs.readFileSync(archivePath, 'utf8')
-        const parsed  = parseTweetsJsFull(content)
+        // Load the personality profile that was just written
+        const profilePath = path.join(creatorDir, 'personality_profile.json')
+        if (fs.existsSync(profilePath)) {
+          personalityProfile = JSON.parse(fs.readFileSync(profilePath, 'utf8'))
+        }
 
-        console.log(`\n  Found ${parsed.originals.length} original tweets + ${parsed.replies.length} replies.`)
-        console.log('  Running personality analysis via Claude... (~30 seconds)\n')
-
-        personalityProfile = await analyzePersonalityFull(parsed, ownerHandle)
-
-        // ── Display everything computed ──────────────────────────
-
+        // ── Display summary ──────────────────────────────────────
         console.log('\n' + '═'.repeat(58))
         console.log('  What Blopus learned about you')
         console.log('═'.repeat(58))
 
-        const bp = personalityProfile.behaviorProfile
+        const bp = personalityProfile?.behaviorProfile
         if (bp) {
           console.log(`\n  POSTING BEHAVIOR (computed from your archive):`)
           console.log(`  · Original posts per day:     ${bp.avgPostsPerDay}`)
@@ -1556,7 +1576,7 @@ async function main() {
           console.log(`  · When you post (UTC hours):   ${bp.typicalPostingHours?.join(', ')}`)
         }
 
-        const ws = personalityProfile.writingStats
+        const ws = personalityProfile?.writingStats
         if (ws) {
           console.log(`\n  YOUR WRITING STYLE (exact counts from archive):`)
           console.log(`  · Reply length:      ${ws.medianReplyLength}`)
@@ -1571,113 +1591,104 @@ async function main() {
           }
         }
 
-        // ── Show post topics vs reply topics separately ──────────
-        console.log(`\n  WHAT YOU POST ABOUT (from your original tweets):`)
-        ;(personalityProfile.postTopics ?? []).forEach((t: string, i: number) => console.log(`  ${i + 1}. ${t}`))
+        if (personalityProfile) {
+          console.log(`\n  WHAT YOU POST ABOUT (from your original tweets):`)
+          ;(personalityProfile.postTopics ?? []).forEach((t: string, i: number) => console.log(`  ${i + 1}. ${t}`))
 
-        console.log(`\n  WHAT YOU ENGAGE WITH (from your replies):`)
-        ;(personalityProfile.replyTopics ?? []).forEach((t: string, i: number) => console.log(`  ${i + 1}. ${t}`))
+          console.log(`\n  WHAT YOU ENGAGE WITH (from your replies):`)
+          ;(personalityProfile.replyTopics ?? []).forEach((t: string, i: number) => console.log(`  ${i + 1}. ${t}`))
 
-        console.log(`\n  NOTE: Domain mode uses topics to find tweets to reply to.`)
-        console.log(`  Reply topics are more accurate for this — post topics may cause wrong matches.`)
+          console.log(`\n  YOUR STYLE (Claude's analysis):`)
+          console.log(`  Writing:   ${personalityProfile.writingStyle}`)
+          console.log(`  Opinions:  ${personalityProfile.opinionStyle}`)
+          console.log(`  Humor:     ${personalityProfile.humorStyle}`)
+          console.log(`  Replies:   ${personalityProfile.replyStyle}`)
 
-        const topicBreakdown: Array<{ topic: string; postPct: number; replyPct: number }> = []
+          if (personalityProfile.avoids?.length) {
+            console.log(`\n  THINGS YOU AVOID:`)
+            personalityProfile.avoids.forEach((a: string) => console.log(`  · ${a}`))
+          }
 
-        console.log(`\n  YOUR STYLE (Claude's analysis):`)
-        console.log(`  Writing:   ${personalityProfile.writingStyle}`)
-        console.log(`  Opinions:  ${personalityProfile.opinionStyle}`)
-        console.log(`  Humor:     ${personalityProfile.humorStyle}`)
-        console.log(`  Replies:   ${personalityProfile.replyStyle}`)
+          if (personalityProfile.signaturePatterns?.length) {
+            console.log(`\n  YOUR SIGNATURE OPENERS (phrases you actually use):`)
+            personalityProfile.signaturePatterns.slice(0, 5).forEach((sp: any) => {
+              console.log(`  · "${sp.phrase}"  →  used for: ${sp.usedFor}`)
+            })
+          }
 
-        if (personalityProfile.avoids?.length) {
-          console.log(`\n  THINGS YOU AVOID:`)
-          personalityProfile.avoids.forEach((a: string) => console.log(`  · ${a}`))
-        }
+          if (personalityProfile.examplePhrases?.length) {
+            console.log(`\n  EXAMPLE PHRASES FROM YOUR REAL POSTS:`)
+            personalityProfile.examplePhrases.slice(0, 4).forEach((p: string) => console.log(`  · "${p}"`))
+          }
 
-        if (personalityProfile.signaturePatterns?.length) {
-          console.log(`\n  YOUR SIGNATURE OPENERS (phrases you actually use):`)
-          personalityProfile.signaturePatterns.slice(0, 5).forEach((sp: any) => {
-            console.log(`  · "${sp.phrase}"  →  used for: ${sp.usedFor}`)
-          })
-        }
-
-        if (personalityProfile.examplePhrases?.length) {
-          console.log(`\n  EXAMPLE PHRASES FROM YOUR REAL POSTS:`)
-          personalityProfile.examplePhrases.slice(0, 4).forEach((p: string) => console.log(`  · "${p}"`))
-        }
-
-        if (bp?.burstSampleTweets?.length) {
-          console.log(`\n  YOUR HIGH-ENERGY POSTS (from your most active days):`)
-          bp.burstSampleTweets.slice(0, 3).forEach((t: string) => console.log(`  · "${t.slice(0, 100)}"${t.length > 100 ? '…' : ''}`))
-        }
-
-        // ── Ask for corrections ──────────────────────────────────
-
-        console.log('\n' + '─'.repeat(58))
-        console.log('  CONFIRM DOMAIN TOPICS FOR REPLY HUNTING')
-        console.log('  Blopus will search for viral tweets on these topics to reply to.')
-        console.log('  Start from your reply topics — they are more accurate.')
-        console.log()
-        console.log('  Options:')
-        console.log('    Enter               -> use reply topics as-is (recommended)')
-        console.log('    use posts           -> use post topics instead')
-        console.log('    remove: 2,4         -> remove from reply topics by number')
-        console.log('    add: topic name     -> add a topic')
-        console.log('    set: t1, t2, t3     -> replace entire list manually')
-        console.log()
-        console.log('  Reply topics (recommended starting point):')
-        ;(personalityProfile.replyTopics ?? []).forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
-
-        const fix = await ask('\n  Your choice: ')
-
-        if (!fix.trim() || fix.trim().toLowerCase() === 'use replies') {
-          // Default: use reply topics
-          personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
-          console.log(`  Using reply topics as domain list.`)
-        } else if (fix.trim().toLowerCase() === 'use posts') {
-          personalityProfile.dominantTopics = personalityProfile.postTopics ?? personalityProfile.dominantTopics
-          console.log(`  Using post topics as domain list.`)
-        } else {
-          const removeMatch = fix.match(/^remove\s*:\s*([\d,\s]+)/i)
-          const addMatch    = fix.match(/^add\s*:\s*(.+)/i)
-          const setMatch    = fix.match(/^set\s*:\s*(.+)/i)
-
-          const base = personalityProfile.replyTopics ?? personalityProfile.dominantTopics ?? []
-
-          if (removeMatch) {
-            const nums = removeMatch[1].split(',').map(n => parseInt(n.trim()) - 1)
-            personalityProfile.dominantTopics = base.filter((_: string, i: number) => !nums.includes(i))
-            console.log(`  Topics set to:`)
-            personalityProfile.dominantTopics.forEach((t: string) => console.log(`    · ${t}`))
-          } else if (addMatch) {
-            personalityProfile.dominantTopics = [...base, addMatch[1].trim()]
-            console.log(`  Added: ${addMatch[1].trim()}`)
-          } else if (setMatch) {
-            personalityProfile.dominantTopics = setMatch[1].split(',').map((t: string) => t.trim())
-            console.log(`  Topics set to: ${personalityProfile.dominantTopics.join(', ')}`)
-          } else {
-            personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
-            console.log(`  Using reply topics as domain list.`)
+          if (bp?.burstSampleTweets?.length) {
+            console.log(`\n  YOUR HIGH-ENERGY POSTS (from your most active days):`)
+            bp.burstSampleTweets.slice(0, 3).forEach((t: string) => console.log(`  · "${t.slice(0, 100)}"${t.length > 100 ? '…' : ''}`))
           }
         }
 
-        fs.writeFileSync(
-          path.join(creatorDir, 'personality_profile.json'),
-          JSON.stringify(personalityProfile, null, 2),
-          'utf8'
-        )
-        console.log(`\n  ✓ Personality profile saved.`)
+        console.log(`\n  ✓ RAG index: ${result.rag.examples} reply examples indexed`)
+        console.log(`  ✓ People from replies: ${result.persons.fromTweets} contacts`)
+        if (result.dms.persons > 0) {
+          console.log(`  ✓ DMs: ${result.dms.persons} contacts, ${result.dms.messages} messages`)
+        }
+        if (result.biography.built) console.log(`  ✓ Owner biography built`)
 
-        // ── Build RAG index ──────────────────────────────────────
-        console.log('  Building reply example index (RAG)...')
-        try {
-          const { ExampleRetriever } = await import('../core/rag/ExampleRetriever')
-          const ragPath = path.join(creatorDir, 'rag_index.json')
-          const retriever = new ExampleRetriever(ragPath)
-          retriever.load(destPath)
-          console.log('  ✓ Reply example index built.')
-        } catch (e: any) {
-          console.log(`  ⚠ RAG index failed: ${e.message} — Blopus will build it on first run.`)
+        // ── Ask for topic corrections ────────────────────────────
+        if (personalityProfile) {
+          console.log('\n' + '─'.repeat(58))
+          console.log('  CONFIRM DOMAIN TOPICS FOR REPLY HUNTING')
+          console.log('  Blopus will search for viral tweets on these topics to reply to.')
+          console.log('  Start from your reply topics — they are more accurate.')
+          console.log()
+          console.log('  Options:')
+          console.log('    Enter               -> use reply topics as-is (recommended)')
+          console.log('    use posts           -> use post topics instead')
+          console.log('    remove: 2,4         -> remove from reply topics by number')
+          console.log('    add: topic name     -> add a topic')
+          console.log('    set: t1, t2, t3     -> replace entire list manually')
+          console.log()
+          console.log('  Reply topics (recommended starting point):')
+          ;(personalityProfile.replyTopics ?? []).forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
+
+          const fix = await ask('\n  Your choice: ')
+
+          if (!fix.trim() || fix.trim().toLowerCase() === 'use replies') {
+            personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
+            console.log(`  Using reply topics as domain list.`)
+          } else if (fix.trim().toLowerCase() === 'use posts') {
+            personalityProfile.dominantTopics = personalityProfile.postTopics ?? personalityProfile.dominantTopics
+            console.log(`  Using post topics as domain list.`)
+          } else {
+            const removeMatch = fix.match(/^remove\s*:\s*([\d,\s]+)/i)
+            const addMatch    = fix.match(/^add\s*:\s*(.+)/i)
+            const setMatch    = fix.match(/^set\s*:\s*(.+)/i)
+
+            const base = personalityProfile.replyTopics ?? personalityProfile.dominantTopics ?? []
+
+            if (removeMatch) {
+              const nums = removeMatch[1].split(',').map(n => parseInt(n.trim()) - 1)
+              personalityProfile.dominantTopics = base.filter((_: string, i: number) => !nums.includes(i))
+              console.log(`  Topics set to:`)
+              personalityProfile.dominantTopics.forEach((t: string) => console.log(`    · ${t}`))
+            } else if (addMatch) {
+              personalityProfile.dominantTopics = [...base, addMatch[1].trim()]
+              console.log(`  Added: ${addMatch[1].trim()}`)
+            } else if (setMatch) {
+              personalityProfile.dominantTopics = setMatch[1].split(',').map((t: string) => t.trim())
+              console.log(`  Topics set to: ${personalityProfile.dominantTopics.join(', ')}`)
+            } else {
+              personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
+              console.log(`  Using reply topics as domain list.`)
+            }
+          }
+
+          fs.writeFileSync(
+            path.join(creatorDir, 'personality_profile.json'),
+            JSON.stringify(personalityProfile, null, 2),
+            'utf8'
+          )
+          console.log(`\n  ✓ Personality profile saved.`)
         }
 
       } catch (err: any) {
@@ -1686,7 +1697,7 @@ async function main() {
       }
 
     } else if (archivePath) {
-      console.log(`  ⚠ File not found at that path. Skipping.`)
+      console.log(`  ⚠ Path not found or not a folder. Skipping.`)
       console.log(`  Run  npm run ingest  after getting your archive.`)
     } else {
       console.log(`  Skipped. Run  npm run ingest  after getting your archive.`)
