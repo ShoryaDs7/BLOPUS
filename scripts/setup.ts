@@ -1369,6 +1369,7 @@ async function main() {
   const creatorName = ownerHandle.toLowerCase()
   const creatorDir  = path.resolve(`./creators/${creatorName}`)
   fs.mkdirSync(creatorDir, { recursive: true })
+  fs.mkdirSync(path.resolve('./creators/memory-store'), { recursive: true })
 
   // ── Step 3: Twitter API keys ──────────────────────────────────
 
@@ -2234,6 +2235,17 @@ async function main() {
   fs.writeFileSync(path.join(creatorDir, '.env'), envLines.join('\n') + '\n', 'utf8')
   console.log(`  ✓ creators/${creatorName}/.env`)
 
+  // Write CREATOR to root .env so user can run without prefix on all platforms
+  const rootEnvPath = path.resolve('.env')
+  let rootEnv = fs.existsSync(rootEnvPath) ? fs.readFileSync(rootEnvPath, 'utf8') : ''
+  if (/^CREATOR=/m.test(rootEnv)) {
+    rootEnv = rootEnv.replace(/^CREATOR=.*/m, `CREATOR=${creatorName}`)
+  } else {
+    rootEnv = `CREATOR=${creatorName}\n` + rootEnv
+  }
+  fs.writeFileSync(rootEnvPath, rootEnv, 'utf8')
+  console.log(`  ✓ Root .env — CREATOR=${creatorName}`)
+
   const rpd: number = (voiceProfile as any)?.repliesPerDay ?? 10
   const config = {
     blopus: {
@@ -2278,7 +2290,7 @@ async function main() {
       maxTagsPerReply: 1,
     },
     memory: {
-      storePath: `./creators/${creatorName}/memory-store`,
+      storePath: `./creators/memory-store`,
       maxRecords: 10000,
       pruneAfterDays: 90,
     },
@@ -2318,7 +2330,9 @@ async function main() {
   console.log(`
   Start your agent:
 
-    CREATOR=${creatorName} npm run blopus:owner
+    npm run blopus:owner
+
+  (CREATOR is already saved in .env — no prefix needed on any platform)
 
   Once it starts, message your Telegram bot to control everything —
   post tweets, search, set timers, manage files, anything.
