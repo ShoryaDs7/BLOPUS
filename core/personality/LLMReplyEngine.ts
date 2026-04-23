@@ -448,7 +448,9 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       }
     }
     if (isVoiceMode) {
-      dynamicMaxTokens = 200
+      // Voice profile specifies length — use the profile's replyLength to pick token budget
+      const rl = (vp?.replyLength ?? '').toLowerCase()
+      dynamicMaxTokens = rl.includes('very short') ? 80 : rl.includes('short') ? 120 : 180
       archiveMedianLength = 60
     }
 
