@@ -561,13 +561,14 @@ async function runQuoteTweetInterview(computed: any, askFn: (q: string) => Promi
   console.log(`  Got it — ${q2}\n`)
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to quote it?')
-  console.log('        (always / usually / sometimes / rarely)')
+  console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
   const q3 = await askFn('  > ')
   const probStr = await claudeInterpret(client, q3, 'Question about likelihood of quoting a matching tweet', 'A decimal number between 0 and 1 representing probability. "always"=1.0, "usually"=0.75, "sometimes"=0.5, "rarely"=0.25. Return ONLY the number.')
   const probability = parseFloat(probStr) || 0.5
   console.log(`  Got it — probability: ${Math.round(probability * 100)}%\n`)
 
   console.log('  [4/4] How often do you quote tweet? (e.g. "once a day", "2 times a day", "every 4 hours")')
+  console.log('        Be specific — not "it depends"')
   const q4 = await askFn('  > ')
   const cooldownStr = await claudeInterpret(client, q4, 'Question about quote tweet frequency', 'A number representing milliseconds between quote tweets. "once a day"=86400000, "twice a day"=43200000, "every 4 hours"=14400000, "2 times a day"=43200000. Return ONLY the number.')
   const cooldownMs = parseInt(cooldownStr) || 3_600_000
@@ -608,13 +609,14 @@ async function runRetweetInterview(computed: any, askFn: (q: string) => Promise<
   console.log(`  Got it — ${q2}\n`)
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to retweet it?')
-  console.log('        (always / usually / sometimes / rarely)')
+  console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
   const q3 = await askFn('  > ')
   const probStr = await claudeInterpret(client, q3, 'Likelihood of retweeting a matching tweet', 'A decimal 0-1. "always"=1.0, "usually"=0.75, "sometimes"=0.5, "rarely"=0.25. Return ONLY the number.')
   const probability = parseFloat(probStr) || 0.5
   console.log(`  Got it — probability: ${Math.round(probability * 100)}%\n`)
 
   console.log('  [4/4] How often do you retweet? (e.g. "once a day", "2 times a day", "every 2 hours")')
+  console.log('        Be specific — not "it depends"')
   const q4 = await askFn('  > ')
   const cooldownStr = await claudeInterpret(client, q4, 'Retweet frequency', 'Milliseconds between retweets. "once a day"=86400000, "twice a day"=43200000, "every 2 hours"=7200000. Return ONLY the number.')
   const cooldownMs = parseInt(cooldownStr) || 3_600_000
@@ -655,13 +657,14 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
   console.log(`  Got it — ${q2}\n`)
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to like it?')
-  console.log('        (always / usually / sometimes / rarely)')
+  console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
   const q3 = await askFn('  > ')
   const probStr = await claudeInterpret(client, q3, 'Likelihood of liking a matching tweet', 'A decimal 0-1. "always"=1.0, "usually"=0.75, "sometimes"=0.5, "rarely"=0.25. Return ONLY the number.')
   const probability = parseFloat(probStr) || 0.5
   console.log(`  Got it — probability: ${Math.round(probability * 100)}%\n`)
 
   console.log('  [4/4] How often do you like tweets? (e.g. "5 times an hour", "few times a day", "once an hour")')
+  console.log('        Be specific — not "it depends"')
   const q4 = await askFn('  > ')
   const cooldownStr = await claudeInterpret(client, q4, 'Like frequency', 'Milliseconds between likes. "5 times an hour"=720000, "once an hour"=3600000, "few times a day"=28800000. Return ONLY the number.')
   const cooldownMs = parseInt(cooldownStr) || 3_600_000
@@ -677,7 +680,7 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
 }
 
 // ─── Part 2: How You Reply (merged voice + reply behavior) ───
-async function runReplyInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic): Promise<any> {
+async function runReplyInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic, replyModel: string): Promise<any> {
   const topics: string[] = computed?.dominantTopics ?? []
   const ws = computed?.writingStats ?? {}
   const archiveContext = JSON.stringify({
@@ -720,13 +723,13 @@ Your job:
 - Ask questions ONE AT A TIME based on what you see in the archive
 - Prefix each question with [Q] — nothing else before it
 - After each answer, output one line starting with "Got it —" then ask the next
-- If an answer is vague, follow up ONCE
+- If an answer is vague ("depends", "it depends", "varies", "sometimes"), ALWAYS follow up: "Can you be more specific? Give me a concrete rule — e.g. 'short for hot takes, 2-3 sentences when explaining'. Don't say depends — give me the actual rule."
 - Cover ALL of these (skip what's already obvious from the archive):
   WRITING STYLE:
   1. Case style — lowercase, mixed, proper? Archive has a reading, confirm it
   2. Apostrophes — "dont" or "don't"? Archive has a reading, confirm it
   3. Emojis — how often, which ones, or never?
-  4. Reply length — one-liners vs sentences vs bullet points?
+  4. Reply length — one-liners vs sentences vs bullet points? If they say "depends on topic" push back: what's the rule? Short for X, longer for Y?
   5. How they start replies — signature openers or no fixed pattern?
 
   REPLY BEHAVIOR:
@@ -966,7 +969,7 @@ Return ONLY the reply text.`
       let approved = false
       while (!approved) {
         const replyRes = await client.messages.create({
-          model: 'claude-sonnet-4-6', max_tokens: 120,
+          model: replyModel, max_tokens: 120,
           messages: [{ role: 'user', content: buildReplyPrompt(sampleTweet, topicCorrection || undefined) }],
         })
         const rc = replyRes.content[0]
@@ -1231,7 +1234,7 @@ Your job:
 - Ask questions ONE AT A TIME based on what you see in their archive
 - Prefix each question with [Q] — nothing else before the question
 - After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next
-- If an answer is vague or too short, follow up ONCE before moving on
+- If an answer is vague ("depends", "it depends", "varies") ALWAYS follow up: "Give me a specific rule — e.g. 'only tech news, not personal stuff'. Don't say depends."
 - Cover ALL of these areas (ask only what's needed based on the archive):
   1. Topics — what they actually post about NOW (archive may be outdated)
   2. Post SOURCE TYPE — do they post news reactions, personal thoughts/life updates, hot takes, opinions, questions to followers, random observations? This determines if web search is needed.
@@ -1349,6 +1352,20 @@ async function main() {
       }
     }
   }
+
+  // ── Step 1b: Reply model ──────────────────────────────────────
+
+  console.log('\n' + '─'.repeat(58))
+  console.log('  Which model should Blopus use for reply posting?\n')
+  console.log('  1 · Haiku   — fast, cheap (~$0.001/reply). Great for high volume.')
+  console.log('  2 · Sonnet  — higher quality, costs more (~$0.01/reply). Better voice matching.')
+  console.log()
+  console.log('  Note: Telegram control (SessionBrain) always uses Sonnet — this cannot be changed.')
+  console.log('─'.repeat(58))
+  let replyModelRaw = ''
+  while (!['1', '2'].includes(replyModelRaw)) { replyModelRaw = await ask('  Enter 1 or 2: ') }
+  const replyModel = replyModelRaw === '1' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+  console.log(`  ✓ Reply model: ${replyModelRaw === '1' ? 'Haiku' : 'Sonnet'}`)
 
   // ── Step 2: Mode ─────────────────────────────────────────────
 
@@ -1589,6 +1606,8 @@ async function main() {
     `OSBOT_CONFIG_PATH=./creators/${creatorName}/config.json`,
     `X_SEARCH_TIMELINE_HASH=AIdc203rPpK_k_2KWSdm7g`,
     `X_TWEET_DETAIL_HASH=nBS-WpgA6ZG0CyNHD517JQ`,
+    `REPLY_MODEL=${replyModel}`,
+    `SESSIONBRAIN_MODEL=claude-sonnet-4-6`,
   ]
   fs.writeFileSync(path.join(creatorDir, '.env'), checkpointEnv.join('\n') + '\n', 'utf8')
   console.log(`\n  ✓ Credentials saved to creators/${creatorName}/.env`)
@@ -1601,7 +1620,7 @@ async function main() {
       owner:    { handle: ownerHandle, displayName: ownerHandle },
       platform: { primary: 'x', pollIntervalMinutes: 5, maxRepliesPerPollCycle: 1, maxRepliesPerDay: 10, replyDelayMinutes: { min: 1, max: 5 } },
       personality: { traits: { aggression: 0.3, warmth: 0.6, humor: 0.5, formality: 0.4, verbosity: 0.5 }, quirks: { responseRate: 0.8 } },
-      llm:      { model: 'claude-haiku-4-5-20251001', maxTokens: 400, temperature: 0.8, enabled: true },
+      llm:      { model: replyModel, maxTokens: 400, temperature: 0.8, enabled: true },
       summon:   { keywords: ['osbot', 'blopus'], requireOwnerHandle: false },
       pack:     { knownOsBots: [], tagProbability: 0.1, maxTagsPerReply: 1 },
       memory:   { storePath: './creators/memory-store', maxRecords: 10000, pruneAfterDays: 90 },
@@ -1958,7 +1977,7 @@ async function main() {
     }
 
     if (replyEngine === 'voice') {
-      voiceProfile = await runReplyInterview(personalityProfile, ask, setupClient)
+      voiceProfile = await runReplyInterview(personalityProfile, ask, setupClient, replyModel)
       saveProfile()
       originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
       saveProfile()
@@ -2294,6 +2313,8 @@ async function main() {
     `# 2. Copy the hash from the request URL and paste below`,
     `X_SEARCH_TIMELINE_HASH=flaR-PUMshxFWZWPNpq4zA`,
     `X_TWEET_DETAIL_HASH=nBS-WpgA6ZG0CyNHD517JQ`,
+    `REPLY_MODEL=${replyModel}`,
+    `SESSIONBRAIN_MODEL=claude-sonnet-4-6`,
     archiveCopied
       ? `TWITTER_ARCHIVE_PATH=./creators/${creatorName}/tweets.js`
       : `# TWITTER_ARCHIVE_PATH=./creators/${creatorName}/tweets.js`,
@@ -2341,7 +2362,7 @@ async function main() {
       quirks: { responseRate: 0.8 },
     },
     llm: {
-      model: 'claude-haiku-4-5-20251001',
+      model: replyModel,
       maxTokens: 400,
       temperature: 0.8,
       enabled: true,
