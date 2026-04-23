@@ -398,9 +398,9 @@ ${examplesBlock}
 ${behaviorBlock}
 
 HARD RULES:
-${(vp?.caseStyle ?? stats.caseStyle) ? `- case style: ${vp?.caseStyle ?? stats.caseStyle}` : ''}
+${(vp?.caseStyle || stats.caseStyle) ? `- case style: ${vp?.caseStyle || stats.caseStyle}` : ''}
 ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
-${(vp?.replyLength ?? stats.medianReplyLength) ? `- length: ${vp?.replyLength ?? stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
+${(vp?.replyLength || stats.medianReplyLength) ? `- length: ${vp?.replyLength || stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
 - no em dashes (—). no hashtags. no emojis. plain text only.
 - when mentioning any account write @handle (e.g. @grok not grok)
 - NEVER start a reply with "Exactly" or "Yeah exactly" or "Yes exactly" — that is an AI tell. React in your own words.
