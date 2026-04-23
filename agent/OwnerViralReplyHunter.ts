@@ -122,11 +122,13 @@ export class OwnerViralReplyHunter {
       let replyMode: 'domain' | 'viral' = 'domain'
       let avoidTopics: string[] = []
       let domainMinLikes: Record<string, number> | undefined
+      let domainSearchKeywords: Record<string, string[]> | undefined
       try {
         const cfg = JSON.parse(fs.readFileSync(path.resolve(configPath), 'utf-8'))
         replyMode = cfg.replyMode ?? 'domain'
         avoidTopics = cfg.avoidTopics ?? []
         domainMinLikes = cfg.domainMinLikes
+        domainSearchKeywords = cfg.domainSearchKeywords
       } catch {}
 
       this.lastRunAt = Date.now()
@@ -166,7 +168,7 @@ export class OwnerViralReplyHunter {
           // Fallback: direct topic search
           console.log(`[OwnerViralHunter] No domain tweets on home — searching by topic...`)
           if (this.domainSearch.enabled && topics.length > 0) {
-            const searched = await this.domainSearch.searchViralByTopics(topics, rc.minLikes, rc.maxAgeTweetMinutes, domainMinLikes)
+            const searched = await this.domainSearch.searchViralByTopics(topics, rc.minLikes, rc.maxAgeTweetMinutes, domainMinLikes, domainSearchKeywords)
             const searchFiltered = this.applyFilters(searched, avoidTopics, topics)
             console.log(`[OwnerViralHunter] Topic search: ${searched.length} found → ${searchFiltered.length} on-domain`)
             candidates = searchFiltered.length > 0 ? searchFiltered : []

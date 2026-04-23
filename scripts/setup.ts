@@ -310,6 +310,59 @@ function parseCooldown(answer: string): number {
   return 3_600_000  // default 1 hour
 }
 
+// ─── Domain search keyword expander ──────────────────────────
+async function expandDomainKeywords(
+  topic: string,
+  userContext: string,
+  askFn: (q: string) => Promise<string>
+): Promise<string[]> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  console.log(`\n  Expanding "${topic}" into search keywords...`)
+
+  const res = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 600,
+    messages: [{
+      role: 'user',
+      content: `You are building a keyword list to FIND tweets about "${topic}" on X (Twitter) for this user.
+
+User context (their background, writing style, dominant interests):
+${userContext}
+
+Rules:
+- Stay at the SAME level or MORE specific than "${topic}" — never go up to broader/parent categories
+- Example: "startup" → founding, fundraising, YC, seed round, pivot, runway, product-market fit — NOT tech (parent)
+- Example: "politics" → trump, election, BJP, Modi, congress, senate — those ARE politics so include them
+- Example: "AI" → LLMs, GPT, Claude, Gemini, machine learning, fine-tuning — NOT tech (parent)
+- Be context-aware: if user seems Indian, include Indian-relevant terms (e.g. for politics: BJPvsINC, NDA not just congress)
+- Include: the term itself, aliases, acronyms, slang, sub-topics, brand names, notable people IN this topic
+- These are Twitter search terms — short phrases and keywords work better than long sentences
+- Aim for 30-50 keywords. Return ONLY a JSON array of strings, no explanation.`
+    }]
+  })
+
+  let keywords: string[] = []
+  try {
+    const text = res.content[0].type === 'text' ? res.content[0].text : ''
+    const match = text.match(/\[[\s\S]*\]/)
+    if (match) keywords = JSON.parse(match[0])
+  } catch {}
+
+  if (!keywords.length) return [topic]
+
+  console.log(`\n  Keywords for "${topic}":\n  ${keywords.join(', ')}\n`)
+  console.log('  Remove any that look wrong (comma-separated), or press Enter to keep all:')
+  const edit = await askFn('  > ')
+
+  if (edit.trim()) {
+    const removed = edit.toLowerCase().split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+    keywords = keywords.filter(k => !removed.some(r => k.toLowerCase().includes(r)))
+    console.log(`  Got it.\n`)
+  }
+
+  return [...new Set(keywords)]
+}
+
 // ─── Never keyword expander ───────────────────────────────────
 async function expandNeverKeywords(input: string, askFn: (q: string) => Promise<string>): Promise<string[]> {
   if (!input || /^nothing$/i.test(input.trim())) return []
@@ -1941,6 +1994,26 @@ async function main() {
         console.log(`  Got it — thresholds set.\n`)
         if (personalityProfile) (personalityProfile as any).domainMinLikes = domainMinLikes
 
+        // Q5 — Domain search keyword expansion
+        console.log(`  [5] Blopus will now expand each topic into 30-50 search keywords`)
+        console.log(`      so it can find the right tweets — not just tweets with that exact word.`)
+        console.log(`      Review each list and remove anything that looks off.\n`)
+        const userContextForExpansion = JSON.stringify({
+          dominantTopics: domainTopics,
+          writingStats: personalityProfile?.writingStats ?? {},
+          archiveSummary: (personalityProfile?.signaturePatterns ?? []).slice(0, 5),
+        })
+        const domainSearchKeywords: Record<string, string[]> = {}
+        for (const topic of domainTopics) {
+          try {
+            domainSearchKeywords[topic] = await expandDomainKeywords(topic, userContextForExpansion, ask)
+          } catch {
+            domainSearchKeywords[topic] = [topic]
+          }
+        }
+        console.log(`  Got it — search keywords saved.\n`)
+        if (personalityProfile) (personalityProfile as any).domainSearchKeywords = domainSearchKeywords
+
       } else {
         // Viral mode — only ask never-topics
         console.log(`  [2] Any topics Blopus should NEVER reply to — even if they trend?`)
@@ -2441,6 +2514,7 @@ async function main() {
     replyStrategy: (replyStrategy as any) ?? 'growth',
     avoidTopics,
     domainMinLikes: (personalityProfile as any)?.domainMinLikes ?? {},
+    domainSearchKeywords: (personalityProfile as any)?.domainSearchKeywords ?? {},
   }
   fs.writeFileSync(
     path.join(creatorDir, 'config.json'),

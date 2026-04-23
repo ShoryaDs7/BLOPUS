@@ -46,6 +46,7 @@ export class PlaywrightDomainSearchProvider {
     minLikes: number = 200,
     maxAgeMinutes: number = 120,
     domainMinLikes?: Record<string, number>,
+    domainSearchKeywords?: Record<string, string[]>,
   ): Promise<ViralTweetCandidate[]> {
     if (!this.enabled || topics.length === 0) return []
 
@@ -56,16 +57,30 @@ export class PlaywrightDomainSearchProvider {
     for (const topic of topics) {
       try {
         const topicMinLikes = resolveMinLikes(topic, minLikes, domainMinLikes)
-        const results = await this.searchOneTopic(context, toSearchQuery(topic), topicMinLikes, maxAgeMinutes)
-        for (const r of results) {
-          if (!seenIds.has(r.tweetId)) {
-            seenIds.add(r.tweetId)
-            allResults.push(r)
+        // Use expanded keyword list if available, fall back to toSearchQuery
+        const keywords = domainSearchKeywords?.[topic]?.length
+          ? domainSearchKeywords[topic]
+          : [toSearchQuery(topic)]
+
+        for (const keyword of keywords) {
+          try {
+            const results = await this.searchOneTopic(context, keyword, topicMinLikes, maxAgeMinutes)
+            for (const r of results) {
+              if (!seenIds.has(r.tweetId)) {
+                seenIds.add(r.tweetId)
+                allResults.push(r)
+              }
+            }
+          } catch (err) {
+            console.warn(`[DomainSearch] Error searching keyword "${keyword}": ${err}`)
+            if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
+              this.context = null
+              break
+            }
           }
         }
       } catch (err) {
         console.warn(`[DomainSearch] Error searching topic "${topic}": ${err}`)
-        // If browser crashed or context closed — reset so next cycle starts fresh
         if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
           this.context = null
         }
