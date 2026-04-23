@@ -71,6 +71,7 @@ export class PlaywrightDomainSearchProvider {
                 allResults.push(r)
               }
             }
+            if (allResults.length > 0) break  // got one — stop searching this topic
           } catch (err) {
             console.warn(`[DomainSearch] Error searching keyword "${keyword}": ${err}`)
             if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
@@ -79,6 +80,7 @@ export class PlaywrightDomainSearchProvider {
             }
           }
         }
+        if (allResults.length > 0) break  // got one — stop searching other topics too
       } catch (err) {
         console.warn(`[DomainSearch] Error searching topic "${topic}": ${err}`)
         if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
