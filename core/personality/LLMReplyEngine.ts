@@ -369,12 +369,16 @@ export class LLMReplyEngine {
             : `HOW YOU ACTUALLY WRITE (real examples from your archive — match this energy exactly):\n${(ownerProfile.replyExamples ?? []).slice(0, 6).map((r, i) => `${i + 1}. ${r}`).join('\n')}`
 
           const behaviorBlock = vp
-            ? `\nHOW YOU RESPOND TO DIFFERENT TWEETS:
-- News/topic you have a take on: ${vp.behaviorPatterns.onNewsWithTake}
-- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}
-- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}
-- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}
-- Funny/absurd content: ${vp.behaviorPatterns.onFunny}`
+            ? (() => {
+                const lines = [
+                  vp.behaviorPatterns.onNewsWithTake ? `- News/topic you have a take on: ${vp.behaviorPatterns.onNewsWithTake}` : '',
+                  vp.behaviorPatterns.onDisagreement ? `- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}` : '',
+                  vp.behaviorPatterns.onFactualClaim ? `- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}` : '',
+                  vp.behaviorPatterns.onAgreement ? `- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}` : '',
+                  vp.behaviorPatterns.onFunny ? `- Funny/absurd content: ${vp.behaviorPatterns.onFunny}` : '',
+                ].filter(Boolean)
+                return lines.length ? `\nHOW YOU RESPOND TO DIFFERENT TWEETS:\n${lines.join('\n')}` : ''
+              })()
             : ''
 
           const bannedExtra = vp?.bannedPhrases?.length
@@ -747,17 +751,20 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
 
       // If interview voice profile exists, use it as the primary signal
       const voiceBlock = vp
-        ? `YOUR WRITING STYLE (locked in by you during setup):
+        ? (() => {
+            const bpLines = [
+              vp.behaviorPatterns.onNewsWithTake ? `- News/topic tweet you have a take on: ${vp.behaviorPatterns.onNewsWithTake}` : '',
+              vp.behaviorPatterns.onFactualClaim ? `- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}` : '',
+              vp.behaviorPatterns.onAgreement ? `- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}` : '',
+              vp.behaviorPatterns.onDisagreement ? `- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}` : '',
+              vp.behaviorPatterns.onFunny ? `- Funny/absurd content: ${vp.behaviorPatterns.onFunny}` : '',
+              vp.behaviorPatterns.onControversial ? `- Controversial/hot take: ${vp.behaviorPatterns.onControversial}` : '',
+            ].filter(Boolean)
+            return `YOUR WRITING STYLE (locked in by you during setup):
 ${vp.synthesized}
-${vp.replyBehavior?.synthesized ? `\nHOW YOU REPLY (your specific reply patterns):\n${vp.replyBehavior.synthesized}\n` : ''}
-HOW YOU RESPOND TO DIFFERENT TWEET TYPES:
-- News/topic tweet you have a take on: ${vp.behaviorPatterns.onNewsWithTake}
-- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}
-- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}
-- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}
-- Funny/absurd content: ${vp.behaviorPatterns.onFunny}
-- Controversial/hot take: ${vp.behaviorPatterns.onControversial}
+${vp.replyBehavior?.synthesized ? `\nHOW YOU REPLY (your specific reply patterns):\n${vp.replyBehavior.synthesized}\n` : ''}${bpLines.length ? `\nHOW YOU RESPOND TO DIFFERENT TWEET TYPES:\n${bpLines.join('\n')}` : ''}
 ${vp.goldenExamples.length ? `\nYOUR GOLDEN EXAMPLES (write exactly like these):\n${vp.goldenExamples.map((e, i) => `${i + 1}. ${e}`).join('\n')}` : ''}`
+          })()
         : `Your voice extracted from your real reply archive:
 ${stats.medianReplyLength ? `- your replies are typically ${stats.medianReplyLength} — stay there. if in doubt, go shorter.` : '- keep replies short by default'}
 ${stats.caseStyle ? `- case style: ${stats.caseStyle}` : ''}
@@ -766,23 +773,29 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
 - your opinions: ${p.opinionStyle}
 - phrases you actually use: ${p.examplePhrases.slice(0, 5).join(' | ')}`
 
+      const effectiveMentions = (vp?.characteristicMentions?.length ? vp.characteristicMentions : stats.characteristicMentions) ?? []
+      const effectiveCaseStyle = vp?.caseStyle || stats.caseStyle || ''
+      const effectiveApostrophe = vp?.apostropheStyle || stats.apostropheStyle || ''
+      const effectiveLength = vp?.replyLength || stats.medianReplyLength || ''
+
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
 
 ${voiceBlock}
 
-- you NEVER use hashtags. ever.
-- you avoid: ${[...p.avoids, ...(vp?.bannedPhrases ?? [])].join(', ')}
-${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
-${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
-${(vp?.characteristicMentions ?? stats.characteristicMentions ?? []).length ? `You sometimes @mention these accounts mid-reply when relevant: ${(vp?.characteristicMentions ?? stats.characteristicMentions ?? []).join(', ')}` : ''}
-
-STRICT rules:
+HARD RULES (never break these):
+${effectiveCaseStyle ? `- case style: ${effectiveCaseStyle}` : ''}
+${effectiveApostrophe ? `- ${effectiveApostrophe}` : ''}
+${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` : '- keep replies short'}
 - no em dashes (—). banned.
 - no bullet points, no structured formatting, no hashtags
 - DO NOT start with the person's handle
 - no AI reveal, no bot language
 - when mentioning any account or tool by name (e.g. grok, chatgpt), always write it with @ if it's a Twitter account (e.g. @grok, not grok)
-- only reply in your genuine domains: ${p.dominantTopics.join(', ')} — if tweet is completely outside these, give a short neutral take or skip`
+- you avoid: ${[...p.avoids, ...(vp?.bannedPhrases ?? [])].join(', ')}
+- only reply in your genuine domains: ${p.dominantTopics.join(', ')} — if tweet is completely outside these, give a short neutral take or skip
+${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
+${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
+${effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`
     }
 
     // Mood → action-oriented instruction for sentence 2
