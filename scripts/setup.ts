@@ -1925,6 +1925,22 @@ async function main() {
         }
         if (neverTopics.length) console.log(`  Got it — never reply to: ${neverTopics.join(', ')}\n`)
 
+        // Q4 — Per-domain like threshold
+        console.log(`  [4] Minimum likes a tweet needs before Blopus replies to it — set per topic.`)
+        console.log(`      Higher = only big viral tweets (harder to find). Lower = more tweets, smaller accounts.`)
+        console.log(`      Press Enter on any topic to use the default for that type:\n`)
+        const domainMinLikes: Record<string, number> = {}
+        for (const topic of domainTopics) {
+          const suggested = /ai|tech|crypto|bitcoin|startup|software|coding/i.test(topic) ? 500
+            : /india|politics|religion|social|justice|climate|health/i.test(topic) ? 100
+            : 200
+          const raw = await ask(`    ${topic} (suggested: ${suggested}): `)
+          const parsed = parseInt(raw.match(/\d+/)?.[0] ?? '')
+          domainMinLikes[topic] = isNaN(parsed) ? suggested : parsed
+        }
+        console.log(`  Got it — thresholds set.\n`)
+        if (personalityProfile) (personalityProfile as any).domainMinLikes = domainMinLikes
+
       } else {
         // Viral mode — only ask never-topics
         console.log(`  [2] Any topics Blopus should NEVER reply to — even if they trend?`)
@@ -2424,6 +2440,7 @@ async function main() {
     replyEngine: (replyEngine as any) ?? 'rag',
     replyStrategy: (replyStrategy as any) ?? 'growth',
     avoidTopics,
+    domainMinLikes: (personalityProfile as any)?.domainMinLikes ?? {},
   }
   fs.writeFileSync(
     path.join(creatorDir, 'config.json'),
