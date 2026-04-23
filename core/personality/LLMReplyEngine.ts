@@ -448,8 +448,7 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       }
     }
     if (isVoiceMode) {
-      // Voice profile specifies length — use the profile's replyLength to pick token budget
-      const rl = (vp?.replyLength ?? '').toLowerCase()
+      const rl = (ownerProfile?.voiceProfile?.replyLength ?? '').toLowerCase()
       dynamicMaxTokens = rl.includes('very short') ? 80 : rl.includes('short') ? 120 : 180
       archiveMedianLength = 60
     }
