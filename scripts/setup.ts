@@ -2097,6 +2097,10 @@ async function main() {
         personalityProfile.quoteTweetBehavior = quoteTweetBehavior
         personalityProfile.likeBehavior = likeBehavior
         fs.writeFileSync(path.join(creatorDir, 'personality_profile.json'), JSON.stringify(personalityProfile, null, 2), 'utf8')
+        // Write voice_profile.json separately — agent loads this file directly
+        if (voiceProfile) {
+          fs.writeFileSync(path.join(creatorDir, 'voice_profile.json'), JSON.stringify(voiceProfile, null, 2), 'utf8')
+        }
       }
     }
 
@@ -2177,6 +2181,11 @@ async function main() {
       if (fs.existsSync(profilePath)) {
         fs.writeFileSync(profilePath, JSON.stringify(personalityProfile, null, 2), 'utf8')
         console.log('\n  ✓ Profile saved to personality_profile.json')
+      }
+      // Write voice_profile.json separately — agent loads this file directly
+      if (voiceProfile) {
+        fs.writeFileSync(path.join(creatorDir, 'voice_profile.json'), JSON.stringify(voiceProfile, null, 2), 'utf8')
+        console.log('  ✓ Voice profile saved to voice_profile.json')
       }
     }
   }
