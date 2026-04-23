@@ -299,7 +299,10 @@ export class LLMReplyEngine {
         throw new Error('Unexpected response type from LLM')
       }
 
-      const text = cleanReply(content.text)
+      const noApostrophe = (this.personalityProfile?.voiceProfile?.apostropheStyle ?? '').toLowerCase().includes('never')
+      const text = noApostrophe
+        ? stripApostrophes(cleanReply(content.text))
+        : cleanReply(content.text)
 
       if (!text) {
         throw new Error('Empty response from LLM')
@@ -475,7 +478,10 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       })
       const content = response.content[0]
       if (content.type !== 'text') return ''
-      const raw = cleanReply(content.text)
+      const noApostrophe = (ownerProfile?.voiceProfile?.apostropheStyle ?? '').toLowerCase().includes('never')
+      const raw = noApostrophe
+        ? stripApostrophes(cleanReply(content.text))
+        : cleanReply(content.text)
       // Fragment guard: too short relative to archive median (skipped in voice mode — short replies are valid)
       if (!isVoiceMode) {
         const fragmentThreshold = Math.floor(archiveMedianLength * 0.3)
@@ -1027,6 +1033,17 @@ function cleanReply(raw: string): string {
     .replace(/—/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+/**
+ * Strips apostrophes from contractions and possessives when the voice profile
+ * says never to use them. LLMs ignore this rule ~30% of the time — post-processing
+ * is the only reliable enforcement.
+ * e.g. didn't → didnt, water's → waters, they're → theyre
+ */
+function stripApostrophes(text: string): string {
+  // Remove apostrophe between word characters (contractions + possessives)
+  return text.replace(/(\w)'(\w)/g, '$1$2')
 }
 
 
