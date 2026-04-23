@@ -398,6 +398,7 @@ ${examplesBlock}
 ${behaviorBlock}
 
 HARD RULES:
+${(vp?.caseStyle ?? stats.caseStyle) ? `- case style: ${vp?.caseStyle ?? stats.caseStyle}` : ''}
 ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
 ${(vp?.replyLength ?? stats.medianReplyLength) ? `- length: ${vp?.replyLength ?? stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
 - no em dashes (—). no hashtags. no emojis. plain text only.
