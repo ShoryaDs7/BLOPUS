@@ -1360,7 +1360,8 @@ async function main() {
   console.log('  1 · Haiku   — fast, cheap (~$0.001/reply). Great for high volume.')
   console.log('  2 · Sonnet  — higher quality, costs more (~$0.01/reply). Better voice matching.')
   console.log()
-  console.log('  Note: Telegram control (SessionBrain) always uses Sonnet — this cannot be changed.')
+  console.log('  Note: Telegram control (SessionBrain) uses Sonnet by default.')
+  console.log('        To change it, edit SESSIONBRAIN_MODEL= in your .env file directly.')
   console.log('─'.repeat(58))
   let replyModelRaw = ''
   while (!['1', '2'].includes(replyModelRaw)) { replyModelRaw = await ask('  Enter 1 or 2: ') }
