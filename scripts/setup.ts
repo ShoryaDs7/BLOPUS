@@ -1994,6 +1994,18 @@ async function main() {
         console.log(`  Got it — thresholds set.\n`)
         if (personalityProfile) (personalityProfile as any).domainMinLikes = domainMinLikes
 
+        // Q4.5 — Max tweet age
+        const isNiche = domainTopics.some((t: string) => /india|social|religion|politics|food|lifestyle|humor|nature|animal|mental|health|justice|environment/i.test(t))
+        const suggestedAgeHours = isNiche ? 12 : 2
+        console.log(`  [4.5] How old can a tweet be before Blopus replies to it?`)
+        console.log(`        Lower = only very fresh tweets (fewer options). Higher = older tweets too (more options).`)
+        console.log(`        Press Enter to use suggested (${suggestedAgeHours}h):\n`)
+        const ageRaw = await ask(`    Max tweet age in hours (suggested: ${suggestedAgeHours}h): `)
+        const ageParsed = parseInt(ageRaw.match(/\d+/)?.[0] ?? '')
+        const maxAgeTweetMinutes = (isNaN(ageParsed) ? suggestedAgeHours : ageParsed) * 60
+        console.log(`  Got it — ${maxAgeTweetMinutes / 60}h max age.\n`)
+        if (personalityProfile) (personalityProfile as any).maxAgeTweetMinutes = maxAgeTweetMinutes
+
         // Q5 — Domain search keyword expansion
         console.log(`  [5] Blopus will now expand each topic into 30-50 search keywords`)
         console.log(`      so it can find the right tweets — not just tweets with that exact word.`)
@@ -2515,6 +2527,7 @@ async function main() {
     avoidTopics,
     domainMinLikes: (personalityProfile as any)?.domainMinLikes ?? {},
     domainSearchKeywords: (personalityProfile as any)?.domainSearchKeywords ?? {},
+    maxAgeTweetMinutes: (personalityProfile as any)?.maxAgeTweetMinutes ?? 720,
   }
   fs.writeFileSync(
     path.join(creatorDir, 'config.json'),

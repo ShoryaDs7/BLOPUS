@@ -129,6 +129,7 @@ export class OwnerViralReplyHunter {
         avoidTopics = cfg.avoidTopics ?? []
         domainMinLikes = cfg.domainMinLikes
         domainSearchKeywords = cfg.domainSearchKeywords
+        if (cfg.maxAgeTweetMinutes) rc.maxAgeTweetMinutes = cfg.maxAgeTweetMinutes
       } catch {}
 
       this.lastRunAt = Date.now()
