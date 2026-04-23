@@ -11,6 +11,12 @@
  */
 
 import 'dotenv/config'
+import dotenv from 'dotenv'
+import path from 'path'
+
+const creator = process.env.CREATOR
+if (creator) dotenv.config({ path: path.resolve(`./creators/${creator}/.env`), override: true })
+
 import { XClient } from '../adapters/x/XClient'
 
 async function main(): Promise<void> {

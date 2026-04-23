@@ -1633,6 +1633,28 @@ async function main() {
     console.log(`  ✓ Minimal config saved to creators/${creatorName}/config.json`)
   }
 
+  // ── Auto-fetch owner userId from Twitter API ──────────────────
+  let ownerUserId = ''
+  console.log('\n  Fetching your Twitter user ID...')
+  try {
+    const { XClient } = await import('../adapters/x/XClient')
+    const xc = new XClient('placeholder')
+    const fetched = await xc.fetchUserIdByHandle(ownerHandle)
+    if (fetched) {
+      ownerUserId = fetched
+      const cfgPath = path.join(creatorDir, 'config.json')
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+      cfg.blopus.userId = ownerUserId
+      cfg.owner.userId  = ownerUserId
+      fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8')
+      console.log(`  ✓ Twitter user ID saved: ${ownerUserId}`)
+    }
+  } catch {
+    console.log(`  ⚠ Could not fetch user ID automatically — you can set it later.`)
+    console.log(`    Run: npx tsx scripts/fetchBotUserId.ts "@${ownerHandle}"`)
+    console.log(`    Then paste the ID into creators/${creatorName}/config.json → blopus.userId`)
+  }
+
   // ── Step 8: Archive + personality (owner/both only) ───────────
 
   let personalityProfile: any = undefined
@@ -2338,11 +2360,12 @@ async function main() {
   const config = {
     blopus: {
       handle: ownerHandle,
-      userId: '',
+      userId: ownerUserId,
       displayName: ownerHandle,
     },
     owner: {
       handle: ownerHandle,
+      userId: ownerUserId,
       displayName: ownerHandle,
     },
     platform: {
