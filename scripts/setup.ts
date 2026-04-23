@@ -1938,9 +1938,11 @@ async function main() {
       console.log('─'.repeat(58))
     }
 
-    if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask))
-      originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
-    else console.log('  Skipped — Blopus will use archive style for posts.\n')
+    if (replyEngine !== 'voice') {
+      if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask))
+        originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
+      else console.log('  Skipped — Blopus will use archive style for posts.\n')
+    }
 
     if (!await askSkip('QUOTE TWEETS — when and how you quote tweet others', ask))
       quoteTweetBehavior = await runQuoteTweetInterview(personalityProfile, ask, setupClient)
