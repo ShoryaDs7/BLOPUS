@@ -374,11 +374,12 @@ export class LLMReplyEngine {
           const behaviorBlock = vp
             ? (() => {
                 const lines = [
-                  vp.behaviorPatterns.onNewsWithTake ? `- News/topic you have a take on: ${vp.behaviorPatterns.onNewsWithTake}` : '',
-                  vp.behaviorPatterns.onDisagreement ? `- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}` : '',
-                  vp.behaviorPatterns.onFactualClaim ? `- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}` : '',
-                  vp.behaviorPatterns.onAgreement ? `- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}` : '',
-                  vp.behaviorPatterns.onFunny ? `- Funny/absurd content: ${vp.behaviorPatterns.onFunny}` : '',
+                  vp.behaviorPatterns.onNewsWithTake   ? `- News/topic you have a take on: ${vp.behaviorPatterns.onNewsWithTake}`   : '',
+                  vp.behaviorPatterns.onDisagreement   ? `- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}`     : '',
+                  vp.behaviorPatterns.onFactualClaim   ? `- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}` : '',
+                  vp.behaviorPatterns.onAgreement      ? `- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}`               : '',
+                  vp.behaviorPatterns.onFunny          ? `- Funny/absurd content: ${vp.behaviorPatterns.onFunny}`                   : '',
+                  vp.behaviorPatterns.onControversial  ? `- Controversial/hot take: ${vp.behaviorPatterns.onControversial}`         : '',
                 ].filter(Boolean)
                 return lines.length ? `\nHOW YOU RESPOND TO DIFFERENT TWEETS:\n${lines.join('\n')}` : ''
               })()
@@ -406,9 +407,10 @@ ${behaviorBlock}
 
 HARD RULES:
 ${(vp?.caseStyle || stats.caseStyle) ? `- case style: ${vp?.caseStyle || stats.caseStyle}` : ''}
-${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
+${(vp?.apostropheStyle || stats.apostropheStyle) ? `- ${vp?.apostropheStyle || stats.apostropheStyle}` : ''}
 ${(vp?.replyLength || stats.medianReplyLength) ? `- length: ${vp?.replyLength || stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
-- no em dashes (—). no hashtags. no emojis. plain text only.
+${(vp?.emojiUsage || stats.emojiUsage) ? `- emoji usage: ${vp?.emojiUsage || stats.emojiUsage}` : '- no emojis'}
+- no em dashes (—). no hashtags. plain text only.
 - when mentioning any account write @handle (e.g. @grok not grok)
 - NEVER start a reply with "Exactly" or "Yeah exactly" or "Yes exactly" — that is an AI tell. React in your own words.
 - NEVER write 3+ structured sentences in a row like an essay. If you agree, say one thing and stop.
@@ -416,6 +418,8 @@ ${(vp?.replyLength || stats.medianReplyLength) ? `- length: ${vp?.replyLength ||
 - NEVER use these startup-guru phrases: "compounds", "compounding", "moat", "traction", "execution", "accountability", "at scale", "simplest way to understand", "failure modes", "surfaces real", "the real shift", "the real problem", "dressed up as", "noise disperses", "anxiety management", "attention is rented", "founders who win", "mastery compounds", "depth compounds"${bannedExtra}
 - You are a person texting, not a pundit declaring facts. Write the way the examples above sound — match their energy, their length, their personal voice exactly.
 - If you agree with someone, say it in one casual line. Never write 2+ structured declarative sentences in a row.
+${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.join(', ')}` : ''}
+${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
 ${sigPatterns.length ? `\nSignature patterns — use ONLY when it fits naturally:\n${sigPatterns.map(sp => `"${sp.phrase}": ${sp.usedFor}${sp.neverUsedFor ? `. never for: ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${ownerProfile?.voiceProfile?.tagUsagePattern ? `Tagging rule (from your interview): ${ownerProfile.voiceProfile.tagUsagePattern}` : useGrokTag ? `@grok rule: ONLY tag @grok when the tweet is about AI tools, a factual claim you'd want verified, or an AI comparison. NEVER on celebrity, appearance, sports, or entertainment content. When in doubt — don't.` : ''}
 Reply exactly how the examples above sound. No AI reveal. Always reply — never output [SKIP].`
@@ -784,6 +788,7 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
       const effectiveCaseStyle = vp?.caseStyle || stats.caseStyle || ''
       const effectiveApostrophe = vp?.apostropheStyle || stats.apostropheStyle || ''
       const effectiveLength = vp?.replyLength || stats.medianReplyLength || ''
+      const effectiveEmoji = vp?.emojiUsage || stats.emojiUsage || ''
 
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
 
@@ -793,6 +798,7 @@ HARD RULES (never break these):
 ${effectiveCaseStyle ? `- case style: ${effectiveCaseStyle}` : ''}
 ${effectiveApostrophe ? `- ${effectiveApostrophe}` : ''}
 ${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` : '- keep replies short'}
+${effectiveEmoji ? `- emoji usage: ${effectiveEmoji}` : '- no emojis'}
 - no em dashes (—). banned.
 - no bullet points, no structured formatting, no hashtags
 - DO NOT start with the person's handle
@@ -800,6 +806,8 @@ ${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` :
 - when mentioning any account or tool by name (e.g. grok, chatgpt), always write it with @ if it's a Twitter account (e.g. @grok, not grok)
 - you avoid: ${[...p.avoids, ...(vp?.bannedPhrases ?? [])].join(', ')}
 - only reply in your genuine domains: ${p.dominantTopics.join(', ')} — if tweet is completely outside these, give a short neutral take or skip
+${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.join(', ')}` : ''}
+${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
 ${effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`
