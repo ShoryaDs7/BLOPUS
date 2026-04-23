@@ -1382,6 +1382,15 @@ async function main() {
   fs.mkdirSync(creatorDir, { recursive: true })
   fs.mkdirSync(path.resolve('./creators/memory-store'), { recursive: true })
 
+  // Write CREATOR to root .env immediately — bot needs this to find the creator even if setup crashes later
+  {
+    const rp = path.resolve('.env')
+    let re = fs.existsSync(rp) ? fs.readFileSync(rp, 'utf8') : ''
+    if (/^CREATOR=/m.test(re)) re = re.replace(/^CREATOR=.*/m, `CREATOR=${creatorName}`)
+    else re = `CREATOR=${creatorName}\n` + re
+    fs.writeFileSync(rp, re, 'utf8')
+  }
+
   // ── Step 3: Twitter API keys ──────────────────────────────────
 
   section(4, 'Twitter / X API keys')
@@ -1583,6 +1592,26 @@ async function main() {
   ]
   fs.writeFileSync(path.join(creatorDir, '.env'), checkpointEnv.join('\n') + '\n', 'utf8')
   console.log(`\n  ✓ Credentials saved to creators/${creatorName}/.env`)
+
+  // Write a minimal config.json checkpoint so the agent can boot even if setup crashes before the final write
+  const configCheckpointPath = path.join(creatorDir, 'config.json')
+  if (!fs.existsSync(configCheckpointPath)) {
+    const minCfg = {
+      blopus:   { handle: ownerHandle, userId: '', displayName: ownerHandle },
+      owner:    { handle: ownerHandle, displayName: ownerHandle },
+      platform: { primary: 'x', pollIntervalMinutes: 5, maxRepliesPerPollCycle: 1, maxRepliesPerDay: 10, replyDelayMinutes: { min: 1, max: 5 } },
+      personality: { traits: { aggression: 0.3, warmth: 0.6, humor: 0.5, formality: 0.4, verbosity: 0.5 }, quirks: { responseRate: 0.8 } },
+      llm:      { model: 'claude-haiku-4-5-20251001', maxTokens: 400, temperature: 0.8, enabled: true },
+      summon:   { keywords: ['osbot', 'blopus'], requireOwnerHandle: false },
+      pack:     { knownOsBots: [], tagProbability: 0.1, maxTagsPerReply: 1 },
+      memory:   { storePath: './creators/memory-store', maxRecords: 10000, pruneAfterDays: 90 },
+      rateLimits: { monthlyPostBudget: 500, safetyBufferPercent: 0.1, minimumPollIntervalMinutes: 3, backoffOnErrorMs: 60000, threadCooldownMinutes: 60 },
+      controlChannel: { telegram: { ownerChatId: telegramChatId } },
+      replyMode: 'domain', replyEngine: 'rag', replyStrategy: 'growth', avoidTopics: [],
+    }
+    fs.writeFileSync(configCheckpointPath, JSON.stringify(minCfg, null, 2), 'utf8')
+    console.log(`  ✓ Minimal config saved to creators/${creatorName}/config.json`)
+  }
 
   // ── Step 8: Archive + personality (owner/both only) ───────────
 
