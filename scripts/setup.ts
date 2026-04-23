@@ -739,6 +739,7 @@ Your job:
   8. Agreement — how do they reply when they agree?
   9. Hot takes / breaking news — do they jump in or stay out?
   10. What they NEVER do in replies
+  11. How they OPEN a reply — exact first words or patterns when agreeing, disagreeing, or adding their own take. This is critical — ask explicitly: "What's the first thing you usually write when you agree with someone? When you disagree? When you have your own take?"
 - Ask 8-12 questions total. Track count with [x/12] prefix on each [Q].
 - When done output exactly: [INTERVIEW_DONE]
   Then ONLY this raw JSON (no markdown, no backticks):
@@ -753,6 +754,7 @@ Your job:
   "onDisagreement": "...",
   "onFunny": "...",
   "onControversial": "...",
+  "openingStyle": "exact openers: when agreeing: '...', when disagreeing: '...', when own take: '...'",
   "bannedPhrases": "comma,separated or empty",
   "tagUsagePattern": "if they tag specific accounts: 'You tag @X in [domains] when [tweet type]. Roughly [N] out of 100 replies. Never use @X for [exceptions].' Empty string if no specific accounts mentioned.",
   "replyBehaviorSynthesized": "2-3 sentences on reply-specific behaviors only. Write as instructions TO the bot: 'When you disagree you...', 'You tag @X when...'"
@@ -820,9 +822,8 @@ Never say you're an AI. No "Great answer!" Keep it direct.`
   // ── Golden examples — dynamic per domain (Math.max(2, round(8/domains))) ──
   console.log('\n  ─ Golden examples — reply exactly as you would ─\n')
 
-  const confirmedReplyTopics: string[] = (computed?.voiceProfile?.replyMode === 'domain' && computed?.dominantTopics?.length)
-    ? computed.dominantTopics
-    : (computed?.replyTopics ?? topics)
+  // dominantTopics is already updated by step 12 before runReplyInterview is called
+  const confirmedReplyTopics: string[] = (computed?.dominantTopics ?? computed?.replyTopics ?? topics).filter((t: string) => t)
 
   const perDomain = Math.max(2, Math.round(8 / confirmedReplyTopics.length))
 
@@ -927,20 +928,24 @@ Write 2-3 sentences describing ONLY how this person writes (style, tone, structu
   console.log('\n' + '─'.repeat(58))
   console.log('  Here\'s how I\'d reply on each of your topics.\n  Tell me if any don\'t sound like you.\n')
 
-  const buildReplyPrompt = (tweet: string, correction?: string) => `Reply to this tweet AS this person. Be them exactly.
+  const globalCorrections: string[] = []
+
+  const buildReplyPrompt = (tweet: string, topicCorrection?: string) => `Reply to this tweet AS this person. Be them exactly.
 
 Tweet: "${tweet}"
 
 Writing style: ${synthesized}
 Case: ${structuredAnswers.caseStyle || 'lowercase'}
-Length: ${structuredAnswers.replyLength || 'short one-liners, occasionally longer in bullet points'}
+STRICT LENGTH RULE: ${structuredAnswers.replyLength || 'short one-liners by default. Only expand to 2-3 sentences when explaining something. Never more than 3 sentences.'}
+${structuredAnswers.openingStyle ? `HOW TO OPEN THE REPLY (follow exactly): ${structuredAnswers.openingStyle}` : ''}
 ${structuredAnswers.tagUsagePattern ? `Tagging rule: ${structuredAnswers.tagUsagePattern}` : ''}
 NEVER use: ${splitList(structuredAnswers.bannedPhrases ?? '').join(', ') || 'nothing specified'}
 Reply behavior: ${structuredAnswers.replyBehaviorSynthesized ?? ''}
+${globalCorrections.length ? `\nRULES FROM PREVIOUS CORRECTIONS (apply to ALL replies):\n${globalCorrections.map((c, i) => `${i + 1}. ${c}`).join('\n')}` : ''}
 
 Golden examples — match this exact voice and length:
 ${goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')}
-${correction ? `\nPrevious attempt was wrong — fix this: ${correction}` : ''}
+${topicCorrection ? `\nPrevious attempt was wrong — fix this: ${topicCorrection}` : ''}
 
 Return ONLY the reply text.`
 
@@ -957,12 +962,12 @@ Return ONLY the reply text.`
       console.log(`  [${topic}]`)
       console.log(`  Tweet: "${sampleTweet}"`)
 
-      let correction = ''
+      let topicCorrection = ''
       let approved = false
       while (!approved) {
         const replyRes = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 120,
-          messages: [{ role: 'user', content: buildReplyPrompt(sampleTweet, correction || undefined) }],
+          model: 'claude-sonnet-4-6', max_tokens: 120,
+          messages: [{ role: 'user', content: buildReplyPrompt(sampleTweet, topicCorrection || undefined) }],
         })
         const rc = replyRes.content[0]
         if (!rc || rc.type !== 'text') break
@@ -972,8 +977,9 @@ Return ONLY the reply text.`
           approved = true
           console.log()
         } else if (fb.trim()) {
-          correction = fb.trim()
-          synthesized += ` For ${topic}: ${correction}`
+          topicCorrection = fb.trim()
+          globalCorrections.push(fb.trim())
+          synthesized += ` RULE: ${fb.trim()}`
           console.log('  Retrying...\n')
         } else {
           break
@@ -1085,7 +1091,8 @@ Your job:
       else if (line.startsWith('Got it')) console.log(`  ${line}`)
     }
 
-    const userAnswer = await askFn('  > ')
+    let userAnswer = ''
+    while (!userAnswer.trim()) { userAnswer = await askFn('  > ') }
     messages.push({ role: 'user', content: userAnswer })
 
     const next = await client.messages.create({
@@ -1276,7 +1283,8 @@ Your job:
       else if (line.startsWith('Got it')) console.log(`  ${line}`)
     }
 
-    const userAnswer = await askFn('  > ')
+    let userAnswer = ''
+    while (!userAnswer.trim()) { userAnswer = await askFn('  > ') }
     messages.push({ role: 'user', content: userAnswer })
 
     const next = await client.messages.create({
@@ -1550,6 +1558,32 @@ async function main() {
   const telegramToken  = await askRequired('Telegram bot token')
   const telegramChatId = await askRequired('Your Telegram chat ID')
 
+  // ── Checkpoint save — all credentials collected so far ────────
+  fs.mkdirSync(creatorDir, { recursive: true })
+  const checkpointEnv = [
+    `OWNER_HANDLE=${ownerHandle}`,
+    `TWITTER_API_KEY=${apiKey}`,
+    `TWITTER_API_SECRET=${apiSecret}`,
+    `TWITTER_ACCESS_TOKEN=${accessToken}`,
+    `TWITTER_ACCESS_TOKEN_SECRET=${accessTokenSecret}`,
+    `ANTHROPIC_API_KEY=${anthropicKey}`,
+    `X_AUTH_EMAIL=${xEmail}`,
+    `X_PASSWORD=${xPassword}`,
+    `X_AUTH_TOKEN=${xAuthToken}`,
+    `X_CT0=${xCt0}`,
+    xDmPasscode ? `X_DM_PASSCODE=${xDmPasscode}` : `# X_DM_PASSCODE=`,
+    `TAVILY_API_KEY=${tavilyKey}`,
+    geminiKey ? `GEMINI_API_KEY=${geminiKey}` : `# GEMINI_API_KEY=`,
+    `TELEGRAM_BOT_TOKEN=${telegramToken}`,
+    `TELEGRAM_OWNER_CHAT_ID=${telegramChatId}`,
+    `X_HANDLE=${ownerHandle}`,
+    `OSBOT_CONFIG_PATH=./creators/${creatorName}/config.json`,
+    `X_SEARCH_TIMELINE_HASH=AIdc203rPpK_k_2KWSdm7g`,
+    `X_TWEET_DETAIL_HASH=nBS-WpgA6ZG0CyNHD517JQ`,
+  ]
+  fs.writeFileSync(path.join(creatorDir, '.env'), checkpointEnv.join('\n') + '\n', 'utf8')
+  console.log(`\n  ✓ Credentials saved to creators/${creatorName}/.env`)
+
   // ── Step 8: Archive + personality (owner/both only) ───────────
 
   let personalityProfile: any = undefined
@@ -1700,54 +1734,17 @@ async function main() {
         }
         if (result.biography.built) console.log(`  ✓ Owner biography built`)
 
-        // ── Ask for topic corrections ────────────────────────────
+        // ── Show computed topics ─────────────────────────────────
         if (personalityProfile) {
+          // Set dominantTopics from replyTopics by default — step 12 will let user edit them
+          personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
+
           console.log('\n' + '─'.repeat(58))
-          console.log('  CONFIRM DOMAIN TOPICS FOR REPLY HUNTING')
-          console.log('  Blopus will search for viral tweets on these topics to reply to.')
-          console.log('  Start from your reply topics — they are more accurate.')
+          console.log('  Domain topics computed from your archive:')
           console.log()
-          console.log('  Options:')
-          console.log('    Enter               -> use reply topics as-is (recommended)')
-          console.log('    use posts           -> use post topics instead')
-          console.log('    remove: 2,4         -> remove from reply topics by number')
-          console.log('    add: topic name     -> add a topic')
-          console.log('    set: t1, t2, t3     -> replace entire list manually')
+          ;(personalityProfile.dominantTopics ?? []).forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
           console.log()
-          console.log('  Reply topics (recommended starting point):')
-          ;(personalityProfile.replyTopics ?? []).forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
-
-          const fix = await ask('\n  Your choice: ')
-
-          if (!fix.trim() || fix.trim().toLowerCase() === 'use replies') {
-            personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
-            console.log(`  Using reply topics as domain list.`)
-          } else if (fix.trim().toLowerCase() === 'use posts') {
-            personalityProfile.dominantTopics = personalityProfile.postTopics ?? personalityProfile.dominantTopics
-            console.log(`  Using post topics as domain list.`)
-          } else {
-            const removeMatch = fix.match(/^remove\s*:\s*([\d,\s]+)/i)
-            const addMatch    = fix.match(/^add\s*:\s*(.+)/i)
-            const setMatch    = fix.match(/^set\s*:\s*(.+)/i)
-
-            const base = personalityProfile.replyTopics ?? personalityProfile.dominantTopics ?? []
-
-            if (removeMatch) {
-              const nums = removeMatch[1].split(',').map(n => parseInt(n.trim()) - 1)
-              personalityProfile.dominantTopics = base.filter((_: string, i: number) => !nums.includes(i))
-              console.log(`  Topics set to:`)
-              personalityProfile.dominantTopics.forEach((t: string) => console.log(`    · ${t}`))
-            } else if (addMatch) {
-              personalityProfile.dominantTopics = [...base, addMatch[1].trim()]
-              console.log(`  Added: ${addMatch[1].trim()}`)
-            } else if (setMatch) {
-              personalityProfile.dominantTopics = setMatch[1].split(',').map((t: string) => t.trim())
-              console.log(`  Topics set to: ${personalityProfile.dominantTopics.join(', ')}`)
-            } else {
-              personalityProfile.dominantTopics = personalityProfile.replyTopics ?? personalityProfile.dominantTopics
-              console.log(`  Using reply topics as domain list.`)
-            }
-          }
+          console.log('  You can edit these in the next step.')
 
           fs.writeFileSync(
             path.join(creatorDir, 'personality_profile.json'),
@@ -1755,6 +1752,7 @@ async function main() {
             'utf8'
           )
           console.log(`\n  ✓ Personality profile saved.`)
+          await ask('  Press Enter to continue: ')
         }
 
       } catch (err: any) {
@@ -1920,9 +1918,21 @@ async function main() {
 
     let originalPostProfile: any = undefined
 
+    const saveProfile = () => {
+      if (personalityProfile) {
+        personalityProfile.voiceProfile = voiceProfile
+        if (voiceProfile) voiceProfile.originalPostProfile = originalPostProfile
+        personalityProfile.quoteTweetBehavior = quoteTweetBehavior
+        personalityProfile.likeBehavior = likeBehavior
+        fs.writeFileSync(path.join(creatorDir, 'personality_profile.json'), JSON.stringify(personalityProfile, null, 2), 'utf8')
+      }
+    }
+
     if (replyEngine === 'voice') {
       voiceProfile = await runReplyInterview(personalityProfile, ask, setupClient)
+      saveProfile()
       originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
+      saveProfile()
     } else if (replyEngineRaw === '2') {
       // RAG mode — just capture banned phrases + never topics (archive handles the rest)
       console.log('\n' + '─'.repeat(58))
@@ -1943,29 +1953,38 @@ async function main() {
     }
 
     if (replyEngine !== 'voice') {
-      if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask))
+      if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask)) {
         originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
-      else console.log('  Skipped — Blopus will use archive style for posts.\n')
+        // Save postTopics from interview result into personality profile
+        if (originalPostProfile?.topics?.length && personalityProfile) {
+          personalityProfile.postTopics = originalPostProfile.topics
+        }
+        saveProfile()
+      } else console.log('  Skipped — Blopus will use archive style for posts.\n')
     }
 
-    if (!await askSkip('QUOTE TWEETS — when and how you quote tweet others', ask))
+    if (!await askSkip('QUOTE TWEETS — when and how you quote tweet others', ask)) {
       quoteTweetBehavior = await runQuoteTweetInterview(personalityProfile, ask, setupClient)
-    else console.log('  Skipped — quote tweeting disabled.\n')
+      saveProfile()
+    } else console.log('  Skipped — quote tweeting disabled.\n')
 
-    if (!await askSkip('RETWEETS — when you retweet others', ask))
-      { const rt = await runRetweetInterview(personalityProfile, ask, setupClient); if (personalityProfile) (personalityProfile as any).retweetBehavior = rt }
-    else console.log('  Skipped — retweeting disabled.\n')
+    if (!await askSkip('RETWEETS — when you retweet others', ask)) {
+      const rt = await runRetweetInterview(personalityProfile, ask, setupClient)
+      if (personalityProfile) (personalityProfile as any).retweetBehavior = rt
+      saveProfile()
+    } else console.log('  Skipped — retweeting disabled.\n')
 
-    if (!await askSkip('LIKES — what content you like', ask))
+    if (!await askSkip('LIKES — what content you like', ask)) {
       likeBehavior = await runLikeInterview(personalityProfile, ask, setupClient)
-    else console.log('  Skipped — auto-liking disabled.\n')
+      saveProfile()
+    } else console.log('  Skipped — auto-liking disabled.\n')
 
-    if (!await askSkip('REPLY BACK — who you reply to when people engage with you', ask))
-      { const replyBackRules = await runReplyBackInterview(ask, setupClient)
-        if (voiceProfile) voiceProfile.replyBackRules = replyBackRules
-        else { if (!personalityProfile?.voiceProfile) (personalityProfile as any).voiceProfile = {}; (personalityProfile as any).voiceProfile.replyBackRules = replyBackRules }
-      }
-    else console.log('  Skipped — Blopus will reply to everyone.\n')
+    if (!await askSkip('REPLY BACK — who you reply to when people engage with you', ask)) {
+      const replyBackRules = await runReplyBackInterview(ask, setupClient)
+      if (voiceProfile) voiceProfile.replyBackRules = replyBackRules
+      else { if (!personalityProfile?.voiceProfile) (personalityProfile as any).voiceProfile = {}; (personalityProfile as any).voiceProfile.replyBackRules = replyBackRules }
+      saveProfile()
+    } else console.log('  Skipped — Blopus will reply to everyone.\n')
 
     // Merge into personalityProfile so it gets saved together
     if (personalityProfile) {
