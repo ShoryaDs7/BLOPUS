@@ -1042,8 +1042,8 @@ function cleanReply(raw: string): string {
  * e.g. didn't → didnt, water's → waters, they're → theyre
  */
 function stripApostrophes(text: string): string {
-  // Remove apostrophe between word characters (contractions + possessives)
-  return text.replace(/(\w)'(\w)/g, '$1$2')
+  // Remove both straight ' (U+0027) and curly ' (U+2019) apostrophes — LLMs output both
+  return text.replace(/(\w)['’](\w)/g, '$1$2')
 }
 
 
