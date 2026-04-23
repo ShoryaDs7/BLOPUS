@@ -810,7 +810,7 @@ ${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.joi
 ${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
-${effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`
+${vp?.tagUsagePattern ? `Tagging rule (from your interview): ${vp.tagUsagePattern}` : effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`
     }
 
     // Mood → action-oriented instruction for sentence 2
