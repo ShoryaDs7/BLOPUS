@@ -2234,24 +2234,66 @@ async function main() {
   fs.writeFileSync(path.join(creatorDir, '.env'), envLines.join('\n') + '\n', 'utf8')
   console.log(`  ✓ creators/${creatorName}/.env`)
 
+  const rpd: number = (voiceProfile as any)?.repliesPerDay ?? 10
   const config = {
     blopus: {
       handle: ownerHandle,
-      displayName: 'Blopus',
+      userId: '',
+      displayName: ownerHandle,
     },
     owner: {
       handle: ownerHandle,
       displayName: ownerHandle,
     },
-    controlChannel: {
-      telegram: { ownerChatId: telegramChatId },
+    platform: {
+      primary: 'x',
+      pollIntervalMinutes: 5,
+      maxRepliesPerPollCycle: Math.max(1, Math.round(rpd / 24 / 2)),
+      maxRepliesPerDay: rpd,
+      replyDelayMinutes: { min: 1, max: 5 },
+    },
+    personality: {
+      traits: {
+        aggression:  personalityProfile?.traits?.aggression  ?? 0.3,
+        warmth:      personalityProfile?.traits?.warmth      ?? 0.6,
+        humor:       personalityProfile?.traits?.humor       ?? 0.5,
+        formality:   personalityProfile?.traits?.formality   ?? 0.4,
+        verbosity:   personalityProfile?.traits?.verbosity   ?? 0.5,
+      },
+      quirks: { responseRate: 0.8 },
     },
     llm: {
       model: 'claude-haiku-4-5-20251001',
       maxTokens: 400,
+      temperature: 0.8,
+      enabled: true,
+    },
+    summon: {
+      keywords: ['osbot', 'blopus'],
+      requireOwnerHandle: false,
+    },
+    pack: {
+      knownOsBots: [],
+      tagProbability: 0.1,
+      maxTagsPerReply: 1,
+    },
+    memory: {
+      storePath: `./creators/${creatorName}/memory-store`,
+      maxRecords: 10000,
+      pruneAfterDays: 90,
+    },
+    rateLimits: {
+      monthlyPostBudget: 500,
+      safetyBufferPercent: 0.1,
+      minimumPollIntervalMinutes: 3,
+      backoffOnErrorMs: 60000,
+      threadCooldownMinutes: 60,
+    },
+    controlChannel: {
+      telegram: { ownerChatId: telegramChatId },
     },
     replySettings: {
-      maxRepliesPerHour: 10,
+      maxRepliesPerHour: Math.max(1, Math.round(rpd / 16)),
       replyToMentions: true,
       replyToViral: true,
     },
@@ -2261,11 +2303,11 @@ async function main() {
     avoidTopics,
   }
   fs.writeFileSync(
-    path.join(creatorDir, 'blopus.config.json'),
+    path.join(creatorDir, 'config.json'),
     JSON.stringify(config, null, 2),
     'utf8'
   )
-  console.log(`  ✓ creators/${creatorName}/blopus.config.json`)
+  console.log(`  ✓ creators/${creatorName}/config.json`)
 
   // ── Done ──────────────────────────────────────────────────────
 
