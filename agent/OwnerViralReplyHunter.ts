@@ -160,7 +160,7 @@ export class OwnerViralReplyHunter {
         console.log(`[OwnerViralHunter] Home timeline: ${candidates.length} viral candidates`)
       } else {
         // Domain mode — filter by owner's topics, fall back to topic search if empty
-        const homeFiltered = this.applyFilters(candidates, avoidTopics, topics)
+        const homeFiltered = this.applyFilters(candidates, avoidTopics, topics, domainSearchKeywords)
         console.log(`[OwnerViralHunter] Home timeline: ${candidates.length} viral → ${homeFiltered.length} on-domain`)
 
         if (homeFiltered.length > 0) {
@@ -170,7 +170,7 @@ export class OwnerViralReplyHunter {
           console.log(`[OwnerViralHunter] No domain tweets on home — searching by topic...`)
           if (this.domainSearch.enabled && topics.length > 0) {
             const searched = await this.domainSearch.searchViralByTopics(topics, rc.minLikes, rc.maxAgeTweetMinutes, domainMinLikes, domainSearchKeywords)
-            const searchFiltered = this.applyFilters(searched, avoidTopics, topics)
+            const searchFiltered = this.applyFilters(searched, avoidTopics, topics, domainSearchKeywords)
             console.log(`[OwnerViralHunter] Topic search: ${searched.length} found → ${searchFiltered.length} on-domain`)
             candidates = searchFiltered.length > 0 ? searchFiltered : []
           } else {
@@ -195,7 +195,7 @@ export class OwnerViralReplyHunter {
       if (fresh.length === 0 && replyMode === 'domain' && this.domainSearch.enabled && topics.length > 0) {
         console.log('[OwnerViralHunter] All home candidates already replied to — falling back to topic search...')
         const searched = await this.domainSearch.searchViralByTopics(topics, rc.minLikes, rc.maxAgeTweetMinutes, domainMinLikes)
-        const searchFiltered = this.applyFilters(searched, avoidTopics, topics)
+        const searchFiltered = this.applyFilters(searched, avoidTopics, topics, domainSearchKeywords)
         console.log(`[OwnerViralHunter] Topic search fallback: ${searched.length} found → ${searchFiltered.length} on-domain`)
         fresh = searchFiltered.filter(c =>
           !this.repliedTweetIds.has(c.tweetId) &&
@@ -288,6 +288,7 @@ export class OwnerViralReplyHunter {
     candidates: Awaited<ReturnType<PlaywrightHomeTimelineProvider['getViralFromHome']>>,
     avoidTopics: string[],
     domainTopics: string[],
+    domainSearchKeywords?: Record<string, string[]>,
   ) {
     let filtered = candidates
     if (avoidTopics.length > 0) {
@@ -297,7 +298,7 @@ export class OwnerViralReplyHunter {
       })
     }
     if (domainTopics.length > 0) {
-      filtered = filtered.filter(c => this.isTopicRelevant(c.text, domainTopics))
+      filtered = filtered.filter(c => this.isTopicRelevant(c.text, domainTopics, domainSearchKeywords))
     }
     return filtered
   }
@@ -351,7 +352,7 @@ export class OwnerViralReplyHunter {
     return new RegExp(`\\b${escaped}\\b`).test(text)
   }
 
-  private isTopicRelevant(tweetText: string, topics: string[]): boolean {
+  private isTopicRelevant(tweetText: string, topics: string[], domainSearchKeywords?: Record<string, string[]>): boolean {
     const stripped = tweetText.replace(/@\w+/g, '').toLowerCase()
 
     // Use profile-computed keywords if available (generated at setup from user's archive)
@@ -382,18 +383,23 @@ export class OwnerViralReplyHunter {
     return topics.some(topic => {
       const topicLower = topic.toLowerCase()
 
-      // 1. Profile-computed keywords (most accurate — from user's own archive)
+      // 1. User's own expanded keywords from setup (most accurate — explicitly chosen by user)
+      if (domainSearchKeywords?.[topic]?.length) {
+        return domainSearchKeywords[topic].some(kw => this.matchesKeyword(stripped, kw.toLowerCase()))
+      }
+
+      // 2. Profile-computed keywords from archive
       if (profileKeywords[topic]?.length) {
         return profileKeywords[topic].some(kw => this.matchesKeyword(stripped, kw))
       }
 
-      // 2. Hardcoded fallback keyword groups
+      // 3. Hardcoded fallback keyword groups
       const matchedGroup = Object.entries(TOPIC_KEYWORDS).find(([key]) => topicLower.includes(key))
       if (matchedGroup) {
         return matchedGroup[1].some(kw => this.matchesKeyword(stripped, kw))
       }
 
-      // 3. Last resort: split topic into words and match
+      // 4. Last resort: split topic into words and match
       const SKIP = new Set(['and','the','for','with','from','that','this','are','was','has','have','not','but','can','its','will'])
       const words = topicLower.split(/[\s/,()\[\]]+/).filter(w => w.length >= 4 && !SKIP.has(w))
       return words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(stripped))
