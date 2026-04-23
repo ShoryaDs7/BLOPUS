@@ -538,7 +538,8 @@ Return the complete updated voice profile JSON:`
 // ─── Part 4: Quote Tweet Interview ───────────────────────────
 async function runQuoteTweetInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic): Promise<any> {
   const topics: string[] = computed?.dominantTopics ?? []
-  const topicList = topics.slice(0, 5).map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicList = topics.map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicsContext = `Archive topics (numbered):\n${topics.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nRaw array: ${JSON.stringify(topics)}`
 
   console.log('\n' + '═'.repeat(58))
   console.log('  PART 4 — QUOTE TWEETS')
@@ -547,9 +548,9 @@ async function runQuoteTweetInterview(computed: any, askFn: (q: string) => Promi
   console.log(topicList + '\n')
 
   console.log('  [1/4] Which of these topics make you want to add your own take?')
-  console.log('        (type the topics, or "all", or "none")')
+  console.log('        (type the topics, "all", "none", or numbers like "1,3" or "only 2")')
   const q1 = await askFn('  > ')
-  const topicsJson = await claudeInterpret(client, q1, `Archive topics: ${JSON.stringify(topics)}`, 'A JSON array of topics the user actually wants to quote tweet about. Read their full answer — if they said "all" return all archive topics, if they said specific ones return only those, if "none" return []. Return ONLY a valid JSON array.')
+  const topicsJson = await claudeInterpret(client, q1, topicsContext, 'A JSON array of topics the user wants to quote tweet about. IMPORTANT: if they said a number like "only 4" or "just 4" they mean topic #4 by its position number. If "all" return all. If "none" return []. Return ONLY a valid JSON array.')
   let quoteTopics: string[] = []
   try { quoteTopics = JSON.parse(topicsJson) } catch { quoteTopics = [] }
   console.log(`  Got it — quote tweet topics: ${quoteTopics.join(', ') || 'none'}\n`)
@@ -584,7 +585,8 @@ async function runQuoteTweetInterview(computed: any, askFn: (q: string) => Promi
 // ─── Part 5: Retweet Interview ────────────────────────────────
 async function runRetweetInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic): Promise<any> {
   const topics: string[] = computed?.dominantTopics ?? []
-  const topicList = topics.slice(0, 5).map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicList = topics.map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicsContext = `Archive topics (numbered):\n${topics.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nRaw array: ${JSON.stringify(topics)}`
 
   console.log('\n' + '═'.repeat(58))
   console.log('  PART 5 — RETWEETS')
@@ -593,9 +595,9 @@ async function runRetweetInterview(computed: any, askFn: (q: string) => Promise<
   console.log(topicList + '\n')
 
   console.log('  [1/4] Which of these topics do you retweet?')
-  console.log('        (type the topics, or "all", or "none")')
+  console.log('        (type the topics, "all", "none", or numbers like "1,3" or "only 2")')
   const q1 = await askFn('  > ')
-  const topicsJson = await claudeInterpret(client, q1, `Archive topics: ${JSON.stringify(topics)}`, 'A JSON array of topics the user actually retweets. Read their full answer — if they said "all" return all archive topics, if they said specific ones return only those, if "none" return []. Return ONLY a valid JSON array.')
+  const topicsJson = await claudeInterpret(client, q1, topicsContext, 'A JSON array of topics the user retweets. IMPORTANT: if they said a number like "only 4" or "just 4" they mean topic #4 by its position number. If "all" return all. If "none" return []. Return ONLY a valid JSON array.')
   let retweetTopics: string[] = []
   try { retweetTopics = JSON.parse(topicsJson) } catch { retweetTopics = [] }
   console.log(`  Got it — retweet topics: ${retweetTopics.join(', ') || 'none'}\n`)
@@ -630,7 +632,8 @@ async function runRetweetInterview(computed: any, askFn: (q: string) => Promise<
 // ─── Part 6: Like Behavior Interview ─────────────────────────
 async function runLikeInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic): Promise<any> {
   const topics: string[] = computed?.dominantTopics ?? []
-  const topicList = topics.slice(0, 5).map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicList = topics.map((t, i) => `  ${i + 1}. ${t}`).join('\n')
+  const topicsContext = `Archive topics (numbered):\n${topics.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nRaw array: ${JSON.stringify(topics)}`
 
   console.log('\n' + '═'.repeat(58))
   console.log('  PART 6 — LIKES')
@@ -639,9 +642,9 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
   console.log(topicList + '\n')
 
   console.log('  [1/4] Which of these topics do you like tweets about?')
-  console.log('        (type the topics, or "all", or "none")')
+  console.log('        (type the topics, "all", "none", or numbers like "1,3" or "only 2")')
   const q1 = await askFn('  > ')
-  const topicsJson = await claudeInterpret(client, q1, `Archive topics: ${JSON.stringify(topics)}`, 'A JSON array of topics the user actually likes tweets about. Read their full answer — if they said "all" return all archive topics, if they said specific ones return only those, if "none" return []. Return ONLY a valid JSON array.')
+  const topicsJson = await claudeInterpret(client, q1, topicsContext, 'A JSON array of topics the user likes tweets about. IMPORTANT: if they said a number like "only 4" or "just 4" they mean topic #4 by its position number. If "all" return all. If "none" return []. Return ONLY a valid JSON array.')
   let likeTopics: string[] = []
   try { likeTopics = JSON.parse(topicsJson) } catch { likeTopics = [] }
   console.log(`  Got it — like topics: ${likeTopics.join(', ') || 'none'}\n`)
@@ -1840,7 +1843,7 @@ async function main() {
             'A JSON array of the final list of topics. If user adds a new topic not in the archive, include it. Return ONLY a valid JSON array of strings.')
           try { const p = JSON.parse(dtJson); if (Array.isArray(p) && p.length) domainTopics = p } catch {}
         }
-        console.log(`  Got it — topics: ${domainTopics.slice(0, 5).join(', ')}\n`)
+        console.log(`  Got it — topics:\n${domainTopics.map((t: string, i: number) => `    ${i + 1}. ${t}`).join('\n')}\n`)
         personalityProfile.dominantTopics = domainTopics
 
         // Q3 — Never (domain mode)
@@ -2165,16 +2168,27 @@ async function main() {
   instantly to a free .surge.sh URL from Telegram.
   Without it: no website publishing from Telegram.
 
-  Run this command RIGHT NOW in this terminal to create
-  your free Surge account — takes 30 seconds:
+  Run these 2 commands RIGHT NOW in a NEW terminal tab:
 
-    surge output/website blopus-setup.surge.sh
+    Step 1 — install surge (one-time):
+      npm install -g surge
+
+    Step 2 — create your free account:
+      surge output/website blopus-setup.surge.sh
 
   It will ask for email + password — create them on the spot.
   After that, Blopus can deploy any website with one message.
 
   Press Enter to skip (you can do this later).
 `)
+
+  // Create the dummy folder surge needs so the command doesn't fail
+  const surgeDir = path.resolve('output/website')
+  fs.mkdirSync(surgeDir, { recursive: true })
+  if (!fs.existsSync(path.join(surgeDir, 'index.html'))) {
+    fs.writeFileSync(path.join(surgeDir, 'index.html'), '<h1>Blopus</h1>', 'utf8')
+  }
+
   await askOptional('Press Enter when done (or Enter to skip)')
 
   // Read Surge credentials from ~/.netrc and store for later .env write
@@ -2186,7 +2200,11 @@ async function main() {
     if (m) { surgeLogin = m[1]; surgeToken = m[2] }
   } catch {}
 
-  console.log(`  ✓ Surge setup complete — deploy skill ready!`)
+  if (surgeLogin) {
+    console.log(`  ✓ Surge connected — deploy skill ready!`)
+  } else {
+    console.log(`  Surge skipped — you can set it up later.`)
+  }
 
   // ── Write config files ────────────────────────────────────────
 
