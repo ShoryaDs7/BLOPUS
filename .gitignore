@@ -72,3 +72,4 @@ claude-plugins-official/
 .claude/
 .playwright-mcp/
 scripts/upload_yt_script.js
+CLAUDE.md
