@@ -221,20 +221,10 @@ async function main() {
     }
     console.log(`  Got it — topics: ${domainTopics.slice(0, 5).join(', ')}\n`)
 
-    // Q3 — Never (domain mode) — examples built from their actual chosen topics
-    const neverExamples = domainTopics.slice(0, 2).map(t => {
-      const tl = t.toLowerCase()
-      if (tl.includes('gender') || tl.includes('relationship')) return `inside "${t}" — skip nsfw or explicit content`
-      if (tl.includes('ai') || tl.includes('tech')) return `inside "${t}" — skip crypto debates`
-      if (tl.includes('food') || tl.includes('lifestyle')) return `inside "${t}" — skip diet culture or weight loss content`
-      if (tl.includes('animal') || tl.includes('nature')) return `inside "${t}" — skip hunting or animal farming debates`
-      if (tl.includes('viral') || tl.includes('internet')) return `inside "${t}" — skip hate speech or slur-heavy content`
-      if (tl.includes('indian') || tl.includes('society')) return `inside "${t}" — skip caste debates`
-      if (tl.includes('justice') || tl.includes('account')) return `inside "${t}" — skip politically partisan takes`
-      return `inside "${t}" — skip any sub-topic you find toxic or draining`
-    })
+    // Q3 — Never (domain mode)
     console.log('  [3] Any sub-topics to ALWAYS skip — even inside your chosen topics?')
-    neverExamples.forEach(e => console.log(`      e.g. ${e}`))
+    console.log(`      Your topics: ${domainTopics.join(', ')}`)
+    console.log('      e.g. a sub-topic, content type, or angle within any of the above you find toxic or draining')
     console.log('      Press Enter to skip if nothing comes to mind.')
     const q3 = await ask('  > ')
     if (q3.trim()) {
