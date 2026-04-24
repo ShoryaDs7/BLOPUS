@@ -117,6 +117,22 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
 
   let structuredAnswers: Record<string, string> = {}
   let turnCount = 0
+
+  // Robust JSON extractor — counts balanced braces so trailing LLM text never breaks parse
+  const extractInterviewJSON = (text: string): Record<string, string> | null => {
+    const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
+    const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
+    const start = cleaned.indexOf('{')
+    if (start === -1) return null
+    let depth = 0, end = -1
+    for (let i = start; i < cleaned.length; i++) {
+      if (cleaned[i] === '{') depth++
+      else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
+    }
+    if (end === -1) return null
+    try { return JSON.parse(cleaned.slice(start, end + 1)) }
+    catch (e) { console.warn('[Setup] Failed to parse interview JSON:', e); return null }
+  }
   const MAX_TURNS = 30
 
   while (turnCount < MAX_TURNS) {
@@ -132,11 +148,8 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
     messages.push({ role: 'assistant', content: claudeMsg })
 
     if (claudeMsg.includes('[INTERVIEW_DONE]')) {
-      // Extract JSON after the marker
-      const jsonStart = claudeMsg.indexOf('{', claudeMsg.indexOf('[INTERVIEW_DONE]'))
-      if (jsonStart !== -1) {
-        try { structuredAnswers = JSON.parse(claudeMsg.slice(jsonStart)) } catch {}
-      }
+      structuredAnswers = extractInterviewJSON(claudeMsg) ?? {}
+      if (!structuredAnswers.caseStyle) console.warn('[Setup] Interview JSON missing fields — LLM may have output malformed JSON')
       break
     }
 
@@ -850,13 +863,8 @@ Never say you're an AI. No "Great answer!" Keep it direct.`
 
     while (true) {
       if (assistantText.includes('[INTERVIEW_DONE]')) {
-        const jsonStart = assistantText.indexOf('{', assistantText.indexOf('[INTERVIEW_DONE]'))
-        if (jsonStart !== -1) {
-          try { structuredAnswers = JSON.parse(assistantText.slice(jsonStart)) } catch {
-            const match = assistantText.slice(jsonStart).match(/\{[\s\S]*\}/)
-            if (match) { try { structuredAnswers = JSON.parse(match[0]) } catch {} }
-          }
-        }
+        structuredAnswers = extractInterviewJSON(assistantText) ?? {}
+        if (!structuredAnswers.caseStyle) console.warn('[Setup] Interview JSON missing fields — LLM may have output malformed JSON')
         break
       }
 
