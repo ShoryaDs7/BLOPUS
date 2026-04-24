@@ -2286,7 +2286,7 @@ async function main() {
   3. Generate new token → check all "repo" + "workflow" scopes
   4. Copy and paste below. Press Enter to skip.
 `)
-  const githubToken = await askOptional('GitHub Personal Access Token (or Enter to skip)')
+  const githubToken = await askOptionalOrEnv('GitHub Personal Access Token (or Enter to skip)', 'GITHUB_TOKEN')
 
   // ── Step: Railway deploy (optional) ──────────────────────────
 
@@ -2303,7 +2303,7 @@ async function main() {
   2. Avatar top-right → Account Settings → Tokens → New Token
   3. Name it "Blopus" → Create → copy. Press Enter to skip.
 `)
-  const railwayToken = await askOptional('Railway token')
+  const railwayToken = await askOptionalOrEnv('Railway token', 'RAILWAY_TOKEN')
 
   // ── Step: Google Workspace MCP (optional) ────────────────────
 
