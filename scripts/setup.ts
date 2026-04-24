@@ -2111,31 +2111,27 @@ async function main() {
       console.log(`  Got it — ${repliesPerDay} replies/day\n`)
       if (voiceProfile) (voiceProfile as any).repliesPerDay = repliesPerDay
 
-      // Knowledge depth only for replies — can't enforce ratio on incoming tweets
+      // Never sub-topics — expand into full keyword list
+      if (neverTopics.length) {
+        console.log(`  Expanding never-topics into keywords...\n`)
+        const expandedNever = await expandNeverKeywords(neverTopics.join(', '), ask)
+        if (voiceProfile) voiceProfile.neverTopics = expandedNever
+      }
+
+      // Knowledge depth per topic — asked one at a time to avoid parsing mistakes
       if (replyModeOwner === 'domain' && domainTopics.length) {
-        console.log('  For each topic, your knowledge level (helps Blopus know how deep to go):')
-        domainTopics.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
-        console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert')
-        console.log(`  e.g. "all 2" or "Indian society 3, AI 1, rest 2" — or press Enter for all intermediate`)
-        const depthInput = await ask('  > ')
-        let depths: ('basic' | 'intermediate' | 'expert')[] = domainTopics.map(() => 'intermediate' as const)
-        if (depthInput.trim()) {
-          try {
-            const res = await setupClient.messages.create({
-              model: 'claude-haiku-4-5-20251001', max_tokens: 200,
-              messages: [{ role: 'user', content: `Topics: ${JSON.stringify(domainTopics)}\nUser said: "${depthInput}"\nMap 1=basic, 2=intermediate, 3=expert. Return a JSON array of strings (one per topic, in order) — each value must be exactly "basic", "intermediate", or "expert". Return ONLY a valid JSON array.` }],
-            })
-            const text = res.content[0].type === 'text' ? res.content[0].text : ''
-            const match = text.match(/\[[\s\S]*?\]/)
-            if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === domainTopics.length) depths = p }
-          } catch {}
+        console.log('  For each topic, type your knowledge level:')
+        console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert\n')
+        const depthMap: Record<string, 'basic' | 'intermediate' | 'expert'> = {}
+        for (const t of domainTopics) {
+          let raw = ''
+          while (!['1', '2', '3'].includes(raw.trim())) { raw = await ask(`  ${t}: `) }
+          depthMap[t] = raw.trim() === '1' ? 'basic' : raw.trim() === '3' ? 'expert' : 'intermediate'
         }
         const topicProfiles: Record<string, { engagementShare: number; knowledgeDepth: string }> = {}
-        domainTopics.forEach((t: string, i: number) => {
-          topicProfiles[t] = { engagementShare: Math.round(100 / domainTopics.length), knowledgeDepth: depths[i] ?? 'intermediate' }
+        domainTopics.forEach((t: string) => {
+          topicProfiles[t] = { engagementShare: Math.round(100 / domainTopics.length), knowledgeDepth: depthMap[t] }
         })
-        console.log(`  Got it —`)
-        domainTopics.forEach((t: string) => console.log(`    ${t}: ${topicProfiles[t].knowledgeDepth}`))
         console.log()
         if (personalityProfile) (personalityProfile as any).topicProfiles = topicProfiles
       }
@@ -2236,23 +2232,15 @@ async function main() {
             } catch {}
           }
 
-          console.log('\n  For each topic, your knowledge level:')
-          postTopicList.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
-          console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert')
-          console.log('  e.g. "Indian society 3, AI 1, rest 2" — or press Enter to keep all intermediate')
-          const depthInput = await ask('  > ')
-          let depths: ('basic' | 'intermediate' | 'expert')[] = postTopicList.map(() => 'intermediate' as const)
-          if (depthInput.trim()) {
-            try {
-              const res = await setupClient.messages.create({
-                model: 'claude-haiku-4-5-20251001', max_tokens: 200,
-                messages: [{ role: 'user', content: `Topics: ${JSON.stringify(postTopicList)}\nUser said: "${depthInput}"\nMap 1=basic, 2=intermediate, 3=expert. Return a JSON array of strings (one per topic in order) — each must be exactly "basic", "intermediate", or "expert". Return ONLY a valid JSON array.` }],
-              })
-              const text = res.content[0].type === 'text' ? res.content[0].text : ''
-              const match = text.match(/\[[\s\S]*?\]/)
-              if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === postTopicList.length) depths = p }
-            } catch {}
+          console.log('\n  For each topic, type your knowledge level:')
+          console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert\n')
+          const depthMap: Record<string, 'basic' | 'intermediate' | 'expert'> = {}
+          for (const t of postTopicList) {
+            let raw = ''
+            while (!['1', '2', '3'].includes(raw.trim())) { raw = await ask(`  ${t}: `) }
+            depthMap[t] = raw.trim() === '1' ? 'basic' : raw.trim() === '3' ? 'expert' : 'intermediate'
           }
+          const depths = postTopicList.map((t: string) => depthMap[t])
 
           // Merge into existing topicProfiles (replies already set knowledge depth, posts adds engagementShare)
           const existing = (personalityProfile as any).topicProfiles ?? {}
