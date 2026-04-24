@@ -41,6 +41,18 @@ async function askOptional(label: string, hint?: string): Promise<string> {
   return ask(`  ${label} (Enter to skip): `)
 }
 
+async function askOrEnv(label: string, envKey: string, hint?: string): Promise<string> {
+  const existing = process.env[envKey]?.trim()
+  if (existing) { console.log(`  ✓ ${label}: found in .env\n`); return existing }
+  return askRequired(label, hint)
+}
+
+async function askOptionalOrEnv(label: string, envKey: string): Promise<string> {
+  const existing = process.env[envKey]?.trim()
+  if (existing) { console.log(`  ✓ ${label}: found in .env\n`); return existing }
+  return askOptional(label)
+}
+
 function hr() { console.log('─'.repeat(58)) }
 function section(n: number, title: string) {
   console.log(`\n${'─'.repeat(58)}\n  Step ${n} — ${title}\n${'─'.repeat(58)}`)
@@ -1467,8 +1479,7 @@ async function main() {
 
   section(3, 'Your X handles')
 
-  const ownerHandle = await askRequired(
-    'Your real X handle (no @)',
+  const ownerHandle = await askOrEnv('Your real X handle (no @)', 'X_HANDLE',
     'e.g.  johndoe   — this is YOUR real account'
   )
 
@@ -1539,10 +1550,10 @@ async function main() {
   ──────────────────────────────────────────────────────────
 `)
 
-  const apiKey            = await askRequired('API Key (Consumer Key)')
-  const apiSecret         = await askRequired('API Secret (Consumer Secret)')
-  const accessToken       = await askRequired('Access Token')
-  const accessTokenSecret = await askRequired('Access Token Secret')
+  const apiKey            = await askOrEnv('API Key (Consumer Key)',       'TWITTER_API_KEY')
+  const apiSecret         = await askOrEnv('API Secret (Consumer Secret)', 'TWITTER_API_SECRET')
+  const accessToken       = await askOrEnv('Access Token',                 'TWITTER_ACCESS_TOKEN')
+  const accessTokenSecret = await askOrEnv('Access Token Secret',          'TWITTER_ACCESS_TOKEN_SECRET')
 
   // ── Step 5: X login for Playwright ───────────────────────────
 
@@ -1553,8 +1564,8 @@ async function main() {
   Stored locally only — never sent anywhere.
 `)
 
-  const xEmail    = await askRequired('X account email')
-  const xPassword = await askRequired('X account password')
+  const xEmail    = await askOrEnv('X account email',    'X_AUTH_EMAIL')
+  const xPassword = await askOrEnv('X account password', 'X_PASSWORD')
 
   // ── Step 5b: X session cookies ────────────────────────────────
 
@@ -1574,8 +1585,8 @@ async function main() {
   5. Find "auth_token" in the list → click it → copy the entire Value
   6. Find "ct0" in the list → click it → copy the entire Value
 `)
-  const xAuthToken = await askRequired('auth_token value (long string of letters/numbers)')
-  const xCt0       = await askRequired('ct0 value (very long string)')
+  const xAuthToken = await askOrEnv('auth_token value (long string of letters/numbers)', 'X_AUTH_TOKEN')
+  const xCt0       = await askOrEnv('ct0 value (very long string)',                      'X_CT0')
 
   console.log(`
   ⚠  These cookies expire periodically (every few weeks).
@@ -1592,7 +1603,7 @@ async function main() {
             → look for "Additional password protection" — if it is ON enter the code below.
   If it is OFF or you are unsure, just press Enter to skip.
 `)
-  const xDmPasscode = await askOptional('X DM passcode (Enter to skip if not set)')
+  const xDmPasscode = await askOptionalOrEnv('X DM passcode (Enter to skip if not set)', 'X_DM_PASSCODE')
 
   // ── Step 7: Tavily ─────────────────────────────────────────────
 
@@ -1611,7 +1622,7 @@ async function main() {
   Sign up → API Keys → Create → paste below.
 `)
 
-  const tavilyKey = await askRequired('Tavily API Key')
+  const tavilyKey = await askOrEnv('Tavily API Key', 'TAVILY_API_KEY')
 
   // ── Step 7: Gemini (optional) ─────────────────────────────────
 
@@ -1626,7 +1637,7 @@ async function main() {
   Free tier: 1,500 requests/day — more than enough.
 `)
 
-  const geminiKey = await askOptional('Gemini API Key')
+  const geminiKey = await askOptionalOrEnv('Gemini API Key', 'GEMINI_API_KEY')
 
   // ── Step 8: Telegram ──────────────────────────────────────────
 
@@ -1659,8 +1670,8 @@ async function main() {
   3. It shows your ID number — paste below
 `)
 
-  const telegramToken  = await askRequired('Telegram bot token')
-  const telegramChatId = await askRequired('Your Telegram chat ID')
+  const telegramToken  = await askOrEnv('Telegram bot token',    'TELEGRAM_BOT_TOKEN')
+  const telegramChatId = await askOrEnv('Your Telegram chat ID', 'TELEGRAM_OWNER_CHAT_ID')
 
   // ── Checkpoint save — all credentials collected so far ────────
   fs.mkdirSync(creatorDir, { recursive: true })
