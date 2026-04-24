@@ -2111,35 +2111,12 @@ async function main() {
       console.log(`  Got it — ${repliesPerDay} replies/day\n`)
       if (voiceProfile) (voiceProfile as any).repliesPerDay = repliesPerDay
 
-      // Topic profiles — engagement share + knowledge depth per topic
+      // Knowledge depth only for replies — can't enforce ratio on incoming tweets
       if (replyModeOwner === 'domain' && domainTopics.length) {
-        console.log('  ─ Topic profiles — helps Blopus know how deep to go per topic ─\n')
-        console.log('  Your topics:')
+        console.log('  For each topic, your knowledge level (helps Blopus know how deep to go):')
         domainTopics.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
-
-        // Engagement share
-        console.log('\n  Out of 100 replies, how many go to each topic?')
-        console.log('  e.g. "1:40, 2:20, 3:15, 4:10, 5:10, 6:5" — or press Enter to split evenly')
-        const shareInput = await ask('  > ')
-        let shares: number[] = domainTopics.map(() => Math.round(100 / domainTopics.length))
-        if (shareInput.trim()) {
-          try {
-            const res = await setupClient.messages.create({
-              model: 'claude-haiku-4-5-20251001', max_tokens: 200,
-              messages: [{ role: 'user', content: `Topics: ${JSON.stringify(domainTopics)}\nUser said: "${shareInput}"\nReturn a JSON array of numbers (one per topic, in order) representing engagement share out of 100. Numbers must sum to ~100. Return ONLY a valid JSON array.` }],
-            })
-            const text = res.content[0].type === 'text' ? res.content[0].text : ''
-            const match = text.match(/\[[\s\S]*?\]/)
-            if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === domainTopics.length) shares = p }
-          } catch {}
-        }
-
-        // Knowledge depth
-        console.log('\n  For each topic, your knowledge level:')
-        console.log('    1 = basic (general takes only, don\'t go deep)')
-        console.log('    2 = follows it closely (moderate depth ok)')
-        console.log('    3 = deep expert (detailed, specific, confident)')
-        console.log(`  e.g. "1:3, 2:2, 3:1" — or describe: "expert in ${domainTopics[0]}, basic in AI"`)
+        console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert')
+        console.log(`  e.g. "all 2" or "Indian society 3, AI 1, rest 2" — or press Enter for all intermediate`)
         const depthInput = await ask('  > ')
         let depths: ('basic' | 'intermediate' | 'expert')[] = domainTopics.map(() => 'intermediate' as const)
         if (depthInput.trim()) {
@@ -2153,13 +2130,12 @@ async function main() {
             if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === domainTopics.length) depths = p }
           } catch {}
         }
-
         const topicProfiles: Record<string, { engagementShare: number; knowledgeDepth: string }> = {}
         domainTopics.forEach((t: string, i: number) => {
-          topicProfiles[t] = { engagementShare: shares[i] ?? Math.round(100 / domainTopics.length), knowledgeDepth: depths[i] ?? 'intermediate' }
+          topicProfiles[t] = { engagementShare: Math.round(100 / domainTopics.length), knowledgeDepth: depths[i] ?? 'intermediate' }
         })
-        console.log('\n  Topic profiles:')
-        domainTopics.forEach((t: string) => console.log(`    ${t}: ${topicProfiles[t].engagementShare}/100, ${topicProfiles[t].knowledgeDepth}`))
+        console.log(`  Got it —`)
+        domainTopics.forEach((t: string) => console.log(`    ${t}: ${topicProfiles[t].knowledgeDepth}`))
         console.log()
         if (personalityProfile) (personalityProfile as any).topicProfiles = topicProfiles
       }
@@ -2233,10 +2209,65 @@ async function main() {
     if (replyEngine !== 'voice') {
       if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask)) {
         originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
-        // Save postTopics from interview result into personality profile
         if (originalPostProfile?.topics?.length && personalityProfile) {
           personalityProfile.postTopics = originalPostProfile.topics
         }
+
+        // Topic profiles for posts — engagement share (how often) + knowledge depth (how deep)
+        const postTopicList: string[] = (personalityProfile as any)?.postTopics ?? (personalityProfile as any)?.dominantTopics ?? []
+        if (postTopicList.length) {
+          console.log('\n  ─ How often do you post in each topic, and how deep is your knowledge? ─\n')
+          postTopicList.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
+
+          console.log('\n  Out of 100 posts, how many are about each topic?')
+          console.log('  Describe naturally — e.g. "mostly Indian society, a bit of AI, rarely food"')
+          console.log('  or type numbers — e.g. "Indian society 50, AI 15, rest split evenly" — or press Enter to split evenly')
+          const shareInput = await ask('  > ')
+          let shares: number[] = postTopicList.map(() => Math.round(100 / postTopicList.length))
+          if (shareInput.trim()) {
+            try {
+              const res = await setupClient.messages.create({
+                model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+                messages: [{ role: 'user', content: `Topics: ${JSON.stringify(postTopicList)}\nUser said: "${shareInput}"\nReturn a JSON array of numbers (one per topic in order) for how often they post about each topic out of 100. Must sum to ~100. Return ONLY a valid JSON array.` }],
+              })
+              const text = res.content[0].type === 'text' ? res.content[0].text : ''
+              const match = text.match(/\[[\s\S]*?\]/)
+              if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === postTopicList.length) shares = p }
+            } catch {}
+          }
+
+          console.log('\n  For each topic, your knowledge level:')
+          postTopicList.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
+          console.log('    1 = basic (general takes only)  2 = follow it closely  3 = deep expert')
+          console.log('  e.g. "Indian society 3, AI 1, rest 2" — or press Enter to keep all intermediate')
+          const depthInput = await ask('  > ')
+          let depths: ('basic' | 'intermediate' | 'expert')[] = postTopicList.map(() => 'intermediate' as const)
+          if (depthInput.trim()) {
+            try {
+              const res = await setupClient.messages.create({
+                model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+                messages: [{ role: 'user', content: `Topics: ${JSON.stringify(postTopicList)}\nUser said: "${depthInput}"\nMap 1=basic, 2=intermediate, 3=expert. Return a JSON array of strings (one per topic in order) — each must be exactly "basic", "intermediate", or "expert". Return ONLY a valid JSON array.` }],
+              })
+              const text = res.content[0].type === 'text' ? res.content[0].text : ''
+              const match = text.match(/\[[\s\S]*?\]/)
+              if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === postTopicList.length) depths = p }
+            } catch {}
+          }
+
+          // Merge into existing topicProfiles (replies already set knowledge depth, posts adds engagementShare)
+          const existing = (personalityProfile as any).topicProfiles ?? {}
+          postTopicList.forEach((t: string, i: number) => {
+            existing[t] = {
+              engagementShare: shares[i] ?? Math.round(100 / postTopicList.length),
+              knowledgeDepth: depths[i] ?? existing[t]?.knowledgeDepth ?? 'intermediate',
+            }
+          })
+          console.log('\n  Got it —')
+          postTopicList.forEach((t: string) => console.log(`    ${t}: ${existing[t].engagementShare}/100 posts, ${existing[t].knowledgeDepth}`))
+          console.log()
+          if (personalityProfile) (personalityProfile as any).topicProfiles = existing
+        }
+
         saveProfile()
       } else console.log('  Skipped — Blopus will use archive style for posts.\n')
     }
