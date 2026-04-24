@@ -1452,10 +1452,16 @@ async function main() {
   console.log('  Note: Telegram control (SessionBrain) uses Sonnet by default.')
   console.log('        To change it, edit SESSIONBRAIN_MODEL= in your .env file directly.')
   console.log('─'.repeat(58))
-  let replyModelRaw = ''
-  while (!['1', '2'].includes(replyModelRaw)) { replyModelRaw = await ask('  Enter 1 or 2: ') }
-  const replyModel = replyModelRaw === '1' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
-  console.log(`  ✓ Reply model: ${replyModelRaw === '1' ? 'Haiku' : 'Sonnet'}`)
+  const existingReplyModel = process.env.REPLY_MODEL?.trim()
+  let replyModel = existingReplyModel ?? ''
+  if (replyModel) {
+    console.log(`  ✓ Reply model: found in .env (${replyModel})\n`)
+  } else {
+    let replyModelRaw = ''
+    while (!['1', '2'].includes(replyModelRaw)) { replyModelRaw = await ask('  Enter 1 or 2: ') }
+    replyModel = replyModelRaw === '1' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+    console.log(`  ✓ Reply model: ${replyModelRaw === '1' ? 'Haiku' : 'Sonnet'}`)
+  }
 
   // ── Step 2: Mode ─────────────────────────────────────────────
 
@@ -1468,7 +1474,9 @@ async function main() {
                      Has its own handle and personality.
 `)
 
-  let modeRaw = ''
+  const existingMode = process.env.BLOPUS_MODE?.trim()
+  let modeRaw = existingMode === 'owner' ? '1' : existingMode === 'bot' ? '2' : ''
+  if (modeRaw) { console.log(`  ✓ Mode: found in .env (${existingMode})\n`) }
   while (!['1','2'].includes(modeRaw)) {
     modeRaw = await ask('  Enter 1 or 2: ')
   }
@@ -1692,6 +1700,7 @@ async function main() {
     `TELEGRAM_BOT_TOKEN=${telegramToken}`,
     `TELEGRAM_OWNER_CHAT_ID=${telegramChatId}`,
     `X_HANDLE=${ownerHandle}`,
+    `BLOPUS_MODE=${mode}`,
     `OSBOT_CONFIG_PATH=./creators/${creatorName}/config.json`,
     `X_SEARCH_TIMELINE_HASH=AIdc203rPpK_k_2KWSdm7g`,
     `X_TWEET_DETAIL_HASH=nBS-WpgA6ZG0CyNHD517JQ`,
