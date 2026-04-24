@@ -2028,7 +2028,12 @@ async function main() {
           const neverJson = await claudeInterpret(setupClient, neverRaw, 'The user is listing topics they never want to reply to. Each word or phrase is a topic.', 'A JSON array of never-reply topics. Return ONLY a valid JSON array of strings.')
           try { neverTopics = JSON.parse(neverJson) } catch { neverTopics = neverRaw.split(',').map((t: string) => t.trim()).filter(Boolean) }
         }
-        if (neverTopics.length) console.log(`  Got it — never reply to: ${neverTopics.join(', ')}\n`)
+        if (neverTopics.length) {
+          console.log(`  Got it — never reply to: ${neverTopics.join(', ')}\n`)
+          console.log(`  Expanding into keywords...\n`)
+          const expandedNever = await expandNeverKeywords(neverTopics.join(', '), ask)
+          if (voiceProfile) voiceProfile.neverTopics = expandedNever
+        }
 
         // Q4 — Per-domain like threshold
         console.log(`  [4] Minimum likes a tweet needs before Blopus replies to it — set per topic.`)
@@ -2110,13 +2115,6 @@ async function main() {
       }
       console.log(`  Got it — ${repliesPerDay} replies/day\n`)
       if (voiceProfile) (voiceProfile as any).repliesPerDay = repliesPerDay
-
-      // Never sub-topics — expand into full keyword list
-      if (neverTopics.length) {
-        console.log(`  Expanding never-topics into keywords...\n`)
-        const expandedNever = await expandNeverKeywords(neverTopics.join(', '), ask)
-        if (voiceProfile) voiceProfile.neverTopics = expandedNever
-      }
 
       // Knowledge depth per topic — asked one at a time to avoid parsing mistakes
       if (replyModeOwner === 'domain' && domainTopics.length) {
