@@ -634,6 +634,18 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         ? `\nYour post topics (what you actually write original posts about):\n${postTopics.map(t => `- ${t}`).join('\n')}\nPick ONE of these that best fits today's current events. If no current events match any topic, pick the one you feel like writing a hot take or original opinion about today.\n`
         : ''
 
+      // Topic knowledge depth — constrains how deep the LLM goes per topic
+      const topicProfilesBlock = pp?.topicProfiles && Object.keys(pp.topicProfiles).length
+        ? `\nTOPIC KNOWLEDGE RULES — you post in these topics with these frequencies and depth levels:\n${Object.entries(pp.topicProfiles).map(([t, tp]: [string, any]) => {
+            const depthRule = tp.knowledgeDepth === 'basic'
+              ? 'general takes and observations only — do NOT go deep or technical'
+              : tp.knowledgeDepth === 'expert'
+              ? 'deep knowledge — specific, opinionated, detailed posts ok'
+              : 'moderate — can reference specific things but don\'t go hyper-technical'
+            return `- ${t} (${tp.engagementShare}/100 of your posts): ${depthRule}`
+          }).join('\n')}\n`
+        : ''
+
       // Interview-confirmed original post profile (overrides/refines archive inference)
       const opp = pp?.voiceProfile?.originalPostProfile
       // Guard: if opp exists but has no examples to work from, skip — LLM hallucinates bot-diary content
@@ -664,6 +676,7 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         (memoryBlock ? `${memoryBlock}\n\n` : '') +
         (eventsLine ? `${eventsLine}\n\n` : '') +
         postTopicsLine +
+        topicProfilesBlock +
         (oppBlock ? `${oppBlock}\n` : '') +
         oppExamplesBlock +
         burstContext +
@@ -819,6 +832,14 @@ ${effectiveHinglish ? `- non-English / mixed language words: ${effectiveHinglish
 - only reply in your genuine domains: ${p.dominantTopics.join(', ')} — if tweet is completely outside these, give a short neutral take or skip
 ${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.join(', ')}` : ''}
 ${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
+${p.topicProfiles && Object.keys(p.topicProfiles).length ? `\nTOPIC KNOWLEDGE RULES — match your actual depth per topic:\n${Object.entries(p.topicProfiles).map(([t, tp]: [string, any]) => {
+  const depthRule = tp.knowledgeDepth === 'basic'
+    ? 'general takes only — no technical depth, keep it simple and opinionated'
+    : tp.knowledgeDepth === 'expert'
+    ? 'deep knowledge — specific facts, nuance, and confident takes ok'
+    : 'moderate depth — can reference examples and follow the news but don\'t go hyper-technical'
+  return `- ${t} (${tp.engagementShare}/100 of your replies): ${depthRule}`
+}).join('\n')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
 ${vp?.tagUsagePattern ? `Tagging rule (from your interview): ${vp.tagUsagePattern}` : effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`

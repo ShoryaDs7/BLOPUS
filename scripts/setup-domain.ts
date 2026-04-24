@@ -81,12 +81,80 @@ async function claudeInterpret(client: Anthropic, userSaid: string, context: str
   try {
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001', max_tokens: 300,
-      system: 'Read the ENTIRE message carefully. The user may be adding, removing, or listing topics — figure out which. A single word or short phrase IS a valid topic. Return ONLY what is asked — no markdown, no explanation, no backticks.',
+      system: `Read the ENTIRE message carefully. The user may be adding, removing, or editing topics — figure out which.
+IMPORTANT: If the user says "remove X" and X is only PART of a topic name (e.g. "remove politics" when topic is "Religion and politics"), RENAME the topic to remove just that word — do NOT delete the whole topic. E.g. "Religion and politics" → "Religion".
+A single word or short phrase IS a valid topic. Return ONLY what is asked — no markdown, no explanation, no backticks.`,
       messages: [{ role: 'user', content: `Context: ${context}\nUser said: "${userSaid}"\nReturn: ${returnFormat}` }],
     })
     const raw = res.content[0].type === 'text' ? res.content[0].text.trim() : ''
     return raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
   } catch { return '' }
+}
+
+async function askTopicProfiles(
+  client: Anthropic,
+  topics: string[]
+): Promise<Record<string, { engagementShare: number; knowledgeDepth: 'basic' | 'intermediate' | 'expert' }>> {
+  const profiles: Record<string, { engagementShare: number; knowledgeDepth: 'basic' | 'intermediate' | 'expert' }> = {}
+
+  console.log('\n  ─ Topic profiles — helps LLM know how deep to go per topic ─\n')
+  console.log('  Your topics:')
+  topics.forEach((t, i) => console.log(`    ${i + 1}. ${t}`))
+
+  // Engagement share
+  console.log('\n  Out of 100 replies, how many go to each topic?')
+  console.log('  e.g. "1:40, 2:20, 3:15, 4:10, 5:10, 6:5" — or press Enter to split evenly')
+  const shareInput = await ask('  > ')
+
+  let shares: number[] = topics.map(() => Math.round(100 / topics.length))
+  if (shareInput.trim()) {
+    try {
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+        messages: [{ role: 'user', content: `Topics: ${JSON.stringify(topics)}\nUser said: "${shareInput}"\nReturn a JSON array of numbers (one per topic, in order) representing engagement share out of 100. Numbers must sum to ~100. Return ONLY a valid JSON array.` }],
+      })
+      const text = res.content[0].type === 'text' ? res.content[0].text : ''
+      const match = text.match(/\[[\s\S]*?\]/)
+      if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === topics.length) shares = p }
+    } catch {}
+  }
+
+  // Knowledge depth
+  console.log('\n  For each topic, your knowledge level:')
+  console.log('    1 = basic (general takes only, don\'t go deep)')
+  console.log('    2 = follows it closely (moderate depth ok)')
+  console.log('    3 = deep expert (detailed, specific, confident)')
+  console.log(`  e.g. "1:3, 2:2, 3:1, 4:1, 5:2, 6:2" — or describe: "expert in ${topics[0]}, basic in AI"`)
+  const depthInput = await ask('  > ')
+
+  let depths: ('basic' | 'intermediate' | 'expert')[] = topics.map(() => 'intermediate')
+  if (depthInput.trim()) {
+    try {
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+        messages: [{ role: 'user', content: `Topics: ${JSON.stringify(topics)}\nUser said: "${depthInput}"\nMap 1=basic, 2=intermediate, 3=expert. Return a JSON array of strings (one per topic, in order) — each value must be exactly "basic", "intermediate", or "expert". Return ONLY a valid JSON array.` }],
+      })
+      const text = res.content[0].type === 'text' ? res.content[0].text : ''
+      const match = text.match(/\[[\s\S]*?\]/)
+      if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === topics.length) depths = p }
+    } catch {}
+  }
+
+  topics.forEach((t, i) => {
+    profiles[t] = {
+      engagementShare: shares[i] ?? Math.round(100 / topics.length),
+      knowledgeDepth: depths[i] ?? 'intermediate',
+    }
+  })
+
+  console.log('\n  Topic profiles:')
+  topics.forEach(t => {
+    const pr = profiles[t]
+    console.log(`    ${t}: ${pr.engagementShare}/100 replies, ${pr.knowledgeDepth}`)
+  })
+  console.log()
+
+  return profiles
 }
 
 async function main() {
@@ -149,8 +217,10 @@ async function main() {
     console.log(`  Got it — topics: ${domainTopics.slice(0, 5).join(', ')}\n`)
 
     // Q3 — Never (domain mode)
-    console.log('  [3] Any topics Blopus should NEVER reply to — even if they match your topics?')
-    console.log('      e.g. "politics, religion, nsfw" — or press Enter to skip')
+    console.log('  [3] Any sub-topics or content types to ALWAYS skip — even inside your chosen topics?')
+    console.log('      e.g. your topics include "Medicine" but you never want to reply to anti-vax tweets')
+    console.log('      or your topics include "Finance" but you skip crypto debates, political finance, etc.')
+    console.log('      Press Enter to skip if nothing comes to mind.')
     const q3 = await ask('  > ')
     if (q3.trim()) {
       const json = await claudeInterpret(
@@ -164,8 +234,8 @@ async function main() {
 
   } else {
     // Viral mode — only ask never-topics
-    console.log('  [2] Any topics Blopus should NEVER reply to — even if they trend?')
-    console.log('      e.g. "politics, religion, nsfw" — or press Enter to skip')
+    console.log('  [2] Any topics or content types Blopus should ALWAYS skip — even if they trend?')
+    console.log('      e.g. "politics, religion, nsfw, crypto debates" — or press Enter to skip')
     const q2 = await ask('  > ')
     if (q2.trim()) {
       const json = await claudeInterpret(
@@ -204,12 +274,16 @@ async function main() {
   // Expand never topics into full keyword list
   const neverKeywords = neverTopics.length ? await expandNeverKeywords(client, neverTopics) : []
 
+  // Topic profiles (engagement share + knowledge depth per topic)
+  const topicProfiles = domainTopics.length ? await askTopicProfiles(client, domainTopics) : {}
+
   // Save
   if (replyMode === 'domain') profile.dominantTopics = domainTopics
   if (!profile.voiceProfile) profile.voiceProfile = {}
   profile.voiceProfile.neverTopics = neverKeywords
   profile.voiceProfile.replyMode = replyMode
   profile.voiceProfile.repliesPerDay = repliesPerDay
+  profile.topicProfiles = topicProfiles
   fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2), 'utf8')
 
   console.log('═'.repeat(58))
@@ -218,6 +292,10 @@ async function main() {
   if (replyMode === 'domain') console.log(`  · Topics:       ${domainTopics.slice(0, 4).join(', ')}`)
   console.log(`  · Never:        ${neverKeywords.slice(0, 6).join(', ') || 'nothing'}${neverKeywords.length > 6 ? ` (+${neverKeywords.length - 6} more)` : ''}`)
   console.log(`  · Replies/day:  ${repliesPerDay}`)
+  if (Object.keys(topicProfiles).length) {
+    console.log('  · Topic profiles:')
+    Object.entries(topicProfiles).forEach(([t, p]) => console.log(`      ${t}: ${p.engagementShare}/100, ${p.knowledgeDepth}`))
+  }
   console.log('═'.repeat(58) + '\n')
 
   rl.close()
