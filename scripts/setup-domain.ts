@@ -82,7 +82,12 @@ async function claudeInterpret(client: Anthropic, userSaid: string, context: str
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001', max_tokens: 300,
       system: `Read the ENTIRE message carefully. The user may be adding, removing, or editing topics — figure out which.
-IMPORTANT: If the user says "remove X" and X is only PART of a topic name (e.g. "remove politics" when topic is "Religion and politics"), RENAME the topic to remove just that word — do NOT delete the whole topic. E.g. "Religion and politics" → "Religion".
+CRITICAL RULE: If the user says "remove X" and X is a WORD that appears inside a topic name but is not the ENTIRE topic name, you must RENAME that topic by removing just that word — NOT delete the whole topic.
+Examples:
+- Topics: ["Religion and politics", "Food"] + user says "remove politics" → ["Religion", "Food"] (renamed, not deleted)
+- Topics: ["Religion and politics in India", "Food"] + user says "remove politics" → ["Religion in India", "Food"] (renamed)
+- Topics: ["Religion and politics", "Justice"] + user says "remove 2nd" → ["Religion and politics"] (deleted by position)
+- Topics: ["Religion", "Politics", "Food"] + user says "remove politics" → ["Religion", "Food"] (deleted because it IS the full topic)
 A single word or short phrase IS a valid topic. Return ONLY what is asked — no markdown, no explanation, no backticks.`,
       messages: [{ role: 'user', content: `Context: ${context}\nUser said: "${userSaid}"\nReturn: ${returnFormat}` }],
     })
