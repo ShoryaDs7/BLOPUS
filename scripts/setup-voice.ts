@@ -74,18 +74,28 @@ Your job:
 - After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next question
 - If an answer is vague (too short, "idk", "depends", etc.) — push for a NUMBER using the QUANTITATIVE RULES below
 - Questions must be specific to THIS person's archive data. If archive shows all-lowercase, confirm it. If archive shows no emojis, confirm it. Don't ask generic questions.
-- Cover ONLY writing style: case style, apostrophes, punctuation, length, emojis, how they start tweets, line breaks, threads vs single tweets. Do NOT ask about tagging patterns, reactions to content, or reply behavior — that is covered in a separate interview.
-- Ask 6-8 questions total. Track count with [x/8] prefix on each [Q].
+- Cover ONLY writing style: case style, apostrophes, punctuation, length, emojis, how they start tweets, opening phrases for agree/disagree/own take. Do NOT ask about tagging patterns or reply-back behavior — covered in separate interviews.
+- Ask 8-10 questions total. Track count with [x/10] prefix on each [Q].
 
-QUANTITATIVE RULES — apply to every frequency/style question:
-- Always push for a NUMBER. Frame as: "out of 100 tweets, how many would [X]?"
+QUANTITATIVE RULES — apply to EVERY frequency/style question:
+- Always push for a NUMBER. Frame as: "out of 100 replies, how many would [X]?"
 - If user says anything vague ("idk", "sometimes", "a little", "not much", "depends"): ask ONCE — "give me your best guess as a number out of 100"
 - If they still won't give a number, convert: never→0, rarely/barely→5, sometimes/a little/occasionally→15, often/usually→60, mostly/almost always→80, always→95
 - NEVER output vague words for frequency fields — always a number 0-100
 
+OPENER FREQUENCY RULES — when asking about opening phrases for agree/disagree/own take:
+- First get the exact phrases
+- Then ALWAYS follow up: "Out of 100 replies where you [agree/disagree/have your own take], how many actually start with one of these — vs just responding naturally without a fixed opener?"
+- This number goes in onAgreementFrequency / onDisagreementFrequency / onOwnTakeFrequency
+
+EMOJI RULES — when asking about emoji:
+- First get which emojis and in what context (e.g. "laughing and yawning in memes")
+- Then ALWAYS follow up: "Which one do you use more — [emoji1], [emoji2], or equally?" — get a dominant one
+- This goes in dominantEmoji
+
 - When you have enough, output exactly: [INTERVIEW_DONE]
   Then on the next lines, output a JSON block (no markdown, just raw JSON) with this shape:
-  {"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"...","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"...","onDisagreement":"...","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
+  {"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"...","dominantEmoji":"the single emoji used most, or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases only","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases only","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases only","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
 
 Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it direct and conversational.`
 
@@ -208,14 +218,19 @@ Write 2-3 sentences describing exactly how this person writes. Be specific — r
     apostropheStyle:        structuredAnswers.apostropheStyle ?? '',
     replyLength:            structuredAnswers.replyLength ?? '',
     emojiUsage:             structuredAnswers.emojiUsage ?? '',
+    dominantEmoji:          structuredAnswers.dominantEmoji ?? '',
     characteristicMentions: splitList(structuredAnswers.characteristicMentions),
     behaviorPatterns: {
-      onNewsWithTake:  structuredAnswers.onNewsWithTake ?? '',
-      onFactualClaim:  structuredAnswers.onFactualClaim ?? '',
-      onAgreement:     structuredAnswers.onAgreement ?? '',
-      onDisagreement:  structuredAnswers.onDisagreement ?? '',
-      onFunny:         structuredAnswers.onFunny ?? '',
-      onControversial: structuredAnswers.onControversial ?? '',
+      onNewsWithTake:          structuredAnswers.onNewsWithTake ?? '',
+      onFactualClaim:          structuredAnswers.onFactualClaim ?? '',
+      onAgreement:             structuredAnswers.onAgreement ?? '',
+      onAgreementFrequency:    parseInt(structuredAnswers.onAgreementFrequency ?? '30') || 30,
+      onDisagreement:          structuredAnswers.onDisagreement ?? '',
+      onDisagreementFrequency: parseInt(structuredAnswers.onDisagreementFrequency ?? '30') || 30,
+      onOwnTake:               structuredAnswers.onOwnTake ?? '',
+      onOwnTakeFrequency:      parseInt(structuredAnswers.onOwnTakeFrequency ?? '30') || 30,
+      onFunny:                 structuredAnswers.onFunny ?? '',
+      onControversial:         structuredAnswers.onControversial ?? '',
     },
     goldenExamples,
     bannedPhrases: splitList(structuredAnswers.bannedPhrases),

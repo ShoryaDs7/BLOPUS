@@ -789,13 +789,15 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       // If interview voice profile exists, use it as the primary signal
       const voiceBlock = vp
         ? (() => {
+            const bp = vp.behaviorPatterns
             const bpLines = [
-              vp.behaviorPatterns.onNewsWithTake ? `- News/topic tweet you have a take on: ${vp.behaviorPatterns.onNewsWithTake}` : '',
-              vp.behaviorPatterns.onFactualClaim ? `- Factual claim you're unsure about: ${vp.behaviorPatterns.onFactualClaim}` : '',
-              vp.behaviorPatterns.onAgreement ? `- Tweet you agree with: ${vp.behaviorPatterns.onAgreement}` : '',
-              vp.behaviorPatterns.onDisagreement ? `- Someone wrong or delusional: ${vp.behaviorPatterns.onDisagreement}` : '',
-              vp.behaviorPatterns.onFunny ? `- Funny/absurd content: ${vp.behaviorPatterns.onFunny}` : '',
-              vp.behaviorPatterns.onControversial ? `- Controversial/hot take: ${vp.behaviorPatterns.onControversial}` : '',
+              bp.onNewsWithTake ? `- News/topic tweet you have a take on: ${bp.onNewsWithTake}` : '',
+              bp.onFactualClaim ? `- Factual claim you're unsure about: ${bp.onFactualClaim}` : '',
+              bp.onAgreement ? `- When you agree (~${bp.onAgreementFrequency ?? 30}/100 replies use a fixed opener): occasionally open with one of: ${bp.onAgreement} — the rest just respond naturally` : '',
+              bp.onDisagreement ? `- When you disagree (~${bp.onDisagreementFrequency ?? 30}/100 replies use a fixed opener): occasionally open with one of: ${bp.onDisagreement} — the rest just respond naturally` : '',
+              (bp as any).onOwnTake ? `- When adding your own take (~${(bp as any).onOwnTakeFrequency ?? 30}/100 replies use a fixed opener): occasionally open with one of: ${(bp as any).onOwnTake} — the rest just respond naturally` : '',
+              bp.onFunny ? `- Funny/absurd content: ${bp.onFunny}` : '',
+              bp.onControversial ? `- Controversial/hot take: ${bp.onControversial}` : '',
             ].filter(Boolean)
             return `YOUR WRITING STYLE (locked in by you during setup):
 ${vp.synthesized}
@@ -815,6 +817,7 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
       const effectiveApostrophe = vp?.apostropheStyle || stats.apostropheStyle || ''
       const effectiveLength = vp?.replyLength || stats.medianReplyLength || ''
       const effectiveEmoji = vp?.emojiUsage || stats.emojiUsage || ''
+      const effectiveDominantEmoji = (vp as any)?.dominantEmoji || ''
       const effectiveHinglish = vp?.mixedLanguageFrequency || ''
 
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
@@ -825,7 +828,7 @@ HARD RULES (never break these):
 ${effectiveCaseStyle ? `- case style: ${effectiveCaseStyle}` : ''}
 ${effectiveApostrophe ? `- ${effectiveApostrophe}` : ''}
 ${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` : '- keep replies short'}
-${effectiveEmoji ? `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.` : '- no emojis'}
+${effectiveEmoji ? `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.${effectiveDominantEmoji ? ` When you do use one, default to: ${effectiveDominantEmoji}` : ''}` : '- no emojis'}
 ${effectiveHinglish ? `- non-English / mixed language words: ${effectiveHinglish} out of 100 replies. stay close to this — do not overuse.` : ''}
 - no em dashes (—). banned.
 - no bullet points, no structured formatting, no hashtags
