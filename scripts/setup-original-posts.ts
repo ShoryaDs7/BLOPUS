@@ -130,7 +130,7 @@ Your job:
   2. Post format — one-liners, bullet points, threads, or mix? When does length change?
   3. Post source — when they post, is it because they saw something (news/tweet/event) that made them react, OR is it purely from their own head with no external trigger?
   4. Emoji in posts — ask: "Out of 100 original posts, how many would include an emoji? Give me a number."
-  5. Hinglish in posts — ask: "Out of 100 original posts, how many would have a Hindi or Hinglish word? Give me a number." Save 0 if English-only.
+  5. Mixed language in posts — if the archive shows non-English words, ask: "Out of 100 posts, how many would include a word in [language from archive]? Give me a number." Skip and save 0 if archive is English-only.
   6. What they NEVER post about — topics or content types they avoid entirely
   7. Posts per day — confirm or correct the archive's number
 - Ask 5-7 questions max. Skip anything already obvious from the archive.
@@ -148,7 +148,7 @@ QUANTITATIVE RULES — apply to every frequency/style question:
   "postSourceType": "one of: news-driven | personal-thoughts | opinions-hot-takes | mixed | questions-polls | life-updates",
   "formatStyle": "one sentence about how they write posts",
   "emojiFrequency": "NUMBER 0-100: how many out of 100 posts include an emoji",
-  "hinglishFrequency": "NUMBER 0-100: how many out of 100 posts include Hindi/Hinglish words (0 if English-only)",
+  "mixedLanguageFrequency": "NUMBER 0-100: how many out of 100 posts include non-English words (0 if English-only)",
   "neverAbout": ["topic1"],
   "confirmedPostsPerDay": 2.0
 }`

@@ -86,7 +86,7 @@ Your job:
   1. Case style — lowercase, mixed, proper? Archive has a reading, confirm it
   2. Apostrophes — do they write "dont" or "don't"? Archive has a reading, confirm it
   3. Emojis — ask: "Out of 100 replies, how many would include an emoji?" Archive has a %, confirm the number.
-  4. Hinglish / mixed language — ask: "Out of 100 replies, how many would have a Hindi or Hinglish word/phrase? Give me a number." If they say English-only, save 0.
+  4. Mixed language — if the archive shows any non-English words or phrases, ask: "Out of 100 replies, how many would include a word or phrase in [language detected from archive]? Give me a number." If archive is English-only or no non-English patterns visible, skip this question and save 0.
   5. Reply length — one-liners vs sentences vs bullet points, when does length change?
   6. Opening phrases — do they have any signature starters, or no fixed pattern?
 
@@ -115,7 +115,7 @@ QUANTITATIVE RULES — apply to every frequency/style question:
   "apostropheStyle": "...",
   "replyLength": "...",
   "emojiUsage": "NUMBER 0-100: how many out of 100 replies include an emoji",
-  "hinglishFrequency": "NUMBER 0-100: how many out of 100 replies include Hindi/Hinglish words (0 if English-only)",
+  "mixedLanguageFrequency": "NUMBER 0-100: how many out of 100 replies include non-English words (0 if English-only)",
   "onNewsWithTake": "...",
   "onFactualClaim": "...",
   "onAgreement": "...",
@@ -377,7 +377,7 @@ Return ONLY the reply text.`
     apostropheStyle:        structuredAnswers.apostropheStyle ?? '',
     replyLength:            structuredAnswers.replyLength ?? '',
     emojiUsage:             structuredAnswers.emojiUsage ?? '',
-    hinglishFrequency:      structuredAnswers.hinglishFrequency ?? '',
+    mixedLanguageFrequency: structuredAnswers.mixedLanguageFrequency ?? '',
     characteristicMentions: splitList(structuredAnswers.characteristicMentions ?? ''),
     behaviorPatterns: {
       onNewsWithTake:  structuredAnswers.onNewsWithTake ?? '',
