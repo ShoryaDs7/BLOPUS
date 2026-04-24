@@ -347,7 +347,7 @@ Rules:
 - Example: "startup" → founding, fundraising, YC, seed round, pivot, runway, product-market fit — NOT tech (parent)
 - Example: "politics" → trump, election, BJP, Modi, congress, senate — those ARE politics so include them
 - Example: "AI" → LLMs, GPT, Claude, Gemini, machine learning, fine-tuning — NOT tech (parent)
-- Be context-aware: if user seems Indian, include Indian-relevant terms (e.g. for politics: BJPvsINC, NDA not just congress)
+- Be context-aware: infer the user's country/region from their archive topics and phrases, then include region-relevant terms (local parties, local slang, local platforms, local figures)
 - Include: the term itself, aliases, acronyms, slang, sub-topics, brand names, notable people IN this topic
 - These are Twitter search terms — short phrases and keywords work better than long sentences
 - Aim for 30-50 keywords. Return ONLY a JSON array of strings, no explanation.`

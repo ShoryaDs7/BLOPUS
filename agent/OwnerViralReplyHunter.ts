@@ -43,7 +43,7 @@ export class OwnerViralReplyHunter {
     private homeTimeline: PlaywrightHomeTimelineProvider,
     private personalityProfile: PersonalityProfile | undefined,
     private ownerHandle: string,
-    private useGrokTag: boolean = false,
+    private useSocialTag: boolean = false,
   ) {
     // Persist replied tweet IDs so restarts don't re-reply to same tweets
     const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
@@ -255,7 +255,7 @@ export class OwnerViralReplyHunter {
       const replyText = await this.llmEngine.generateViralReply(
         { text: pick.text, authorHandle: pick.authorHandle, mediaUrls: pick.mediaUrls },
         mood,
-        this.useGrokTag,
+        this.useSocialTag,
       )
 
       if (!replyText) {

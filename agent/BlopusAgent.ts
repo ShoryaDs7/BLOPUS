@@ -377,15 +377,16 @@ async function boot(): Promise<void> {
     log('warn', `Could not fetch owner userId (API may be unavailable): ${err}`)
     return null
   })
-  const useGrokTag =
-    (personalityProfile?.writingStats?.characteristicMentions ?? []).some(m => /grok/i.test(m)) ||
-    (personalityProfile?.voiceProfile?.characteristicMentions ?? []).some(m => /grok/i.test(m))
+  const useSocialTag = (
+    (personalityProfile?.writingStats?.characteristicMentions ?? []).length > 0 ||
+    (personalityProfile?.voiceProfile?.characteristicMentions ?? []).length > 0
+  )
   const viralReplyHunter = new OwnerViralReplyHunter(
     llmEngine, xAdapter,
     new PlaywrightHomeTimelineProvider(),
     personalityProfile,
     config.blopus.handle,
-    useGrokTag,
+    useSocialTag,
   )
 
   // Engagement engine — like / retweet / quote tweet based on voice profile rules

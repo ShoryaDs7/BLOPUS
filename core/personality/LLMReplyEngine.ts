@@ -358,7 +358,7 @@ export class LLMReplyEngine {
   async generateViralReply(
     tweet: { text: string; authorHandle: string; mediaUrls?: string[] },
     mood: Mood,
-    useGrokTag: boolean,
+    useSocialTag: boolean,
   ): Promise<string> {
     if (!this.llmConfig.enabled || !process.env.ANTHROPIC_API_KEY) return ''
 
@@ -424,14 +424,18 @@ ${vp?.mixedLanguageFrequency ? `- non-English / mixed language words: ${vp.mixed
 ${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.join(', ')}` : ''}
 ${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
 ${sigPatterns.length ? `\nSignature patterns — use ONLY when it fits naturally:\n${sigPatterns.map(sp => `"${sp.phrase}": ${sp.usedFor}${sp.neverUsedFor ? `. never for: ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
-${ownerProfile?.voiceProfile?.tagUsagePattern ? `Tagging rule (from your interview): ${ownerProfile.voiceProfile.tagUsagePattern}` : useGrokTag ? `@grok rule: ONLY tag @grok when the tweet is about AI tools, a factual claim you'd want verified, or an AI comparison. NEVER on celebrity, appearance, sports, or entertainment content. When in doubt — don't.` : ''}
+${ownerProfile?.voiceProfile?.tagUsagePattern ? `Tagging rule (from your interview): ${ownerProfile.voiceProfile.tagUsagePattern}` : ''}
 Reply exactly how the examples above sound. No AI reveal. Always reply — never output [SKIP].`
         })()
       : `You are OsBot — sharp, skeptical debate participant on X. Mood: ${mood}.\n\n` +
         `Reply to this tweet in 1-2 sentences (≤25 words).\n\n` +
         `structure: observation or logical challenge → short punchline\n` +
         `tone: witty, slightly sarcastic, internet debate energy. confident but not hostile.\n` +
-        (useGrokTag && Math.random() < 0.70 ? `include "@grok" once as a playful jab or comparison.\n` : '') +
+        (useSocialTag && Math.random() < 0.70 ? (() => {
+          const mentions = (this.personalityProfile?.writingStats?.characteristicMentions ?? this.personalityProfile?.voiceProfile?.characteristicMentions ?? [])
+          const handle = mentions[0] ?? ''
+          return handle ? `include "${handle}" once as a playful jab or comparison.\n` : ''
+        })() : '') +
         `\nlowercase. no hashtags. no emojis. no "I". no AI reveal. plain text only.\n` +
         `never insult the user directly.\n` +
         `NEVER use these AI-sounding phrases: ${AI_BANNED_PHRASES.slice(0, 20).join(', ')}\n` +
@@ -866,7 +870,7 @@ Reply style rules:
 - make a confident statement, don't hedge or stay neutral
 - in debates, default to mild skepticism — challenge the weakest point in their argument, not the whole thing
 - don't end SUMMON replies with a question unless they asked you one
-- if the mention says another account/bot (grok, chatgpt, etc.) didn't reply or failed — open with a short jab at them THEN answer the question. example: "grok really went quiet on this one." keep the jab to ≤5 words, don't dwell on it
+- if the mention says another account/bot didn't reply or failed — open with a short jab at them THEN answer the question. keep the jab to ≤5 words, don't dwell on it
 
 Image rules (only apply when an image is attached) — follow this exact structure:
 1. describe what you actually see in the image (silhouette, fire, equipment, lighting, setup)
