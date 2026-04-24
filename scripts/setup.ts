@@ -2110,6 +2110,59 @@ async function main() {
       }
       console.log(`  Got it — ${repliesPerDay} replies/day\n`)
       if (voiceProfile) (voiceProfile as any).repliesPerDay = repliesPerDay
+
+      // Topic profiles — engagement share + knowledge depth per topic
+      if (replyModeOwner === 'domain' && domainTopics.length) {
+        console.log('  ─ Topic profiles — helps Blopus know how deep to go per topic ─\n')
+        console.log('  Your topics:')
+        domainTopics.forEach((t: string, i: number) => console.log(`    ${i + 1}. ${t}`))
+
+        // Engagement share
+        console.log('\n  Out of 100 replies, how many go to each topic?')
+        console.log('  e.g. "1:40, 2:20, 3:15, 4:10, 5:10, 6:5" — or press Enter to split evenly')
+        const shareInput = await ask('  > ')
+        let shares: number[] = domainTopics.map(() => Math.round(100 / domainTopics.length))
+        if (shareInput.trim()) {
+          try {
+            const res = await setupClient.messages.create({
+              model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+              messages: [{ role: 'user', content: `Topics: ${JSON.stringify(domainTopics)}\nUser said: "${shareInput}"\nReturn a JSON array of numbers (one per topic, in order) representing engagement share out of 100. Numbers must sum to ~100. Return ONLY a valid JSON array.` }],
+            })
+            const text = res.content[0].type === 'text' ? res.content[0].text : ''
+            const match = text.match(/\[[\s\S]*?\]/)
+            if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === domainTopics.length) shares = p }
+          } catch {}
+        }
+
+        // Knowledge depth
+        console.log('\n  For each topic, your knowledge level:')
+        console.log('    1 = basic (general takes only, don\'t go deep)')
+        console.log('    2 = follows it closely (moderate depth ok)')
+        console.log('    3 = deep expert (detailed, specific, confident)')
+        console.log(`  e.g. "1:3, 2:2, 3:1" — or describe: "expert in ${domainTopics[0]}, basic in AI"`)
+        const depthInput = await ask('  > ')
+        let depths: ('basic' | 'intermediate' | 'expert')[] = domainTopics.map(() => 'intermediate' as const)
+        if (depthInput.trim()) {
+          try {
+            const res = await setupClient.messages.create({
+              model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+              messages: [{ role: 'user', content: `Topics: ${JSON.stringify(domainTopics)}\nUser said: "${depthInput}"\nMap 1=basic, 2=intermediate, 3=expert. Return a JSON array of strings (one per topic, in order) — each value must be exactly "basic", "intermediate", or "expert". Return ONLY a valid JSON array.` }],
+            })
+            const text = res.content[0].type === 'text' ? res.content[0].text : ''
+            const match = text.match(/\[[\s\S]*?\]/)
+            if (match) { const p = JSON.parse(match[0]); if (Array.isArray(p) && p.length === domainTopics.length) depths = p }
+          } catch {}
+        }
+
+        const topicProfiles: Record<string, { engagementShare: number; knowledgeDepth: string }> = {}
+        domainTopics.forEach((t: string, i: number) => {
+          topicProfiles[t] = { engagementShare: shares[i] ?? Math.round(100 / domainTopics.length), knowledgeDepth: depths[i] ?? 'intermediate' }
+        })
+        console.log('\n  Topic profiles:')
+        domainTopics.forEach((t: string) => console.log(`    ${t}: ${topicProfiles[t].engagementShare}/100, ${topicProfiles[t].knowledgeDepth}`))
+        console.log()
+        if (personalityProfile) (personalityProfile as any).topicProfiles = topicProfiles
+      }
     } // end growth mode domain filter
 
     // ── Voice vs RAG selection ────────────────────────────────
