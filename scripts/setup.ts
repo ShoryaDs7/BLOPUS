@@ -1388,9 +1388,13 @@ async function main() {
   Get yours free at: https://console.anthropic.com → API Keys → Create Key
   The key starts with: sk-ant-...
 `)
-  let anthropicKey = ''
+  let anthropicKey = process.env.ANTHROPIC_API_KEY ?? ''
   let setupClient!: Anthropic
-  while (true) {
+  if (anthropicKey) {
+    console.log(`  Found existing API key in .env — using it.\n`)
+    setupClient = new Anthropic({ apiKey: anthropicKey })
+  }
+  while (!anthropicKey) {
     anthropicKey = await askRequired('Anthropic API Key (sk-ant-...)')
     process.env.ANTHROPIC_API_KEY = anthropicKey
     setupClient = new Anthropic({ apiKey: anthropicKey })
