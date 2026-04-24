@@ -12,6 +12,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import { config as dotenvConfig } from 'dotenv'
 
 dotenvConfig({ path: path.join(process.cwd(), '.env') })
+if (!process.env.ANTHROPIC_API_KEY) {
+  const creatorsDir = path.join(process.cwd(), 'creators')
+  if (fs.existsSync(creatorsDir)) {
+    for (const d of fs.readdirSync(creatorsDir)) {
+      const ep = path.join(creatorsDir, d, '.env')
+      if (fs.existsSync(ep)) { dotenvConfig({ path: ep, override: false }); if (process.env.ANTHROPIC_API_KEY) break }
+    }
+  }
+}
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 function ask(prompt: string): Promise<string> {
