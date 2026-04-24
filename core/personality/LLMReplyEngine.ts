@@ -111,6 +111,7 @@ export interface VoiceProfile {
   apostropheStyle: string
   replyLength: string
   emojiUsage: string
+  hinglishFrequency?: string
   characteristicMentions: string[]
   behaviorPatterns: {
     onNewsWithTake: string
@@ -410,7 +411,8 @@ HARD RULES:
 ${(vp?.caseStyle || stats.caseStyle) ? `- case style: ${vp?.caseStyle || stats.caseStyle}` : ''}
 ${(vp?.apostropheStyle || stats.apostropheStyle) ? `- ${vp?.apostropheStyle || stats.apostropheStyle}` : ''}
 ${(vp?.replyLength || stats.medianReplyLength) ? `- length: ${vp?.replyLength || stats.medianReplyLength}. when in doubt, go shorter.` : '- keep it short'}
-${(vp?.emojiUsage || stats.emojiUsage) ? `- emoji usage: ${vp?.emojiUsage || stats.emojiUsage}` : '- no emojis'}
+${(vp?.emojiUsage || stats.emojiUsage) ? `- emoji: ${vp?.emojiUsage || stats.emojiUsage} out of 100 replies. do not exceed this.` : '- no emojis'}
+${vp?.hinglishFrequency ? `- hinglish/Hindi words: ${vp.hinglishFrequency} out of 100 replies. stay close to this number — do not overuse.` : ''}
 - no em dashes (—). no hashtags. plain text only.
 - when mentioning any account write @handle (e.g. @grok not grok)
 - NEVER start a reply with "Exactly" or "Yeah exactly" or "Yes exactly" — that is an AI tell. React in your own words.
@@ -792,6 +794,7 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
       const effectiveApostrophe = vp?.apostropheStyle || stats.apostropheStyle || ''
       const effectiveLength = vp?.replyLength || stats.medianReplyLength || ''
       const effectiveEmoji = vp?.emojiUsage || stats.emojiUsage || ''
+      const effectiveHinglish = vp?.hinglishFrequency || ''
 
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
 
@@ -801,7 +804,8 @@ HARD RULES (never break these):
 ${effectiveCaseStyle ? `- case style: ${effectiveCaseStyle}` : ''}
 ${effectiveApostrophe ? `- ${effectiveApostrophe}` : ''}
 ${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` : '- keep replies short'}
-${effectiveEmoji ? `- emoji usage: ${effectiveEmoji}` : '- no emojis'}
+${effectiveEmoji ? `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.` : '- no emojis'}
+${effectiveHinglish ? `- hinglish/Hindi words: ${effectiveHinglish} out of 100 replies. stay close to this — do not overuse.` : ''}
 - no em dashes (—). banned.
 - no bullet points, no structured formatting, no hashtags
 - DO NOT start with the person's handle

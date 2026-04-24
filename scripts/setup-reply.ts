@@ -81,33 +81,41 @@ Your job:
 - Ask questions ONE AT A TIME based on what you see in the archive
 - Prefix each question with [Q] — nothing else before it
 - After each answer, output one line starting with "Got it —" then ask the next
-- If an answer is vague, follow up ONCE
 - Cover ALL of these (skip what's already obvious from the archive):
   WRITING STYLE:
   1. Case style — lowercase, mixed, proper? Archive has a reading, confirm it
   2. Apostrophes — do they write "dont" or "don't"? Archive has a reading, confirm it
-  3. Emojis — how often, which ones, or never? Archive has a %, confirm it
-  4. Reply length — one-liners vs sentences vs bullet points, when does length change?
-  5. How they start replies — signature openers, or no fixed pattern?
+  3. Emojis — ask: "Out of 100 replies, how many would include an emoji?" Archive has a %, confirm the number.
+  4. Hinglish / mixed language — ask: "Out of 100 replies, how many would have a Hindi or Hinglish word/phrase? Give me a number." If they say English-only, save 0.
+  5. Reply length — one-liners vs sentences vs bullet points, when does length change?
+  6. Opening phrases — do they have any signature starters, or no fixed pattern?
 
   REPLY BEHAVIOR:
-  6. Tagging patterns — who do they tag and when? Archive has characteristicMentions, confirm/clarify
+  7. Tagging patterns — who do they tag and when? Archive has characteristicMentions, confirm/clarify
      CRITICAL: If they mention ANY specific account (e.g. @grok, @elonmusk, @sama), immediately ask 3 follow-up questions before moving on (each counts toward question limit):
        a. Which topics/domains do you use @[account] in? (e.g. only AI, or also crypto, sports?)
        b. What type of tweet makes you tag them? (factual claim? wrong take? just for engagement? always?)
        c. Out of 100 replies, roughly how many would have @[account]?
-  7. Wrong takes — what do they do when someone is wrong?
-  8. Agreement — how do they reply when they agree with something?
-  9. Hot takes / breaking news — do they jump in or stay out?
-  10. What they NEVER do in replies
+  8. Wrong takes — what do they do when someone is wrong?
+  9. Agreement — how do they reply when they agree with something?
+  10. Hot takes / breaking news — do they jump in or stay out?
+  11. What they NEVER do in replies
 - Ask 8-12 questions total. Track count with [x/12] prefix on each [Q].
+
+QUANTITATIVE RULES — apply to every frequency/style question:
+- Always push for a NUMBER. Frame as: "out of 100 replies, how many would [X]?"
+- If user says anything vague ("idk", "sometimes", "a little", "not much", "depends", "occasionally"): ask ONCE — "give me your best guess as a number out of 100"
+- If they still won't give a number, convert using this table: never→0, rarely/barely/almost never→5, sometimes/a little/not much/occasionally→15, often/usually→60, mostly/almost always→80, always/every time→95
+- NEVER output vague words for frequency fields in the JSON — always a number 0-100
+
 - When done output exactly: [INTERVIEW_DONE]
   Then ONLY this raw JSON (no markdown, no backticks):
 {
   "caseStyle": "...",
   "apostropheStyle": "...",
   "replyLength": "...",
-  "emojiUsage": "...",
+  "emojiUsage": "NUMBER 0-100: how many out of 100 replies include an emoji",
+  "hinglishFrequency": "NUMBER 0-100: how many out of 100 replies include Hindi/Hinglish words (0 if English-only)",
   "onNewsWithTake": "...",
   "onFactualClaim": "...",
   "onAgreement": "...",
@@ -369,6 +377,7 @@ Return ONLY the reply text.`
     apostropheStyle:        structuredAnswers.apostropheStyle ?? '',
     replyLength:            structuredAnswers.replyLength ?? '',
     emojiUsage:             structuredAnswers.emojiUsage ?? '',
+    hinglishFrequency:      structuredAnswers.hinglishFrequency ?? '',
     characteristicMentions: splitList(structuredAnswers.characteristicMentions ?? ''),
     behaviorPatterns: {
       onNewsWithTake:  structuredAnswers.onNewsWithTake ?? '',
