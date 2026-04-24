@@ -70,7 +70,13 @@ async function claudeInterpret(client: Anthropic, userSaid: string, context: str
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 200,
-      system: 'You extract structured data from a person\'s natural language answer. CRITICAL: Read the ENTIRE sentence — do not latch onto the first word. If they say "yes but only X now", they mean ONLY X. If they say "yes" with nothing after, they accept the default. Never assume "yes" at the start means full acceptance if the rest of the sentence modifies it. Return ONLY what is asked — no markdown, no fences, no explanations.',
+      system: `You extract structured data from a person's natural language answer. CRITICAL: Read the ENTIRE sentence — do not latch onto the first word. If they say "yes but only X now", they mean ONLY X. If they say "yes" with nothing after, they accept the default. Never assume "yes" at the start means full acceptance if the rest of the sentence modifies it.
+TOPIC EDITING RULE: If the user says "remove X" and X is a WORD that appears inside a topic name but is NOT the entire topic name, RENAME that topic by removing just that word — do NOT delete the whole topic.
+Examples:
+- Topics: ["Religion and communal politics", "Food"] + user says "remove communal politics" → ["Religion", "Food"] (renamed)
+- Topics: ["Religion and politics", "Justice"] + user says "remove 2nd" → ["Religion and politics"] (deleted by position)
+- Topics: ["Politics", "Food"] + user says "remove politics" → ["Food"] (deleted because it IS the full topic name)
+Return ONLY what is asked — no markdown, no fences, no explanations.`,
       messages: [{ role: 'user', content: `Context: ${context}\nUser said: "${userSaid}"\nReturn: ${returnFormat}` }],
     })
     const raw = res.content[0].type === 'text' ? res.content[0].text.trim() : ''
@@ -2013,8 +2019,10 @@ async function main() {
         personalityProfile.dominantTopics = domainTopics
 
         // Q3 — Never (domain mode)
-        console.log(`  [3] Any topics Blopus should NEVER reply to — even if they match your topics?`)
-        console.log(`      e.g. "politics, religion, nsfw" — or press Enter to skip`)
+        console.log(`  [3] Any sub-topics to ALWAYS skip — even inside your chosen topics?`)
+        console.log(`      Your topics: ${domainTopics.join(', ')}`)
+        console.log(`      e.g. a sub-topic, content type, or angle within any of the above you find toxic or draining`)
+        console.log(`      Press Enter to skip if nothing comes to mind.`)
         const neverRaw = await ask('  > ')
         if (neverRaw.trim()) {
           const neverJson = await claudeInterpret(setupClient, neverRaw, 'The user is listing topics they never want to reply to. Each word or phrase is a topic.', 'A JSON array of never-reply topics. Return ONLY a valid JSON array of strings.')
@@ -2028,9 +2036,7 @@ async function main() {
         console.log(`      Press Enter on any topic to use the default for that type:\n`)
         const domainMinLikes: Record<string, number> = {}
         for (const topic of domainTopics) {
-          const suggested = /ai|tech|crypto|bitcoin|startup|software|coding/i.test(topic) ? 500
-            : /india|politics|religion|social|justice|climate|health/i.test(topic) ? 100
-            : 200
+          const suggested = 200
           const raw = await ask(`    ${topic} (suggested: ${suggested}): `)
           const parsed = parseInt(raw.match(/\d+/)?.[0] ?? '')
           domainMinLikes[topic] = isNaN(parsed) ? suggested : parsed
@@ -2039,8 +2045,7 @@ async function main() {
         if (personalityProfile) (personalityProfile as any).domainMinLikes = domainMinLikes
 
         // Q4.5 — Max tweet age
-        const isNiche = domainTopics.some((t: string) => /india|social|religion|politics|food|lifestyle|humor|nature|animal|mental|health|justice|environment/i.test(t))
-        const suggestedAgeHours = isNiche ? 12 : 2
+        const suggestedAgeHours = 6
         console.log(`  [4.5] How old can a tweet be before Blopus replies to it?`)
         console.log(`        Lower = only very fresh tweets (fewer options). Higher = older tweets too (more options).`)
         console.log(`        Press Enter to use suggested (${suggestedAgeHours}h):\n`)
