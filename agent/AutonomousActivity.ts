@@ -94,6 +94,17 @@ export class AutonomousActivity {
 
       // Post on X
       const xCtx = this.gatherContext(mood, currentEvents, this.xAccountKey)
+      // Weighted topic selection — pick topic based on engagementShare from setup
+      if (!override?.topics?.length) {
+        const tp = this.personalityProfile?.topicProfiles
+        if (tp && Object.keys(tp).length) {
+          const entries = Object.entries(tp) as [string, { engagementShare: number }][]
+          const total = entries.reduce((s, [, v]) => s + (v.engagementShare ?? 0), 0)
+          let rand = Math.random() * (total || 1)
+          const picked = entries.find(([, v]) => { rand -= v.engagementShare ?? 0; return rand <= 0 })?.[0] ?? entries[0][0]
+          xCtx.recentTopics = [picked]
+        }
+      }
       if (override?.topics?.length) xCtx.recentTopics = override.topics
       if (override?.instruction) xCtx.currentEvents = [override.instruction, ...currentEvents]
       if (personalContext.length > 0) {

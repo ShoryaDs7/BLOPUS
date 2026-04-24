@@ -838,7 +838,7 @@ ${p.topicProfiles && Object.keys(p.topicProfiles).length ? `\nTOPIC KNOWLEDGE RU
     : tp.knowledgeDepth === 'expert'
     ? 'deep knowledge — specific facts, nuance, and confident takes ok'
     : 'moderate depth — can reference examples and follow the news but don\'t go hyper-technical'
-  return `- ${t} (${tp.engagementShare}/100 of your replies): ${depthRule}`
+  return `- ${t}: ${depthRule}`
 }).join('\n')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
