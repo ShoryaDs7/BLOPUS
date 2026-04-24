@@ -54,13 +54,13 @@ async function main() {
   console.log('  Who you reply to and when.')
   console.log('═'.repeat(58) + '\n')
 
-  const SYSTEM = `You are interviewing a Twitter/X user to capture exactly who they reply back to and under what conditions.
+  const SYSTEM = `You are interviewing a Twitter/X user to capture exactly who they reply back to, under what conditions, and HOW they respond.
 
 Your job:
 - Ask questions ONE AT A TIME
 - Prefix each question with [Q]
-- Every question requires a clear YES or NO answer first. Do not accept vague answers like "depends", "maybe", "sometimes". If the answer is vague, follow up immediately: "Just to confirm — yes or no?"
-- After getting yes/no, ask follow-up only if needed (e.g. if yes to conditions, ask what the condition is)
+- Every question requires a clear answer. For yes/no questions, force yes or no — never accept vague answers. If vague, follow up: "Just to confirm — yes or no?"
+- For tone/opener questions, push for EXACT words or phrases they actually use. If they say "normally" or "depends", ask: "Give me the actual words you'd type."
 - After each answer, output one line starting with "Got it —" then ask the next question
 - Cover ALL of these in order — none are skippable:
 
@@ -71,8 +71,10 @@ Your job:
   3. Conversation limit — after how many back-and-forth exchanges with the same person do they stop replying? (must give a number)
   4. Are there specific accounts they NEVER reply to? (yes/no required)
      - If yes: which @handles?
+  5. When someone AGREES with or supports their post — what do they typically write back? Get exact words/phrases. Also ask: out of 100 such replies, how many do they actually respond to with words (vs just liking)?
+  6. When someone CHALLENGES or disagrees with their post — what's their opening move? Get exact words. Also ask: out of 100 challenges, how many do they actually engage with vs ignore?
 
-- Ask 4-6 questions total (follow-ups count). Track with [Q x/6].
+- Ask 6-9 questions total (follow-ups count). Track with [Q x/9].
 - When done output exactly: [INTERVIEW_DONE]
   Then ONLY this raw JSON (no markdown, no backticks):
 {
@@ -81,10 +83,14 @@ Your job:
   "replyToRepliesOnOthers": true or false,
   "replyToRepliesCondition": "describe condition or empty string if reply to all",
   "conversationLimit": number (how many back-and-forth before stopping),
-  "neverReplyTo": ["@handle1", "@handle2"] or []
+  "neverReplyTo": ["@handle1", "@handle2"] or [],
+  "onAgreement": "exact phrases used when someone agrees with your post, e.g. 'yes exactly / right?' — empty string if none",
+  "onAgreementFrequency": number 0-100 (out of 100 agreeing replies, how many get a text response vs just a like),
+  "onChallenge": "exact phrases used when someone challenges your post, e.g. 'nah / ok explain' — empty string if ignored",
+  "onChallengeFrequency": number 0-100 (out of 100 challenges, how many do they actually engage with)
 }
 
-Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — never accept vague answers.`
+Never say you're an AI. No "Great answer!" Keep it direct. Force specific answers — never accept vague ones.`
 
   const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
 
@@ -131,6 +137,8 @@ Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — neve
   console.log(`  Replies on others:      ${structuredAnswers.replyToRepliesOnOthers ? 'YES' : 'NO'}${structuredAnswers.replyToRepliesCondition ? ` — only if: ${structuredAnswers.replyToRepliesCondition}` : ''}`)
   console.log(`  Conversation limit:     ${structuredAnswers.conversationLimit} back-and-forth`)
   console.log(`  Never reply to:         ${structuredAnswers.neverReplyTo?.length ? structuredAnswers.neverReplyTo.join(', ') : 'none'}`)
+  console.log(`  When someone agrees:    ${structuredAnswers.onAgreement || 'not specified'} (${structuredAnswers.onAgreementFrequency ?? '?'}/100 get a reply)`)
+  console.log(`  When challenged:        ${structuredAnswers.onChallenge || 'not specified'} (${structuredAnswers.onChallengeFrequency ?? '?'}/100 engaged)`)
   console.log('─'.repeat(58))
 
   const confirm = await ask('\n  Save these rules? (yes/no): ')
@@ -143,6 +151,10 @@ Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — neve
       replyToRepliesCondition:  structuredAnswers.replyToRepliesCondition ?? '',
       conversationLimit:        structuredAnswers.conversationLimit ?? 3,
       neverReplyTo:             structuredAnswers.neverReplyTo ?? [],
+      onAgreement:              structuredAnswers.onAgreement ?? '',
+      onAgreementFrequency:     structuredAnswers.onAgreementFrequency ?? 50,
+      onChallenge:              structuredAnswers.onChallenge ?? '',
+      onChallengeFrequency:     structuredAnswers.onChallengeFrequency ?? 50,
       confirmedAt:              new Date().toISOString(),
     }
     fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2), 'utf8')

@@ -131,6 +131,10 @@ export interface VoiceProfile {
     replyToRepliesCondition: string
     conversationLimit: number
     neverReplyTo: string[]
+    onAgreement?: string
+    onAgreementFrequency?: number
+    onChallenge?: string
+    onChallengeFrequency?: number
     confirmedAt: string
   }
   bannedPhrases: string[]
@@ -842,7 +846,9 @@ ${p.topicProfiles && Object.keys(p.topicProfiles).length ? `\nTOPIC KNOWLEDGE RU
 }).join('\n')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
 ${stats.uncertaintyPhrases?.length ? `\nYou sometimes express uncertainty: ${stats.uncertaintyPhrases.join(', ')}` : ''}
-${vp?.tagUsagePattern ? `Tagging rule (from your interview): ${vp.tagUsagePattern}` : effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}`
+${vp?.tagUsagePattern ? `Tagging rule (from your interview): ${vp.tagUsagePattern}` : effectiveMentions.length ? `You sometimes @mention these accounts mid-reply when relevant: ${effectiveMentions.join(', ')}` : ''}
+${vp?.replyBackRules?.onAgreement ? `- When someone agrees with your post: ~${vp.replyBackRules.onAgreementFrequency ?? 50}/100 times you reply with words. When you do, you open with: ${vp.replyBackRules.onAgreement}` : ''}
+${vp?.replyBackRules?.onChallenge ? `- When someone challenges your post: ~${vp.replyBackRules.onChallengeFrequency ?? 50}/100 times you engage. When you do, you open with: ${vp.replyBackRules.onChallenge}` : ''}`
     }
 
     // Mood → action-oriented instruction for sentence 2
