@@ -330,6 +330,7 @@ export class LLMReplyEngine {
 
     const mode = this.selectPostMode()
     const systemPrompt = this.buildAutonomousPrompt(ctx, mode)
+    if (!systemPrompt) return ''  // guard: no examples = skip rather than hallucinate
     const postModel = this.llmConfig.autonomousModel ?? this.llmConfig.model
 
     try {
@@ -629,6 +630,8 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
 
       // Interview-confirmed original post profile (overrides/refines archive inference)
       const opp = pp?.voiceProfile?.originalPostProfile
+      // Guard: if opp exists but has no examples to work from, skip — LLM hallucinates bot-diary content
+      if (opp && !opp.goldenExamples?.length && !bp?.sampleOriginals?.length) return ''
       const oppBlock = opp ? [
         opp.synthesized ? `Your confirmed post style: ${opp.synthesized}` : '',
         opp.formatStyle ? `Your original post format: ${opp.formatStyle}` : '',

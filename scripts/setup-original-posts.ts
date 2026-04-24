@@ -156,18 +156,28 @@ Your job:
   messages.push({ role: 'user', content: 'Start the interview.' })
   messages.push({ role: 'assistant', content: assistantText })
 
+  // Robust JSON extractor — counts balanced braces so trailing LLM text never breaks parse
+  const extractInterviewJSON = (text: string): any | null => {
+    const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
+    const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
+    const start = cleaned.indexOf('{')
+    if (start === -1) return null
+    let depth = 0, end = -1
+    for (let i = start; i < cleaned.length; i++) {
+      if (cleaned[i] === '{') depth++
+      else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
+    }
+    if (end === -1) return null
+    try { return JSON.parse(cleaned.slice(start, end + 1)) }
+    catch (e) { console.warn('[Setup] Failed to parse interview JSON:', e); return null }
+  }
+
   let result: any = null
 
   while (true) {
     if (assistantText.includes('[INTERVIEW_DONE]')) {
-      const jsonStart = assistantText.indexOf('\n', assistantText.indexOf('[INTERVIEW_DONE]'))
-      const jsonStr = assistantText.slice(jsonStart).trim()
-      try {
-        result = JSON.parse(jsonStr)
-      } catch {
-        const match = jsonStr.match(/\{[\s\S]*\}/)
-        if (match) { try { result = JSON.parse(match[0]) } catch {} }
-      }
+      result = extractInterviewJSON(assistantText)
+      if (!result) console.warn('[Setup] Original posts interview JSON missing — LLM may have output malformed JSON')
       break
     }
 
