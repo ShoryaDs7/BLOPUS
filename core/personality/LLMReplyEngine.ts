@@ -863,12 +863,18 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
       const effectiveHinglish = vp?.mixedLanguageFrequency || ''
 
       const emojiRule = (() => {
-        if (!effectiveEmoji) return '- no emojis'
-        let rule = `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.`
-        if (emojiContext) rule += ` Use ONLY in: ${emojiContext}.`
-        if (emojiPerContext) rule += ` Different emojis per context: ${emojiPerContext}`
-        else if (effectiveDominantEmoji) rule += ` Default emoji: ${effectiveDominantEmoji}`
-        return rule
+        if (!effectiveEmoji && !emojiPerContext && !emojiContext) return '- no emojis'
+        const lines: string[] = []
+        if (effectiveEmoji) lines.push(`- emoji: ${effectiveEmoji} overall. do not exceed this global rate.`)
+        if (emojiPerContext) {
+          lines.push(`- emoji per context (follow these frequencies exactly — do NOT use emoji outside these contexts):`)
+          lines.push(`  ${emojiPerContext}`)
+        } else if (emojiContext) {
+          lines.push(`- use emojis ONLY in: ${emojiContext}${effectiveDominantEmoji ? `. Default emoji: ${effectiveDominantEmoji}` : ''}`)
+        } else if (effectiveDominantEmoji) {
+          lines.push(`- when using an emoji, default to: ${effectiveDominantEmoji}`)
+        }
+        return lines.join('\n')
       })()
 
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
