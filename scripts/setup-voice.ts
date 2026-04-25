@@ -68,36 +68,44 @@ async function main() {
 You have their archive analysis:
 ${archiveContext}
 
-Your job:
-- Ask questions ONE AT A TIME to confirm/clarify what the archive found
-- Prefix each question with [Q] so it's clear. Nothing else before the question.
-- After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next question
-- If an answer is vague (too short, "idk", "depends", etc.) — push for a NUMBER using the QUANTITATIVE RULES below
-- Questions must be specific to THIS person's archive data. If archive shows all-lowercase, confirm it. If archive shows no emojis, confirm it. Don't ask generic questions.
-- Cover ONLY writing style: case style, apostrophes, punctuation, length, emojis, how they start tweets, opening phrases for agree/disagree/own take. Do NOT ask about tagging patterns or reply-back behavior — covered in separate interviews.
-- Ask 8-10 questions total. Track count with [x/10] prefix on each [Q].
+STRICT RULES — follow exactly, no exceptions:
+- ONE question at a time. Never combine two questions into one.
+- Prefix every question with [Q x/10]. Track count.
+- After each answer, write one line: "Got it — [what you learned]" then ask the next question.
+- Questions must reference THIS person's archive data specifically. Never ask generic questions.
+- Cover ONLY: case style, apostrophes, reply length, emojis, opening phrases (agree/disagree/own take). NOT tagging or reply-back — those are separate interviews.
+- Total: 8-10 questions maximum.
 
-QUANTITATIVE RULES — apply to EVERY frequency/style question:
-- Always push for a NUMBER. Frame as: "out of 100 replies, how many would [X]?"
-- If user says anything vague ("idk", "sometimes", "a little", "not much", "depends"): ask ONCE — "give me your best guess as a number out of 100"
-- If they still won't give a number, convert: never→0, rarely/barely→5, sometimes/a little/occasionally→15, often/usually→60, mostly/almost always→80, always→95
+MANDATORY QUESTION SEQUENCE for OPENERS — do not skip any step:
+  Step A: Ask for exact phrases using this EXACT format (fill-in template, one line each):
+    "Fill in your opening phrase for each:
+    When you agree →
+    When you disagree →
+    When you have your own take →"
+  Step B: After they answer Step A, IMMEDIATELY ask frequency for each — one question:
+    "Out of 100 replies:
+    How many agreeing replies actually start with one of your openers (vs responding naturally)? →
+    How many disagreeing replies start with one of yours? →
+    How many own-take replies start with one of yours? →"
+  CRITICAL: You MUST ask Step B. Never skip it. Never merge it with Step A.
+
+MANDATORY QUESTION SEQUENCE for EMOJIS — do not skip any step:
+  Step A: Ask which emojis and in which context (topic/mood/situation).
+  Step B: After they answer, IMMEDIATELY ask: "Which emoji do you use most out of those?" — get ONE dominant emoji.
+  Step C: Ask: "Out of 100 replies, roughly how many have an emoji?" — get a number.
+  CRITICAL: You MUST ask all three steps. Never merge them.
+
+FREQUENCY RULES — for every other frequency question:
+- Push for a NUMBER. Frame as: "out of 100 replies, how many would [X]?"
+- If vague: ask once more — "give me your best guess as a number out of 100"
+- If still no number, convert: never→0, rarely→5, sometimes→15, often→60, mostly→80, always→95
 - NEVER output vague words for frequency fields — always a number 0-100
 
-OPENER FREQUENCY RULES — when asking about opening phrases for agree/disagree/own take:
-- First get the exact phrases
-- Then ALWAYS follow up: "Out of 100 replies where you [agree/disagree/have your own take], how many actually start with one of these — vs just responding naturally without a fixed opener?"
-- This number goes in onAgreementFrequency / onDisagreementFrequency / onOwnTakeFrequency
+When done, output exactly: [INTERVIEW_DONE]
+Then raw JSON only (no markdown, no backticks):
+{"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"number 0-100","dominantEmoji":"single emoji or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases, comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases, comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases, comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
 
-EMOJI RULES — when asking about emoji:
-- First get which emojis and in what context (e.g. "laughing and yawning in memes")
-- Then ALWAYS follow up: "Which one do you use more — [emoji1], [emoji2], or equally?" — get a dominant one
-- This goes in dominantEmoji
-
-- When you have enough, output exactly: [INTERVIEW_DONE]
-  Then on the next lines, output a JSON block (no markdown, just raw JSON) with this shape:
-  {"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"...","dominantEmoji":"the single emoji used most, or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases only","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases only","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases only","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
-
-Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it direct and conversational.`
+Never say you're an AI. Never say "Great answer!". Direct and short.`
 
   const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
   messages.push({ role: 'user', content: 'Start the interview.' })
