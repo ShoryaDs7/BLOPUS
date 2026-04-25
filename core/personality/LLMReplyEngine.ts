@@ -44,6 +44,44 @@ const AI_BANNED_PHRASES = [
   "future-proof", "next-generation", "world-class",
 ] as const
 
+// Full sentence patterns that sound like AI — harder to catch with word bans alone.
+// Injected separately so LLM sees them as distinct rules, not buried in a word list.
+const AI_BANNED_LINES = [
+  "is doing the heavy lifting here",
+  "that hits hard",
+  "let that sink in",
+  "think about that for a second",
+  "this changes everything",
+  "this is the part that matters",
+  "this is where it gets interesting",
+  "this is what most people miss",
+  "we don't talk about this enough",
+  "nobody is talking about this",
+  "this is the real insight",
+  "the real question is",
+  "here's the thing",
+  "here's what most people don't realize",
+  "and that's the point",
+  "and that's not nothing",
+  "that's not a small thing",
+  "and honestly that's enough",
+  "which is wild when you think about it",
+  "the implications are staggering",
+  "this alone is reason enough",
+  "that's actually huge",
+  "and that's saying something",
+  "worth sitting with",
+  "I can't stress this enough",
+  "the math mathed",
+  "this is the conversation we should be having",
+  "not a drill",
+  "this is it",
+  "and yet here we are",
+  "make it make sense",
+  "no notes",
+  "say it louder",
+]
+
 export interface RecentInteraction {
   authorHandle: string
   mentionText: string   // what they said
@@ -421,7 +459,8 @@ ${vp?.mixedLanguageFrequency ? `- non-English / mixed language words: ${vp.mixed
 - when mentioning any account write @handle (e.g. @grok not grok)
 - NEVER start a reply with "Exactly" or "Yeah exactly" or "Yes exactly" — that is an AI tell. React in your own words.
 - NEVER write 3+ structured sentences in a row like an essay. If you agree, say one thing and stop.
-- NEVER use any of these AI-sounding phrases: ${AI_BANNED_PHRASES.join(', ')}
+- NEVER use these AI words (instant bot tell): ${AI_BANNED_PHRASES.join(', ')}
+- NEVER use these AI sentence patterns (these sound like ChatGPT, not a human): ${AI_BANNED_LINES.join(' | ')}
 - NEVER use these startup-guru phrases: "compounds", "compounding", "moat", "traction", "execution", "accountability", "at scale", "simplest way to understand", "failure modes", "surfaces real", "the real shift", "the real problem", "dressed up as", "noise disperses", "anxiety management", "attention is rented", "founders who win", "mastery compounds", "depth compounds"${bannedExtra}
 - You are a person texting, not a pundit declaring facts. Write the way the examples above sound — match their energy, their length, their personal voice exactly.
 - If you agree with someone, say it in one casual line. Never write 2+ structured declarative sentences in a row.
@@ -442,7 +481,8 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
         })() : '') +
         `\nlowercase. no hashtags. no emojis. no "I". no AI reveal. plain text only.\n` +
         `never insult the user directly.\n` +
-        `NEVER use these AI-sounding phrases: ${AI_BANNED_PHRASES.slice(0, 20).join(', ')}\n` +
+        `NEVER use these AI words: ${AI_BANNED_PHRASES.slice(0, 20).join(', ')}\n` +
+        `NEVER use these AI sentence patterns: ${AI_BANNED_LINES.slice(0, 15).join(' | ')}\n` +
         `NEVER say you cannot see the tweet or need more context. The tweet text shown is all you get — make a confident take on it.`
 
     // Mode 1 (voice): voiceProfile present → skip RAG entirely, golden examples already in system prompt
@@ -836,7 +876,8 @@ ${effectiveHinglish ? `- non-English / mixed language words: ${effectiveHinglish
 - no AI reveal, no bot language
 - when mentioning any account or tool by name (e.g. grok, chatgpt), always write it with @ if it's a Twitter account (e.g. @grok, not grok)
 - you avoid: ${[...p.avoids, ...(vp?.bannedPhrases ?? [])].join(', ')}
-- NEVER use these AI-sounding phrases: ${AI_BANNED_PHRASES.join(', ')}
+- NEVER use these AI words (instant bot tell): ${AI_BANNED_PHRASES.join(', ')}
+- NEVER use these AI sentence patterns (these sound like ChatGPT, not a human): ${AI_BANNED_LINES.join(' | ')}
 - NEVER start with "Exactly" or "Yeah exactly" or "Yes exactly" — AI tell
 - only reply in your genuine domains: ${p.dominantTopics.join(', ')} — if tweet is completely outside these, give a short neutral take or skip
 ${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.join(', ')}` : ''}
