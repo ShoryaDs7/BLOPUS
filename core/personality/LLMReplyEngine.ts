@@ -498,7 +498,7 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags. No em dashes.${h
     try {
       // Everything in user message — examples + tweet together.
       // System prompt kept empty so Claude pattern-matches examples instead of following rules.
-      const tweetLine = `Tweet by @${tweet.authorHandle}: "${tweet.text}"\n\nReply only. Nothing else.`
+      const tweetLine = `Now reply to this tweet exactly like the examples above:\n"${tweet.text}"\n\nReply only. Nothing else.`
       const fullUserPrompt = this.isOwnerMode
         ? `${systemPrompt}${ragBlock}\n\n${tweetLine}`
         : tweetLine
@@ -1003,7 +1003,7 @@ Owner personality profile (extracted from their real posts — match this voice 
       lines.push('Use these to: (1) give specific facts like exact address/name, (2) debunk or confirm any claims made in the thread. Be specific — "Vanak mall, north Tehran" beats "somewhere in Tehran". Keep OsBot tone.')
     }
 
-    lines.push('Reply:')
+    lines.push('Now reply exactly like the examples above:\nReply:')
     return lines.join('\n')
   }
 
