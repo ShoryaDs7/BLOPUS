@@ -322,18 +322,23 @@ export class LLMReplyEngine {
           }
         }
       }
-      userContent.push({ type: 'text', text: userPrompt })
-
-      // Sonnet only for replies on owner's own posts/retweets/quote tweets — Haiku for everything else
       const replyModel = context.ownPostContext
         ? 'claude-sonnet-4-6'
         : this.llmConfig.model
+
+      // Owner mode: merge system prompt + user prompt into one user message so
+      // Claude pattern-matches examples rather than treating them as system rules.
+      const finalSystem = this.isOwnerMode ? '' : this.systemPrompt + ragSystemAppend
+      const finalUserText = this.isOwnerMode
+        ? `${this.systemPrompt}${ragSystemAppend}\n\n${userPrompt}`
+        : userPrompt
+      userContent.push({ type: 'text', text: finalUserText })
 
       const response = await this.client.messages.create({
         model: replyModel,
         max_tokens: this.llmConfig.maxTokens,
         temperature: this.llmConfig.temperature,
-        system: this.systemPrompt + ragSystemAppend,
+        system: finalSystem,
         messages: [{ role: 'user', content: userContent }],
       })
 
@@ -491,23 +496,26 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags. No em dashes.${h
     }
 
     try {
-      // Build user message — tweet only, no style content here
+      // Everything in user message — examples + tweet together.
+      // System prompt kept empty so Claude pattern-matches examples instead of following rules.
+      const tweetLine = `Tweet by @${tweet.authorHandle}: "${tweet.text}"\n\nReply only. Nothing else.`
+      const fullUserPrompt = this.isOwnerMode
+        ? `${systemPrompt}${ragBlock}\n\n${tweetLine}`
+        : tweetLine
+
       const userContent: Anthropic.MessageParam['content'] = []
-      if (tweet.mediaUrls?.length) {
+      if (tweet.mediaUrls?.length && !this.isOwnerMode) {
         for (const url of tweet.mediaUrls.slice(0, 2)) {
           userContent.push({ type: 'image', source: { type: 'url', url } } as any)
         }
       }
-      userContent.push({
-        type: 'text',
-        text: `Tweet by @${tweet.authorHandle}: "${tweet.text}"`,
-      })
+      userContent.push({ type: 'text', text: fullUserPrompt })
 
       const response = await this.client.messages.create({
         model: this.llmConfig.model,
         max_tokens: dynamicMaxTokens,
         temperature: this.llmConfig.temperature,
-        system: systemPrompt + ragBlock,
+        system: this.isOwnerMode ? '' : systemPrompt + ragBlock,
         messages: [{ role: 'user', content: userContent }],
       })
       const content = response.content[0]
