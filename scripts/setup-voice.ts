@@ -134,7 +134,7 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
 
   while (turnCount < 30) {
     const res = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: SYSTEM, messages,
+      model: 'claude-haiku-4-5-20251001', max_tokens: 800, system: SYSTEM, messages,
     })
     const block = res.content?.[0]
     if (!block || block.type !== 'text') { turnCount++; continue }
