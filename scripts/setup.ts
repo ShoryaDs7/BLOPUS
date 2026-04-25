@@ -1500,6 +1500,21 @@ Your job:
   return result ?? {}
 }
 
+// ─── Sync personality_profile fields → config.json ───────────
+function syncToConfig(creatorDir: string, pp: any) {
+  const cfgPath = path.join(creatorDir, 'config.json')
+  if (!fs.existsSync(cfgPath)) return
+  try {
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+    if (pp.domainMinLikes)      cfg.domainMinLikes      = pp.domainMinLikes
+    if (pp.domainSearchKeywords) cfg.domainSearchKeywords = pp.domainSearchKeywords
+    if (pp.maxAgeTweetMinutes)  cfg.maxAgeTweetMinutes  = pp.maxAgeTweetMinutes
+    if (pp._replyMode)          cfg.replyMode           = pp._replyMode
+    if (pp.replyMode)           cfg.replyMode           = pp.replyMode
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8')
+  } catch {}
+}
+
 // ─── Validation-only path (skip menu option) ─────────────────
 async function runValidationOnly(creatorDir: string, vp: any, pp: any, apiKey: string) {
   const client = new Anthropic({ apiKey })
@@ -1663,7 +1678,7 @@ async function main() {
 
             if (sec.trim() === '3') {
               await runValidationOnly(jDir, existVP, existPP, apiKey)
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             } else if (sec.trim() === '1') {
               _setupJumpTo = 'interview'
             } else if (sec.trim() === '2') {
@@ -1678,7 +1693,7 @@ async function main() {
                 fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
                 console.log('\n  ✓ Original post profile saved.\n')
               }
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             } else if (sec.trim() === '5') {
               const qt = await runQuoteTweetInterview(existPP, ask, secClient)
               if (qt) {
@@ -1687,7 +1702,7 @@ async function main() {
                 fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
                 console.log('\n  ✓ Quote tweet behavior saved.\n')
               }
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             } else if (sec.trim() === '6') {
               const rt = await runRetweetInterview(existPP, ask, secClient)
               if (rt) {
@@ -1696,7 +1711,7 @@ async function main() {
                 fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
                 console.log('\n  ✓ Retweet behavior saved.\n')
               }
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             } else if (sec.trim() === '7') {
               const lb = await runLikeInterview(existPP, ask, secClient)
               if (lb) {
@@ -1705,7 +1720,7 @@ async function main() {
                 fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
                 console.log('\n  ✓ Like behavior saved.\n')
               }
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             } else if (sec.trim() === '8') {
               const rb = await runReplyBackInterview(ask, secClient)
               if (rb) {
@@ -1715,7 +1730,7 @@ async function main() {
                 fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
                 console.log('\n  ✓ Reply back rules saved.\n')
               }
-              rl.close(); return
+              syncToConfig(jDir, existPP); rl.close(); return
             }
 
           } else if (jump.trim() === '1') {
