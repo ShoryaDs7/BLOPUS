@@ -154,46 +154,53 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
     turnCount++
   }
 
-  // ── Hardcoded follow-ups for fields Haiku reliably skips ────────────────────
-  // These are asked directly in code so they can never be skipped.
+  // ── Hardcoded follow-ups — always asked, never delegated to Haiku ──────────
+  const toNum = (s: string, fallback: number) => { const n = parseInt(s.match(/\d+/)?.[0] ?? ''); return isNaN(n) ? fallback : n }
+  const skipRe = /^(skip|none|n\/a|no|-)$/i
 
-  // Opener frequency
-  if (structuredAnswers.onAgreement && !structuredAnswers.onAgreementFrequency) {
-    console.log('\n  Out of 100 agreeing replies, how many actually start with one of your openers')
-    console.log(`  (e.g. "${structuredAnswers.onAgreement.split(',')[0].trim()}") vs just responding naturally?`)
-    const f = await ask('  > ')
-    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
-    structuredAnswers.onAgreementFrequency = isNaN(n) ? '30' : String(n)
+  console.log('\n' + '─'.repeat(58))
+  console.log('  A few quick follow-ups:\n')
+
+  // Opener frequencies — always ask
+  if (structuredAnswers.onAgreement) {
+    const phrase = structuredAnswers.onAgreement.split(',')[0].trim()
+    console.log(`  Out of 100 agreeing replies, how many start with "${phrase}" (vs responding naturally)? [number]`)
+    if (!structuredAnswers.onAgreementFrequency) {
+      const f = await ask('  > ')
+      structuredAnswers.onAgreementFrequency = String(toNum(f, 30))
+    } else { console.log(`  (already captured: ${structuredAnswers.onAgreementFrequency})`) }
   }
-  if (structuredAnswers.onDisagreement && !structuredAnswers.onDisagreementFrequency) {
-    console.log('\n  Out of 100 disagreeing replies, how many start with one of your openers')
-    console.log(`  (e.g. "${structuredAnswers.onDisagreement.split(',')[0].trim()}")?`)
-    const f = await ask('  > ')
-    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
-    structuredAnswers.onDisagreementFrequency = isNaN(n) ? '30' : String(n)
+  if (structuredAnswers.onDisagreement) {
+    const phrase = structuredAnswers.onDisagreement.split(',')[0].trim()
+    console.log(`\n  Out of 100 disagreeing replies, how many start with "${phrase}"? [number]`)
+    if (!structuredAnswers.onDisagreementFrequency) {
+      const f = await ask('  > ')
+      structuredAnswers.onDisagreementFrequency = String(toNum(f, 30))
+    } else { console.log(`  (already captured: ${structuredAnswers.onDisagreementFrequency})`) }
   }
-  if (structuredAnswers.onOwnTake && !structuredAnswers.onOwnTakeFrequency) {
-    console.log('\n  Out of 100 own-take replies, how many start with one of your openers')
-    console.log(`  (e.g. "${structuredAnswers.onOwnTake.split(',')[0].trim()}")?`)
-    const f = await ask('  > ')
-    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
-    structuredAnswers.onOwnTakeFrequency = isNaN(n) ? '30' : String(n)
+  if (structuredAnswers.onOwnTake) {
+    const phrase = structuredAnswers.onOwnTake.split(',')[0].trim()
+    console.log(`\n  Out of 100 own-take replies, how many start with "${phrase}"? [number]`)
+    if (!structuredAnswers.onOwnTakeFrequency) {
+      const f = await ask('  > ')
+      structuredAnswers.onOwnTakeFrequency = String(toNum(f, 30))
+    } else { console.log(`  (already captured: ${structuredAnswers.onOwnTakeFrequency})`) }
   }
 
-  // Dominant emoji
-  if (!structuredAnswers.dominantEmoji && structuredAnswers.emojiContext) {
-    console.log('\n  Which single emoji do you use most overall?')
-    const e = await ask('  > ')
-    structuredAnswers.dominantEmoji = e.trim()
-  }
-
-  // Per-context emoji frequency
-  if (!structuredAnswers.emojiPerContext && structuredAnswers.emojiContext) {
-    console.log('\n  Per-context emoji frequency — fill in numbers:')
-    console.log(`  Context/situation you mentioned: ${structuredAnswers.emojiContext}`)
-    console.log('  e.g. "laughing emoji in ~60% of meme replies / yawning in ~30% of disagreeing replies"')
-    const ep = await ask('  > ')
-    if (ep.trim()) structuredAnswers.emojiPerContext = ep.trim()
+  // Emoji follow-ups — always ask if archive shows any emoji usage
+  const archiveEmojiPct = parseInt(String(profile.writingStats?.emojiUsage ?? '').match(/\d+/)?.[0] ?? '0')
+  if (archiveEmojiPct > 0 || structuredAnswers.emojiContext || structuredAnswers.dominantEmoji) {
+    if (!structuredAnswers.dominantEmoji) {
+      console.log('\n  Which single emoji do you use most overall? (or "skip")')
+      const e = await ask('  > ')
+      if (!skipRe.test(e.trim())) structuredAnswers.dominantEmoji = e.trim()
+    }
+    if (!structuredAnswers.emojiPerContext) {
+      console.log('\n  Per-context emoji frequency — e.g. "laughing in ~60% of meme replies / yawning in ~30% of disagreeing"')
+      console.log('  (or "skip" if you only use one emoji in one situation)')
+      const ep = await ask('  > ')
+      if (!skipRe.test(ep.trim())) structuredAnswers.emojiPerContext = ep.trim()
+    }
   }
 
   // ── Golden examples ──────────────────────────────────────────
