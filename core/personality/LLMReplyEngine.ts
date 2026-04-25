@@ -511,6 +511,9 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags. No em dashes.${h
       }
       userContent.push({ type: 'text', text: fullUserPrompt })
 
+      console.log(`[LLMReplyEngine:DEBUG] tweet.text = "${tweet.text.slice(0, 200)}"`)
+      console.log(`[LLMReplyEngine:DEBUG] fullUserPrompt (first 800 chars):\n${fullUserPrompt.slice(0, 800)}`)
+
       const response = await this.client.messages.create({
         model: this.llmConfig.model,
         max_tokens: dynamicMaxTokens,
