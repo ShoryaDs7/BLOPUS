@@ -1603,24 +1603,86 @@ async function main() {
         const existVP = JSON.parse(fs.readFileSync(jVP, 'utf8'))
         const existPP = JSON.parse(fs.readFileSync(jPP, 'utf8'))
         if (existVP.synthesized) {
+          const apiKey = process.env.ANTHROPIC_API_KEY ?? ''
           console.log(`  Existing setup found for: @${jCreator}\n`)
-          console.log('  [1] Full setup (re-run everything from scratch)')
-          console.log('  [2] Redo voice interview + golden examples + validation')
-          console.log('  [3] Redo golden examples + validation (keep interview answers)')
-          console.log('  [4] Validation only — just redo sample replies (fastest)')
-          console.log('  [5] Continue — fill any gaps, existing answers auto-detected')
+          console.log('  [1] Full setup (start from scratch)')
+          console.log('  [2] Redo a specific section')
+          console.log('  [3] Continue — fill any gaps, existing answers auto-detected')
           const jump = await ask('\n  > ')
-          if (jump.trim() === '4') {
-            const apiKey = process.env.ANTHROPIC_API_KEY
-            if (!apiKey) { console.log('\n  ANTHROPIC_API_KEY not found in .env — cannot continue.\n'); rl.close(); return }
-            await runValidationOnly(jDir, existVP, existPP, apiKey)
-            rl.close(); return
-          } else if (jump.trim() === '2') {
-            _setupJumpTo = 'interview'
-            console.log('\n  Jumping to voice interview.\n')
-          } else if (jump.trim() === '3') {
-            _setupJumpTo = 'golden'
-            console.log('\n  Jumping to golden examples.\n')
+
+          if (jump.trim() === '2') {
+            // ── Section picker ────────────────────────────────────
+            console.log('\n  Which section?\n')
+            console.log('  [1] Replies (voice interview + golden examples + validation)')
+            console.log('  [2] Golden examples + validation only (keep interview answers)')
+            console.log('  [3] Validation only — just redo sample replies (fastest)')
+            console.log('  [4] Original posts')
+            console.log('  [5] Quote tweets')
+            console.log('  [6] Retweets')
+            console.log('  [7] Likes')
+            console.log('  [8] Reply back')
+            const sec = await ask('\n  > ')
+
+            if (!apiKey) { console.log('\n  ANTHROPIC_API_KEY not found in .env.\n'); rl.close(); return }
+            const secClient = new Anthropic({ apiKey })
+
+            if (sec.trim() === '3') {
+              await runValidationOnly(jDir, existVP, existPP, apiKey)
+              rl.close(); return
+            } else if (sec.trim() === '1') {
+              _setupJumpTo = 'interview'
+            } else if (sec.trim() === '2') {
+              _setupJumpTo = 'golden'
+            } else if (sec.trim() === '4') {
+              const opp = await runOriginalPostInterview(existPP, ask, secClient)
+              if (opp) {
+                existVP.originalPostProfile = opp
+                if (opp.topics?.length) existPP.postTopics = opp.topics
+                fs.writeFileSync(path.join(jDir, 'voice_profile.json'), JSON.stringify(existVP, null, 2), 'utf8')
+                existPP.voiceProfile = existVP
+                fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
+                console.log('\n  ✓ Original post profile saved.\n')
+              }
+              rl.close(); return
+            } else if (sec.trim() === '5') {
+              const qt = await runQuoteTweetInterview(existPP, ask, secClient)
+              if (qt) {
+                existPP.quoteTweetBehavior = qt
+                existPP.voiceProfile = existVP
+                fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
+                console.log('\n  ✓ Quote tweet behavior saved.\n')
+              }
+              rl.close(); return
+            } else if (sec.trim() === '6') {
+              const rt = await runRetweetInterview(existPP, ask, secClient)
+              if (rt) {
+                existPP.retweetBehavior = rt
+                existPP.voiceProfile = existVP
+                fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
+                console.log('\n  ✓ Retweet behavior saved.\n')
+              }
+              rl.close(); return
+            } else if (sec.trim() === '7') {
+              const lb = await runLikeInterview(existPP, ask, secClient)
+              if (lb) {
+                existPP.likeBehavior = lb
+                existPP.voiceProfile = existVP
+                fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
+                console.log('\n  ✓ Like behavior saved.\n')
+              }
+              rl.close(); return
+            } else if (sec.trim() === '8') {
+              const rb = await runReplyBackInterview(ask, secClient)
+              if (rb) {
+                existVP.replyBackRules = rb
+                fs.writeFileSync(path.join(jDir, 'voice_profile.json'), JSON.stringify(existVP, null, 2), 'utf8')
+                existPP.voiceProfile = existVP
+                fs.writeFileSync(path.join(jDir, 'personality_profile.json'), JSON.stringify(existPP, null, 2), 'utf8')
+                console.log('\n  ✓ Reply back rules saved.\n')
+              }
+              rl.close(); return
+            }
+
           } else if (jump.trim() === '1') {
             console.log('\n  Starting full setup from scratch.\n')
           } else {
