@@ -411,8 +411,12 @@ export class LLMReplyEngine {
           const sigPatterns = ownerProfile.signaturePatterns ?? []
           const vp = ownerProfile.voiceProfile
 
+          const topicExOwner = (vp as any)?.topicExamples as { tweet: string, reply: string }[] | undefined
+          const topicExOwnerBlock = topicExOwner?.length
+            ? `\nTOPIC-SPECIFIC EXAMPLES (tweet → approved reply — your stance + style per topic):\n${topicExOwner.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')}`
+            : ''
           const examplesBlock = vp?.goldenExamples?.length
-            ? `YOUR GOLDEN EXAMPLES — write exactly like these:\n${vp.goldenExamples.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+            ? `YOUR REAL REPLIES (primary guide — match exactly):\n${vp.goldenExamples.map((r, i) => `${i + 1}. "${r}"`).join('\n')}${topicExOwnerBlock}\n- Do NOT copy wording — write fresh replies in the same voice`
             : `HOW YOU ACTUALLY WRITE (real examples from your archive — match this energy exactly):\n${(ownerProfile.replyExamples ?? []).slice(0, 6).map((r, i) => `${i + 1}. ${r}`).join('\n')}`
 
           const behaviorBlock = vp
@@ -839,10 +843,18 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
               bp.onFunny ? `- Funny/absurd content: ${bp.onFunny}` : '',
               bp.onControversial ? `- Controversial/hot take: ${bp.onControversial}` : '',
             ].filter(Boolean)
-            return `YOUR WRITING STYLE (locked in by you during setup):
+            const topicEx = (vp as any).topicExamples as { tweet: string, reply: string }[] | undefined
+            const topicExBlock = topicEx?.length
+              ? `\nTOPIC-SPECIFIC EXAMPLES (tweet → your approved reply — shows your stance + style per topic, most important):\n${topicEx.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')}`
+              : ''
+            return `YOUR REAL REPLIES (primary guide — match voice, length, tone, stance exactly):
+${vp.goldenExamples?.length ? vp.goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n') : ''}
+${topicExBlock}
+
+What to observe from these examples:
 ${vp.synthesized}
-${vp.replyBehavior?.synthesized ? `\nHOW YOU REPLY (your specific reply patterns):\n${vp.replyBehavior.synthesized}\n` : ''}${bpLines.length ? `\nHOW YOU RESPOND TO DIFFERENT TWEET TYPES:\n${bpLines.join('\n')}` : ''}
-${vp.goldenExamples.length ? `\nYOUR GOLDEN EXAMPLES (write exactly like these):\n${vp.goldenExamples.map((e, i) => `${i + 1}. ${e}`).join('\n')}` : ''}`
+${vp.replyBehavior?.synthesized ? `\nYour reply patterns: ${vp.replyBehavior.synthesized}` : ''}${bpLines.length ? `\n${bpLines.join('\n')}` : ''}
+- Do NOT copy wording from the examples above — write fresh replies in the same voice`
           })()
         : `Your voice extracted from your real reply archive:
 ${stats.medianReplyLength ? `- your replies are typically ${stats.medianReplyLength} — stay there. if in doubt, go shorter.` : '- keep replies short by default'}

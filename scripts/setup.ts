@@ -1068,33 +1068,33 @@ Write 2-3 sentences describing ONLY how this person writes (style, tone, structu
   console.log('  Here\'s how I\'d reply on each of your topics.\n  Tell me if any don\'t sound like you.\n')
 
   const globalCorrections: string[] = []
+  const topicExamples: { tweet: string, reply: string }[] = []
 
-  const openerFreqLine = (() => {
-    const parts: string[] = []
-    if (structuredAnswers.onAgreement) parts.push(`when agreeing (~${structuredAnswers.onAgreementFrequency ?? 30}/100 replies use an opener): occasionally open with one of: ${structuredAnswers.onAgreement} — the rest jump straight to the point`)
-    if (structuredAnswers.onDisagreement) parts.push(`when disagreeing (~${structuredAnswers.onDisagreementFrequency ?? 30}/100): occasionally open with one of: ${structuredAnswers.onDisagreement} — the rest jump straight in`)
-    if (structuredAnswers.onOwnTake) parts.push(`when adding own take (~${structuredAnswers.onOwnTakeFrequency ?? 30}/100): occasionally open with one of: ${structuredAnswers.onOwnTake} — the rest jump straight in`)
-    return parts.length ? `OPENERS (occasional, not always — follow the frequencies):\n${parts.map(p => `- ${p}`).join('\n')}` : ''
-  })()
+  const buildReplyPrompt = (tweet: string, topicCorrection?: string) => {
+    const topicExamplesBlock = topicExamples.length
+      ? `\nTOPIC-SPECIFIC EXAMPLES (tweet → approved reply, most important — shows stance + style):\n${topicExamples.map(e => `Tweet: "${e.tweet}"\nReply: "${e.reply}"`).join('\n\n')}\n`
+      : ''
+    const correctionBlock = globalCorrections.length
+      ? `\nCORRECTIONS FROM USER (apply to all replies):\n${globalCorrections.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`
+      : ''
+    return `You are this person on X (Twitter). Study their real replies below and match their exact voice, length, tone, and stance.
 
-  const buildReplyPrompt = (tweet: string, topicCorrection?: string) => `Reply to this tweet AS this person. Be them exactly.
-
-Tweet: "${tweet}"
-
-Writing style: ${synthesized}
-Case: ${structuredAnswers.caseStyle || 'lowercase'}
-STRICT LENGTH RULE: ${structuredAnswers.replyLength || 'short one-liners by default. Only expand to 2-3 sentences when explaining something. Never more than 3 sentences.'}
-${openerFreqLine}
-${structuredAnswers.tagUsagePattern ? `Tagging rule: ${structuredAnswers.tagUsagePattern}` : ''}
-NEVER use: ${splitList(structuredAnswers.bannedPhrases ?? '').join(', ') || 'nothing specified'}
-Reply behavior: ${structuredAnswers.replyBehaviorSynthesized ?? ''}
-${globalCorrections.length ? `\nRULES FROM PREVIOUS CORRECTIONS (apply to ALL replies):\n${globalCorrections.map((c, i) => `${i + 1}. ${c}`).join('\n')}` : ''}
-
-Golden examples — match this exact voice and length:
+GENERAL STYLE EXAMPLES (shows HOW they write):
 ${goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')}
+${topicExamplesBlock}
+What to observe from these examples:
+- Case: ${structuredAnswers.caseStyle || 'sentence case, capital first letter, apostrophes in contractions'}
+- Length: ${structuredAnswers.replyLength || 'very short by default. 1-2 lines max for serious topics. Never more than 3 sentences.'}
+- Openers like "Honestly", "I think", "I wonder" appear in SOME replies but NOT all — many jump straight to the point. Never repeat the same opener back to back.
+- Emojis only in lighthearted replies — never on serious social/political tweets
+- Never use: ${splitList(structuredAnswers.bannedPhrases ?? '').join(', ') || 'slurs, bad words'}
+- Do NOT copy wording from the examples above — write a fresh reply in the same voice
+${correctionBlock}
+Now reply to this tweet in the exact same voice:
+"${tweet}"
 ${topicCorrection ? `\nPrevious attempt was wrong — fix this: ${topicCorrection}` : ''}
-
-Return ONLY the reply text.`
+Return ONLY the reply. No quotes around it.`
+  }
 
   for (const topic of confirmedReplyTopics) {
     try {
@@ -1111,6 +1111,7 @@ Return ONLY the reply text.`
 
       let topicCorrection = ''
       let approved = false
+      let approvedReply = ''
       while (!approved) {
         const replyRes = await client.messages.create({
           model: replyModel, max_tokens: 120,
@@ -1118,10 +1119,12 @@ Return ONLY the reply text.`
         })
         const rc = replyRes.content[0]
         if (!rc || rc.type !== 'text') break
-        console.log(`  Reply: "${rc.text.trim()}"`)
+        approvedReply = rc.text.trim()
+        console.log(`  Reply: "${approvedReply}"`)
         const fb = await askFn('  Correct? (yes / tell me what\'s off): ')
         if (/^yes|^y$|^yep|^yeah/i.test(fb.trim())) {
           approved = true
+          topicExamples.push({ tweet: sampleTweet, reply: approvedReply })
           console.log()
         } else if (fb.trim()) {
           topicCorrection = fb.trim()
@@ -1151,6 +1154,7 @@ Return ONLY the reply text.`
       onControversial: structuredAnswers.onControversial ?? '',
     },
     goldenExamples,
+    topicExamples,
     neverReplyTypes,
     tagUsagePattern: structuredAnswers.tagUsagePattern ?? '',
     bannedPhrases:   splitList(structuredAnswers.bannedPhrases ?? ''),
