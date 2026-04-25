@@ -105,17 +105,18 @@ export class OwnerViralReplyHunter {
       }
 
       // Time-of-day gate — only hunt during typical posting hours (±2h window, UTC)
-      if (bp?.typicalPostingHours && bp.typicalPostingHours.length > 0) {
-        const nowUTC = new Date().getUTCHours()
-        const isTypicalHour = bp.typicalPostingHours.some(h => {
-          const diff = Math.abs(nowUTC - h)
-          return diff <= 2 || diff >= 22
-        })
-        if (!isTypicalHour) {
-          console.log(`[OwnerViralHunter] Hour ${nowUTC} UTC not a typical posting hour — skipping.`)
-          return
-        }
-      }
+      // Hour gate disabled — bot replies at any hour
+      // if (bp?.typicalPostingHours && bp.typicalPostingHours.length > 0) {
+      //   const nowUTC = new Date().getUTCHours()
+      //   const isTypicalHour = bp.typicalPostingHours.some(h => {
+      //     const diff = Math.abs(nowUTC - h)
+      //     return diff <= 2 || diff >= 22
+      //   })
+      //   if (!isTypicalHour) {
+      //     console.log(`[OwnerViralHunter] Hour ${nowUTC} UTC not a typical posting hour — skipping.`)
+      //     return
+      //   }
+      // }
 
       // Read replyMode + avoidTopics from config
       const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
