@@ -104,48 +104,27 @@ FREQUENCY RULES — for every other frequency question:
 - If still no number, convert: never→0, rarely→5, sometimes→15, often→60, mostly→80, always→95
 - NEVER output vague words for frequency fields — always a number 0-100
 
-When done, output exactly: [INTERVIEW_DONE]
-Then raw JSON only (no markdown, no backticks):
-{"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"overall number 0-100 from archive — do not ask, use writingStats.emojiUsage percentage if available, else leave empty","emojiContext":"general condition when emojis appear e.g. only in memes and funny posts, or when mocking someone","emojiPerContext":"per-context emoji WITH frequency e.g. laughing emoji in ~60% of meme/funny replies / yawning emoji in ~30% of disagreeing replies — empty if only one emoji or no per-context difference","dominantEmoji":"single most-used emoji or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases, comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases, comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases, comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
+When done with all questions, output exactly one line: [INTERVIEW_DONE]
+Nothing else — no JSON, no summary. The system will extract data separately.
 
 Never say you're an AI. Never say "Great answer!". Direct and short.`
 
   const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
   messages.push({ role: 'user', content: 'Start the interview.' })
 
-  // Robust JSON extractor
-  const extractInterviewJSON = (text: string): Record<string, string> | null => {
-    const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
-    const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
-    const start = cleaned.indexOf('{')
-    if (start === -1) return null
-    let depth = 0, end = -1
-    for (let i = start; i < cleaned.length; i++) {
-      if (cleaned[i] === '{') depth++
-      else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
-    }
-    if (end === -1) return null
-    try { return JSON.parse(cleaned.slice(start, end + 1)) }
-    catch (e) { console.warn('[Setup] Failed to parse interview JSON:', e); return null }
-  }
-
   let structuredAnswers: Record<string, string> = {}
   let turnCount = 0
 
   while (turnCount < 30) {
     const res = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 800, system: SYSTEM, messages,
+      model: 'claude-haiku-4-5-20251001', max_tokens: 400, system: SYSTEM, messages,
     })
     const block = res.content?.[0]
     if (!block || block.type !== 'text') { turnCount++; continue }
     const claudeMsg = block.text.trim()
     messages.push({ role: 'assistant', content: claudeMsg })
 
-    if (claudeMsg.includes('[INTERVIEW_DONE]')) {
-      structuredAnswers = extractInterviewJSON(claudeMsg) ?? {}
-      if (!structuredAnswers.caseStyle) console.warn('[Setup] Interview JSON missing fields — LLM may have output malformed JSON')
-      break
-    }
+    if (claudeMsg.includes('[INTERVIEW_DONE]')) break
 
     claudeMsg.split('\n').filter((l: string) => l.trim()).forEach((l: string) => console.log(`  ${l}`))
     const userInput = await ask('\n  > ')
@@ -153,6 +132,34 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
     messages.push({ role: 'user', content: userInput.trim() || '(no answer)' })
     turnCount++
   }
+
+  // ── Dedicated extraction call — only job is outputting JSON ──────────────
+  // Separate from the interview so it never gets truncated by question text.
+  console.log('  Processing answers...')
+  const JSON_SCHEMA = `{"caseStyle":"","apostropheStyle":"","replyLength":"","emojiUsage":"number 0-100 (from archive writingStats or 0)","emojiContext":"when/where emojis appear","emojiPerContext":"emoji per context with frequency e.g. laughing in ~60% of meme replies / yawning in ~30% of disagreeing — empty if only one","dominantEmoji":"single most-used emoji or empty","characteristicMentions":"","onNewsWithTake":"","onFactualClaim":"","onAgreement":"exact phrases comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"","onControversial":"","bannedPhrases":"","neverTopics":""}`
+  try {
+    const extractRes = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 1000,
+      messages: [
+        ...messages,
+        { role: 'user', content: `Based on the interview above, fill in this JSON with what you learned. Output ONLY the JSON — no explanation, no markdown, no backticks:\n${JSON_SCHEMA}` }
+      ]
+    })
+    const raw = extractRes.content?.[0]?.type === 'text' ? extractRes.content[0].text.trim() : ''
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim()
+    const start = cleaned.indexOf('{')
+    if (start !== -1) {
+      let depth = 0, end = -1
+      for (let i = start; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') depth++
+        else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
+      }
+      if (end !== -1) {
+        try { structuredAnswers = JSON.parse(cleaned.slice(start, end + 1)) }
+        catch { console.warn('[Setup] JSON parse failed — proceeding with partial data') }
+      }
+    }
+  } catch (e) { console.warn('[Setup] Extraction call failed:', e) }
 
   // ── Hardcoded follow-ups — always asked, never delegated to Haiku ──────────
   const toNum = (s: string, fallback: number) => { const n = parseInt(s.match(/\d+/)?.[0] ?? ''); return isNaN(n) ? fallback : n }
