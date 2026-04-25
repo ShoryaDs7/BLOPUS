@@ -150,9 +150,8 @@ Your job:
 - Questions must be specific to THIS person's archive data. If archive shows all-lowercase, confirm it. If archive shows no emojis, confirm it. Don't ask generic questions that don't apply to what was found.
 - Cover ONLY writing style: case style, apostrophes, punctuation, length, emojis, how they start tweets, line breaks, threads vs single tweets. Do NOT ask about tagging patterns, reactions to content, or reply behavior — that is covered in a separate interview.
 - Ask 6-8 questions total. Track count with [x/8] prefix on each [Q].
-- When you have enough, output exactly: [INTERVIEW_DONE]
-  Then on the next lines, output a JSON block (no markdown, just raw JSON) with this shape:
-  {"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"...","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"...","onDisagreement":"...","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
+- When you have enough, output exactly one line: [INTERVIEW_DONE]
+  Nothing else — no JSON, no summary. The system extracts data separately.
 
 Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it direct and conversational.`
 
@@ -168,7 +167,7 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
   while (turnCount < MAX_TURNS) {
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
+      max_tokens: 400,
       system: SYSTEM,
       messages,
     })
@@ -177,27 +176,37 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
     const claudeMsg = block.text.trim()
     messages.push({ role: 'assistant', content: claudeMsg })
 
-    if (claudeMsg.includes('[INTERVIEW_DONE]')) {
-      structuredAnswers = extractInterviewJSON(claudeMsg) ?? {}
-      if (!structuredAnswers.caseStyle) console.warn('[Setup] Interview JSON missing fields — LLM may have output malformed JSON')
-      break
-    }
+    if (claudeMsg.includes('[INTERVIEW_DONE]')) break
 
-    // Print Claude's message (question + "Got it —" lines)
     const lines = claudeMsg.split('\n').filter((l: string) => l.trim())
-    for (const line of lines) {
-      console.log(`  ${line}`)
-    }
+    for (const line of lines) console.log(`  ${line}`)
 
-    // If there's a [Q] in the message, get user input
-    if (claudeMsg.includes('[Q]')) {
-      const userInput = await askFn('\n  > ')
-      console.log()
-      messages.push({ role: 'user', content: userInput })
-    }
-
+    const userInput = await askFn('\n  > ')
+    console.log()
+    messages.push({ role: 'user', content: userInput || '(no answer)' })
     turnCount++
   }
+
+  // Dedicated extraction call — only job is outputting JSON, never truncated
+  console.log('  Processing answers...')
+  const VOICE_JSON_SCHEMA = `{"caseStyle":"","apostropheStyle":"","replyLength":"","emojiUsage":"","characteristicMentions":"","onNewsWithTake":"","onFactualClaim":"","onAgreement":"","onDisagreement":"","onFunny":"","onControversial":"","bannedPhrases":"","neverTopics":""}`
+  try {
+    const extractRes = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+      messages: [...messages, { role: 'user', content: `Based on the interview above, fill in this JSON with what you learned. Output ONLY the JSON — no explanation, no markdown, no backticks:\n${VOICE_JSON_SCHEMA}` }]
+    })
+    const raw = extractRes.content?.[0]?.type === 'text' ? extractRes.content[0].text.trim() : ''
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim()
+    const s = cleaned.indexOf('{')
+    if (s !== -1) {
+      let depth = 0, e = -1
+      for (let i = s; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') depth++
+        else if (cleaned[i] === '}' && --depth === 0) { e = i; break }
+      }
+      if (e !== -1) { try { structuredAnswers = JSON.parse(cleaned.slice(s, e + 1)) } catch {} }
+    }
+  } catch {}
 
   // ── Section 3: Golden examples — bot generates tweets in user's topics ──
   console.log('\n  ─ Section 3: Your golden examples ─\n')
@@ -840,24 +849,8 @@ Your job:
   10. What they NEVER do in replies
   11. How they OPEN a reply — exact first words or patterns when agreeing, disagreeing, or adding their own take. This is critical — ask explicitly: "What's the first thing you usually write when you agree with someone? When you disagree? When you have your own take?"
 - Ask 8-12 questions total. Track count with [x/12] prefix on each [Q].
-- When done output exactly: [INTERVIEW_DONE]
-  Then ONLY this raw JSON (no markdown, no backticks):
-{
-  "caseStyle": "...",
-  "apostropheStyle": "...",
-  "replyLength": "...",
-  "emojiUsage": "...",
-  "onNewsWithTake": "...",
-  "onFactualClaim": "...",
-  "onAgreement": "...",
-  "onDisagreement": "...",
-  "onFunny": "...",
-  "onControversial": "...",
-  "openingStyle": "exact openers: when agreeing: '...', when disagreeing: '...', when own take: '...'",
-  "bannedPhrases": "comma,separated or empty",
-  "tagUsagePattern": "if they tag specific accounts: 'You tag @X in [domains] when [tweet type]. Roughly [N] out of 100 replies. Never use @X for [exceptions].' Empty string if no specific accounts mentioned.",
-  "replyBehaviorSynthesized": "2-3 sentences on reply-specific behaviors only. Write as instructions TO the bot: 'When you disagree you...', 'You tag @X when...'"
-}
+- When done output exactly one line: [INTERVIEW_DONE]
+  Nothing else — no JSON, no summary. The system extracts data separately.
 
 Never say you're an AI. No "Great answer!" Keep it direct.`
 
@@ -892,11 +885,7 @@ Never say you're an AI. No "Great answer!" Keep it direct.`
     messages.push({ role: 'assistant', content: assistantText })
 
     while (true) {
-      if (assistantText.includes('[INTERVIEW_DONE]')) {
-        structuredAnswers = extractInterviewJSON(assistantText) ?? {}
-        if (!structuredAnswers.caseStyle) console.warn('[Setup] Interview JSON missing fields — LLM may have output malformed JSON')
-        break
-      }
+      if (assistantText.includes('[INTERVIEW_DONE]')) break
 
       assistantText.split('\n').filter((l: string) => l.trim()).forEach((l: string) => console.log(`  ${l}`))
 
@@ -906,11 +895,32 @@ Never say you're an AI. No "Great answer!" Keep it direct.`
       messages.push({ role: 'user', content: userInput })
 
       const res = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 350, system: SYSTEM, messages,
+        model: 'claude-haiku-4-5-20251001', max_tokens: 400, system: SYSTEM, messages,
       })
       assistantText = res.content?.[0]?.type === 'text' ? res.content[0].text.trim() : ''
       messages.push({ role: 'assistant', content: assistantText })
     }
+
+    // Dedicated extraction call
+    console.log('  Processing answers...')
+    const REPLY_JSON_SCHEMA = `{"caseStyle":"","apostropheStyle":"","replyLength":"","emojiUsage":"","onNewsWithTake":"","onFactualClaim":"","onAgreement":"","onDisagreement":"","onFunny":"","onControversial":"","openingStyle":"exact openers: when agreeing: ..., when disagreeing: ..., when own take: ...","bannedPhrases":"","tagUsagePattern":"","replyBehaviorSynthesized":""}`
+    try {
+      const extractRes = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+        messages: [...messages, { role: 'user', content: `Based on the interview above, fill in this JSON with what you learned. Output ONLY the JSON — no explanation, no markdown, no backticks:\n${REPLY_JSON_SCHEMA}` }]
+      })
+      const raw = extractRes.content?.[0]?.type === 'text' ? extractRes.content[0].text.trim() : ''
+      const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim()
+      const s = cleaned.indexOf('{')
+      if (s !== -1) {
+        let depth = 0, e = -1
+        for (let i = s; i < cleaned.length; i++) {
+          if (cleaned[i] === '{') depth++
+          else if (cleaned[i] === '}' && --depth === 0) { e = i; break }
+        }
+        if (e !== -1) { try { structuredAnswers = JSON.parse(cleaned.slice(s, e + 1)) } catch {} }
+      }
+    } catch {}
   }
 
   // ── Golden examples — dynamic per domain (Math.max(2, round(8/domains))) ──
