@@ -27,6 +27,9 @@ if (!process.env.ANTHROPIC_API_KEY) {
   }
 }
 
+// Module-level flag — set by top-level jump menu, read by runReplyInterview
+let _setupJumpTo: 'interview' | 'golden' | 'samples' | '' = ''
+
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 
 function ask(prompt: string): Promise<string> {
@@ -849,7 +852,11 @@ async function runReplyInterview(computed: any, askFn: (q: string) => Promise<st
   // ── Skip menu if saved profile exists ───────────────────────
   const existingVP = computed?.voiceProfile
   let skipTo = ''
-  if (existingVP?.synthesized) {
+  if (_setupJumpTo) {
+    // Pre-selected from top-level jump menu — no need to ask again
+    skipTo = _setupJumpTo === 'golden' ? 'golden' : _setupJumpTo === 'samples' ? 'samples' : ''
+    _setupJumpTo = ''
+  } else if (existingVP?.synthesized) {
     console.log('  Saved profile found. Jump to:')
     console.log('  [1] Full interview (start over)')
     console.log('  [2] Golden examples only (keep saved interview answers)')
@@ -1597,15 +1604,23 @@ async function main() {
         const existPP = JSON.parse(fs.readFileSync(jPP, 'utf8'))
         if (existVP.synthesized) {
           console.log(`  Existing setup found for: @${jCreator}\n`)
-          console.log('  [1] Full setup (re-run everything)')
-          console.log('  [2] Validation only — redo sample replies + save topicExamples')
-          console.log('  [3] Continue setup — all existing answers auto-detected, just fill gaps')
+          console.log('  [1] Full setup (re-run everything from scratch)')
+          console.log('  [2] Redo voice interview + golden examples + validation')
+          console.log('  [3] Redo golden examples + validation (keep interview answers)')
+          console.log('  [4] Validation only — just redo sample replies (fastest)')
+          console.log('  [5] Continue — fill any gaps, existing answers auto-detected')
           const jump = await ask('\n  > ')
-          if (jump.trim() === '2') {
+          if (jump.trim() === '4') {
             const apiKey = process.env.ANTHROPIC_API_KEY
             if (!apiKey) { console.log('\n  ANTHROPIC_API_KEY not found in .env — cannot continue.\n'); rl.close(); return }
             await runValidationOnly(jDir, existVP, existPP, apiKey)
             rl.close(); return
+          } else if (jump.trim() === '2') {
+            _setupJumpTo = 'interview'
+            console.log('\n  Jumping to voice interview.\n')
+          } else if (jump.trim() === '3') {
+            _setupJumpTo = 'golden'
+            console.log('\n  Jumping to golden examples.\n')
           } else if (jump.trim() === '1') {
             console.log('\n  Starting full setup from scratch.\n')
           } else {

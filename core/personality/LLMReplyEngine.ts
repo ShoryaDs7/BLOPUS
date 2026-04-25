@@ -686,10 +686,10 @@ Reply exactly how the examples above sound. No AI reveal. Always reply — never
       const topicProfilesBlock = pp?.topicProfiles && Object.keys(pp.topicProfiles).length
         ? `\nTOPIC KNOWLEDGE RULES — you post in these topics with these frequencies and depth levels:\n${Object.entries(pp.topicProfiles).map(([t, tp]: [string, any]) => {
             const depthRule = tp.knowledgeDepth === 'basic'
-              ? 'general takes and observations only — do NOT go deep or technical'
+              ? 'general takes only — keep it short (1 line max), no technical depth'
               : tp.knowledgeDepth === 'expert'
-              ? 'deep knowledge — specific, opinionated, detailed posts ok'
-              : 'moderate — can reference specific things but don\'t go hyper-technical'
+              ? 'deep knowledge — can go 2-3 sentences, specific, opinionated, detailed'
+              : 'moderate — 1-2 lines ok, can reference specifics but don\'t go hyper-technical'
             return `- ${t} (${tp.engagementShare}/100 of your posts): ${depthRule}`
           }).join('\n')}\n`
         : ''
@@ -913,10 +913,10 @@ ${vp?.neverTopics?.length ? `- NEVER reply to tweets about: ${vp.neverTopics.joi
 ${vp?.neverReplyTypes?.length ? `- NEVER reply when: ${vp.neverReplyTypes.join(', ')}` : ''}
 ${p.topicProfiles && Object.keys(p.topicProfiles).length ? `\nTOPIC KNOWLEDGE RULES — match your actual depth per topic:\n${Object.entries(p.topicProfiles).map(([t, tp]: [string, any]) => {
   const depthRule = tp.knowledgeDepth === 'basic'
-    ? 'general takes only — no technical depth, keep it simple and opinionated'
+    ? 'general takes only — 1 line max, keep it simple and opinionated, no technical depth'
     : tp.knowledgeDepth === 'expert'
-    ? 'deep knowledge — specific facts, nuance, and confident takes ok'
-    : 'moderate depth — can reference examples and follow the news but don\'t go hyper-technical'
+    ? 'deep knowledge — can go 2-3 sentences, specific facts, nuance, and confident takes ok'
+    : 'moderate — 1-2 lines ok, can reference examples but don\'t go hyper-technical'
   return `- ${t}: ${depthRule}`
 }).join('\n')}` : ''}
 ${sigPatterns.length ? `\nYour signature openers — use ONLY in the right context:\n${sigPatterns.map(sp => `"${sp.phrase}": use for ${sp.usedFor}${sp.neverUsedFor ? `. NEVER for ${sp.neverUsedFor}` : ''}`).join('\n')}` : ''}
