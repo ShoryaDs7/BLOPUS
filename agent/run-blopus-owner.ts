@@ -19,6 +19,7 @@ dotenv.config({ path: path.resolve(`./creators/${creator}/.env`), override: true
 
 process.env.BLOPUS_CONFIG_PATH  = `./creators/${creator}/config.json`
 process.env.BLOPUS_MEMORY_PATH  = `./creators/${creator}/memory.json`
+process.env.BLOPUS_OWNER_MODE   = 'true'
 
 // Crash alert — send Telegram message if OsBot dies unexpectedly
 async function sendCrashAlert(err: unknown): Promise<void> {

@@ -286,7 +286,7 @@ async function boot(): Promise<void> {
 
   const personality = new PersonalityEngine(config.personality.quirks)
 
-  const isOwnerMode = (config as any).mode === 'MODE_B'
+  const isOwnerMode = (config as any).mode === 'MODE_B' || process.env.BLOPUS_OWNER_MODE === 'true'
 
   // Mode 1 (voice): load voice_profile.json → inject into personalityProfile, skip RAG
   // Mode 2 (rag): load archive → build RAG index (current behaviour)
