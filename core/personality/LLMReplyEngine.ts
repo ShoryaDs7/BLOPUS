@@ -524,13 +524,9 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags. No em dashes.${h
       const content = response.content[0]
       if (content.type !== 'text') return ''
       const noApostrophe = (ownerProfile?.voiceProfile?.apostropheStyle ?? '').toLowerCase().includes('never')
-      const cleaned = noApostrophe
+      const raw = noApostrophe
         ? stripApostrophes(cleanReply(content.text))
         : cleanReply(content.text)
-      const caseStyleStr = ownerProfile?.voiceProfile?.caseStyle ?? ''
-      const raw = (caseStyleStr.toLowerCase().includes('sentence') || caseStyleStr.toLowerCase().includes('capital'))
-        ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
-        : cleaned
       // Fragment guard: too short relative to archive median (skipped in voice mode — short replies are valid)
       if (!isVoiceMode) {
         const fragmentThreshold = Math.floor(archiveMedianLength * 0.3)
