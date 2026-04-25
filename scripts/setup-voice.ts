@@ -103,7 +103,7 @@ FREQUENCY RULES — for every other frequency question:
 
 When done, output exactly: [INTERVIEW_DONE]
 Then raw JSON only (no markdown, no backticks):
-{"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"number 0-100","dominantEmoji":"single emoji or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases, comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases, comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases, comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
+{"caseStyle":"...","apostropheStyle":"...","replyLength":"...","emojiUsage":"number 0-100","emojiContext":"when/where emojis are used e.g. only in memes and funny posts, or when mocking someone","emojiPerContext":"if different emojis per situation e.g. 😂 for funny posts / 🥱 when disagreeing and mocking — empty if only one emoji","dominantEmoji":"single most-used emoji or empty","characteristicMentions":"...","onNewsWithTake":"...","onFactualClaim":"...","onAgreement":"exact phrases, comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases, comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases, comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"...","onControversial":"...","bannedPhrases":"...","neverTopics":"..."}
 
 Never say you're an AI. Never say "Great answer!". Direct and short.`
 
@@ -227,6 +227,8 @@ Write 2-3 sentences describing exactly how this person writes. Be specific — r
     replyLength:            structuredAnswers.replyLength ?? '',
     emojiUsage:             structuredAnswers.emojiUsage ?? '',
     dominantEmoji:          structuredAnswers.dominantEmoji ?? '',
+    emojiContext:           structuredAnswers.emojiContext ?? '',
+    emojiPerContext:        structuredAnswers.emojiPerContext ?? '',
     characteristicMentions: splitList(structuredAnswers.characteristicMentions),
     behaviorPatterns: {
       onNewsWithTake:          structuredAnswers.onNewsWithTake ?? '',

@@ -858,7 +858,18 @@ ${stats.apostropheStyle ? `- ${stats.apostropheStyle}` : ''}
       const effectiveLength = vp?.replyLength || stats.medianReplyLength || ''
       const effectiveEmoji = vp?.emojiUsage || stats.emojiUsage || ''
       const effectiveDominantEmoji = (vp as any)?.dominantEmoji || ''
+      const emojiContext = (vp as any)?.emojiContext || ''
+      const emojiPerContext = (vp as any)?.emojiPerContext || ''
       const effectiveHinglish = vp?.mixedLanguageFrequency || ''
+
+      const emojiRule = (() => {
+        if (!effectiveEmoji) return '- no emojis'
+        let rule = `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.`
+        if (emojiContext) rule += ` Use ONLY in: ${emojiContext}.`
+        if (emojiPerContext) rule += ` Different emojis per context: ${emojiPerContext}`
+        else if (effectiveDominantEmoji) rule += ` Default emoji: ${effectiveDominantEmoji}`
+        return rule
+      })()
 
       return `You are @${this.ownerHandle} — a real human replying on X. NOT a bot. NOT an assistant.
 
@@ -868,7 +879,7 @@ HARD RULES (never break these):
 ${effectiveCaseStyle ? `- case style: ${effectiveCaseStyle}` : ''}
 ${effectiveApostrophe ? `- ${effectiveApostrophe}` : ''}
 ${effectiveLength ? `- length: ${effectiveLength}. when in doubt, go shorter.` : '- keep replies short'}
-${effectiveEmoji ? `- emoji: ${effectiveEmoji} out of 100 replies. do not exceed this.${effectiveDominantEmoji ? ` When you do use one, default to: ${effectiveDominantEmoji}` : ''}` : '- no emojis'}
+${emojiRule}
 ${effectiveHinglish ? `- non-English / mixed language words: ${effectiveHinglish} out of 100 replies. stay close to this — do not overuse.` : ''}
 - no em dashes (—). banned.
 - no bullet points, no structured formatting, no hashtags
