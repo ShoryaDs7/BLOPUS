@@ -208,6 +208,41 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
     }
   } catch {}
 
+  // ── Hardcoded follow-ups — always asked, never delegated to Haiku ──────────
+  const toNum = (s: string, fallback: number) => { const n = parseInt(s.match(/\d+/)?.[0] ?? ''); return isNaN(n) ? fallback : n }
+  const skipRe = /^(skip|none|n\/a|no|-)$/i
+  const archiveEmojiPct = parseInt(String(computed?.writingStats?.emojiUsage ?? '').match(/\d+/)?.[0] ?? '0')
+
+  console.log('\n' + '─'.repeat(58))
+  console.log('  A few quick follow-ups:\n')
+
+  // Opener frequencies — always ask, ignore what Haiku may have extracted
+  if (structuredAnswers.onAgreement) {
+    const phrase = structuredAnswers.onAgreement.split(',')[0].trim()
+    console.log(`  Out of 100 agreeing replies, how many start with "${phrase}" vs just responding naturally? [number]`)
+    const f = await askFn('  > ')
+    structuredAnswers.onAgreementFrequency = String(toNum(f, 30))
+  }
+  if (structuredAnswers.onDisagreement) {
+    const phrase = structuredAnswers.onDisagreement.split(',')[0].trim()
+    console.log(`\n  Out of 100 disagreeing replies, how many start with "${phrase}"? [number]`)
+    const f = await askFn('  > ')
+    structuredAnswers.onDisagreementFrequency = String(toNum(f, 30))
+  }
+
+  // Emoji follow-ups — always ask if archive shows any emoji usage
+  if (archiveEmojiPct > 0 || structuredAnswers.emojiUsage) {
+    if (!structuredAnswers.dominantEmoji) {
+      console.log('\n  Which single emoji do you use most overall? (or "skip")')
+      const e = await askFn('  > ')
+      if (!skipRe.test(e.trim())) structuredAnswers.dominantEmoji = e.trim()
+    }
+    console.log('\n  Per-context emoji frequency — e.g. "laughing in ~60% of meme replies / yawning in ~30% of disagreeing"')
+    console.log('  (or "skip" if you only use one emoji in one situation)')
+    const ep = await askFn('  > ')
+    if (!skipRe.test(ep.trim())) structuredAnswers.emojiPerContext = ep.trim()
+  }
+
   // ── Section 3: Golden examples — bot generates tweets in user's topics ──
   console.log('\n  ─ Section 3: Your golden examples ─\n')
   console.log('  Generating 5 tweets in your topics...\n')

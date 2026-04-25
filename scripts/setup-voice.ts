@@ -168,30 +168,24 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
   console.log('\n' + '─'.repeat(58))
   console.log('  A few quick follow-ups:\n')
 
-  // Opener frequencies — always ask
+  // Opener frequencies — always ask, ignore what Haiku may have extracted
   if (structuredAnswers.onAgreement) {
     const phrase = structuredAnswers.onAgreement.split(',')[0].trim()
-    console.log(`  Out of 100 agreeing replies, how many start with "${phrase}" (vs responding naturally)? [number]`)
-    if (!structuredAnswers.onAgreementFrequency) {
-      const f = await ask('  > ')
-      structuredAnswers.onAgreementFrequency = String(toNum(f, 30))
-    } else { console.log(`  (already captured: ${structuredAnswers.onAgreementFrequency})`) }
+    console.log(`  Out of 100 agreeing replies, how many start with "${phrase}" vs just responding naturally? [number]`)
+    const f = await ask('  > ')
+    structuredAnswers.onAgreementFrequency = String(toNum(f, 30))
   }
   if (structuredAnswers.onDisagreement) {
     const phrase = structuredAnswers.onDisagreement.split(',')[0].trim()
     console.log(`\n  Out of 100 disagreeing replies, how many start with "${phrase}"? [number]`)
-    if (!structuredAnswers.onDisagreementFrequency) {
-      const f = await ask('  > ')
-      structuredAnswers.onDisagreementFrequency = String(toNum(f, 30))
-    } else { console.log(`  (already captured: ${structuredAnswers.onDisagreementFrequency})`) }
+    const f = await ask('  > ')
+    structuredAnswers.onDisagreementFrequency = String(toNum(f, 30))
   }
   if (structuredAnswers.onOwnTake) {
     const phrase = structuredAnswers.onOwnTake.split(',')[0].trim()
     console.log(`\n  Out of 100 own-take replies, how many start with "${phrase}"? [number]`)
-    if (!structuredAnswers.onOwnTakeFrequency) {
-      const f = await ask('  > ')
-      structuredAnswers.onOwnTakeFrequency = String(toNum(f, 30))
-    } else { console.log(`  (already captured: ${structuredAnswers.onOwnTakeFrequency})`) }
+    const f = await ask('  > ')
+    structuredAnswers.onOwnTakeFrequency = String(toNum(f, 30))
   }
 
   // Emoji follow-ups — always ask if archive shows any emoji usage
@@ -202,12 +196,10 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
       const e = await ask('  > ')
       if (!skipRe.test(e.trim())) structuredAnswers.dominantEmoji = e.trim()
     }
-    if (!structuredAnswers.emojiPerContext) {
-      console.log('\n  Per-context emoji frequency — e.g. "laughing in ~60% of meme replies / yawning in ~30% of disagreeing"')
-      console.log('  (or "skip" if you only use one emoji in one situation)')
-      const ep = await ask('  > ')
-      if (!skipRe.test(ep.trim())) structuredAnswers.emojiPerContext = ep.trim()
-    }
+    console.log('\n  Per-context emoji frequency — e.g. "laughing in ~60% of meme replies / yawning in ~30% of disagreeing"')
+    console.log('  (or "skip" if you only use one emoji in one situation)')
+    const ep = await ask('  > ')
+    if (!skipRe.test(ep.trim())) structuredAnswers.emojiPerContext = ep.trim()
   }
 
   // ── Golden examples ──────────────────────────────────────────
