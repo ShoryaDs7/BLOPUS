@@ -113,7 +113,7 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
   const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
   messages.push({ role: 'user', content: 'Start the interview.' })
 
-  // Robust JSON extractor — counts balanced braces so trailing LLM text never breaks parse
+  // Robust JSON extractor
   const extractInterviewJSON = (text: string): Record<string, string> | null => {
     const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
     const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
@@ -148,14 +148,52 @@ Never say you're an AI. Never say "Great answer!". Direct and short.`
     }
 
     claudeMsg.split('\n').filter((l: string) => l.trim()).forEach((l: string) => console.log(`  ${l}`))
-
-    if (claudeMsg.includes('[Q]')) {
-      const userInput = await ask('\n  > ')
-      console.log()
-      while (!userInput.trim()) { userInput = await ask('\n  > ') }
-      messages.push({ role: 'user', content: userInput })
-    }
+    const userInput = await ask('\n  > ')
+    console.log()
+    messages.push({ role: 'user', content: userInput.trim() || '(no answer)' })
     turnCount++
+  }
+
+  // ── Hardcoded follow-ups for fields Haiku reliably skips ────────────────────
+  // These are asked directly in code so they can never be skipped.
+
+  // Opener frequency
+  if (structuredAnswers.onAgreement && !structuredAnswers.onAgreementFrequency) {
+    console.log('\n  Out of 100 agreeing replies, how many actually start with one of your openers')
+    console.log(`  (e.g. "${structuredAnswers.onAgreement.split(',')[0].trim()}") vs just responding naturally?`)
+    const f = await ask('  > ')
+    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
+    structuredAnswers.onAgreementFrequency = isNaN(n) ? '30' : String(n)
+  }
+  if (structuredAnswers.onDisagreement && !structuredAnswers.onDisagreementFrequency) {
+    console.log('\n  Out of 100 disagreeing replies, how many start with one of your openers')
+    console.log(`  (e.g. "${structuredAnswers.onDisagreement.split(',')[0].trim()}")?`)
+    const f = await ask('  > ')
+    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
+    structuredAnswers.onDisagreementFrequency = isNaN(n) ? '30' : String(n)
+  }
+  if (structuredAnswers.onOwnTake && !structuredAnswers.onOwnTakeFrequency) {
+    console.log('\n  Out of 100 own-take replies, how many start with one of your openers')
+    console.log(`  (e.g. "${structuredAnswers.onOwnTake.split(',')[0].trim()}")?`)
+    const f = await ask('  > ')
+    const n = parseInt(f.match(/\d+/)?.[0] ?? '')
+    structuredAnswers.onOwnTakeFrequency = isNaN(n) ? '30' : String(n)
+  }
+
+  // Dominant emoji
+  if (!structuredAnswers.dominantEmoji && structuredAnswers.emojiContext) {
+    console.log('\n  Which single emoji do you use most overall?')
+    const e = await ask('  > ')
+    structuredAnswers.dominantEmoji = e.trim()
+  }
+
+  // Per-context emoji frequency
+  if (!structuredAnswers.emojiPerContext && structuredAnswers.emojiContext) {
+    console.log('\n  Per-context emoji frequency — fill in numbers:')
+    console.log(`  Context/situation you mentioned: ${structuredAnswers.emojiContext}`)
+    console.log('  e.g. "laughing emoji in ~60% of meme replies / yawning in ~30% of disagreeing replies"')
+    const ep = await ask('  > ')
+    if (ep.trim()) structuredAnswers.emojiPerContext = ep.trim()
   }
 
   // ── Golden examples ──────────────────────────────────────────
