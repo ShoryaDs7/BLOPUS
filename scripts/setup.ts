@@ -11,6 +11,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { config as dotenvConfig } from 'dotenv'
 
 dotenvConfig({ path: path.join(process.cwd(), '.env') })
+// Pre-load creator .env for returning users — makes mode/archive/keys all auto-detect
+const _preCreator = process.env.CREATOR?.trim()
+if (_preCreator) {
+  const _cep = path.join(process.cwd(), 'creators', _preCreator, '.env')
+  if (fs.existsSync(_cep)) dotenvConfig({ path: _cep, override: false })
+}
 if (!process.env.ANTHROPIC_API_KEY) {
   const creatorsDir = path.join(process.cwd(), 'creators')
   if (fs.existsSync(creatorsDir)) {
@@ -1452,6 +1458,120 @@ Your job:
   return result ?? {}
 }
 
+// ─── Validation-only path (skip menu option) ─────────────────
+async function runValidationOnly(creatorDir: string, vp: any, pp: any, apiKey: string) {
+  const client = new Anthropic({ apiKey })
+  const replyModel: string = process.env.REPLY_MODEL ?? 'claude-haiku-4-5-20251001'
+
+  const goldenExamples: string[] = vp.goldenExamples ?? []
+  const caseStyle:      string   = vp.caseStyle ?? ''
+  const replyLength:    string   = vp.replyLength ?? ''
+  const bannedPhrases:  string[] = vp.bannedPhrases ?? []
+  const topics: string[]         = pp?.dominantTopics ?? pp?.replyTopics ?? []
+
+  if (!topics.length) {
+    console.log('\n  No topics found in personality profile — cannot run validation.\n')
+    return
+  }
+
+  const existingExamples: { tweet: string, reply: string }[] = vp.topicExamples ?? []
+  const topicExamples: { tweet: string, reply: string }[]    = [...existingExamples]
+  const globalCorrections: string[] = []
+
+  const buildPrompt = (tweet: string, topicCorrection?: string) => {
+    const topicBlock = topicExamples.length
+      ? `\nTOPIC-SPECIFIC EXAMPLES (tweet → approved reply, most important — shows stance + style):\n${topicExamples.map(e => `Tweet: "${e.tweet}"\nReply: "${e.reply}"`).join('\n\n')}\n`
+      : ''
+    const corrBlock = globalCorrections.length
+      ? `\nCORRECTIONS FROM USER (apply to all replies):\n${globalCorrections.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`
+      : ''
+    return `You are this person on X (Twitter). Study their real replies below and match their exact voice, length, tone, and stance.
+
+GENERAL STYLE EXAMPLES (shows HOW they write):
+${goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')}
+${topicBlock}
+What to observe from these examples:
+- Case: ${caseStyle || 'sentence case, capital first letter, apostrophes in contractions'}
+- Length: ${replyLength || 'very short by default. 1-2 lines max for serious topics. Never more than 3 sentences.'}
+- Openers like "Honestly", "I think", "I wonder" appear in SOME replies but NOT all — many jump straight to the point. Never repeat the same opener back to back.
+- Emojis only in lighthearted replies — never on serious social/political tweets
+- Never use: ${bannedPhrases.join(', ') || 'slurs, bad words'}
+- Do NOT copy wording from the examples above — write a fresh reply in the same voice
+${corrBlock}
+Now reply to this tweet in the exact same voice:
+"${tweet}"
+${topicCorrection ? `\nPrevious attempt was wrong — fix this: ${topicCorrection}` : ''}
+Return ONLY the reply. No quotes around it.`
+  }
+
+  console.log('\n' + '═'.repeat(58))
+  console.log('  VOICE VALIDATION — Sample replies per topic')
+  console.log('  Type "yes" to approve, or say what\'s wrong.')
+  console.log('═'.repeat(58) + '\n')
+
+  for (const topic of topics) {
+    let sampleTweet = ''
+    try {
+      const tr = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+        messages: [{ role: 'user', content: `Write one short realistic X tweet about "${topic}" — a hot take, opinion, or claim. Under 20 words. No quotes, no numbering.` }],
+      })
+      const c = tr.content[0]
+      if (c.type === 'text') sampleTweet = c.text.trim()
+    } catch {}
+    if (!sampleTweet) { console.log(`  [${topic}] Skipping — could not generate tweet.\n`); continue }
+
+    console.log(`  [${topic}]`)
+    console.log(`  Tweet: "${sampleTweet}"`)
+
+    let topicCorrection = ''
+    let approved = false
+    while (!approved) {
+      let approvedReply = ''
+      try {
+        const rr = await client.messages.create({
+          model: replyModel, max_tokens: 120,
+          messages: [{ role: 'user', content: buildPrompt(sampleTweet, topicCorrection || undefined) }],
+        })
+        const rc = rr.content[0]
+        if (rc.type === 'text') approvedReply = rc.text.trim()
+      } catch { break }
+
+      console.log(`  Reply: "${approvedReply}"`)
+      const fb = await ask('  Correct? (yes / tell me what\'s off): ')
+      if (/^(yes|y|yeah|yep|correct|good|perfect|ok|okay)/i.test(fb.trim())) {
+        approved = true
+        const idx = topicExamples.findIndex(e => e.tweet === sampleTweet)
+        if (idx !== -1) topicExamples.splice(idx, 1)
+        topicExamples.push({ tweet: sampleTweet, reply: approvedReply })
+        console.log('  ✓ Saved.\n')
+      } else if (fb.trim()) {
+        topicCorrection = fb.trim()
+        globalCorrections.push(fb.trim())
+        console.log('  Retrying...\n')
+      } else {
+        console.log('  Skipped.\n')
+        break
+      }
+    }
+  }
+
+  if (!topicExamples.length) { console.log('  Nothing approved — nothing saved.\n'); return }
+
+  vp.topicExamples = topicExamples
+  fs.writeFileSync(path.join(creatorDir, 'voice_profile.json'), JSON.stringify(vp, null, 2), 'utf8')
+  const ppPath = path.join(creatorDir, 'personality_profile.json')
+  if (fs.existsSync(ppPath)) {
+    const fullPP = JSON.parse(fs.readFileSync(ppPath, 'utf8'))
+    if (!fullPP.voiceProfile) fullPP.voiceProfile = {}
+    fullPP.voiceProfile.topicExamples = topicExamples
+    fs.writeFileSync(ppPath, JSON.stringify(fullPP, null, 2), 'utf8')
+  }
+  console.log('─'.repeat(58))
+  console.log(`  ✓ ${topicExamples.length} topic examples saved to voice_profile.json`)
+  console.log('─'.repeat(58) + '\n')
+}
+
 // ─────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1464,6 +1584,37 @@ async function main() {
   This wizard sets up your Blopus instance.
   All credentials stay on your machine — nothing is sent anywhere.
 `)
+
+  // ── Quick jump menu for returning users ──────────────────────
+  {
+    const jCreator = process.env.CREATOR?.trim()
+    if (jCreator) {
+      const jDir  = path.resolve(`./creators/${jCreator}`)
+      const jVP   = path.join(jDir, 'voice_profile.json')
+      const jPP   = path.join(jDir, 'personality_profile.json')
+      if (fs.existsSync(jVP) && fs.existsSync(jPP)) {
+        const existVP = JSON.parse(fs.readFileSync(jVP, 'utf8'))
+        const existPP = JSON.parse(fs.readFileSync(jPP, 'utf8'))
+        if (existVP.synthesized) {
+          console.log(`  Existing setup found for: @${jCreator}\n`)
+          console.log('  [1] Full setup (re-run everything)')
+          console.log('  [2] Validation only — redo sample replies + save topicExamples')
+          console.log('  [3] Continue setup — all existing answers auto-detected, just fill gaps')
+          const jump = await ask('\n  > ')
+          if (jump.trim() === '2') {
+            const apiKey = process.env.ANTHROPIC_API_KEY
+            if (!apiKey) { console.log('\n  ANTHROPIC_API_KEY not found in .env — cannot continue.\n'); rl.close(); return }
+            await runValidationOnly(jDir, existVP, existPP, apiKey)
+            rl.close(); return
+          } else if (jump.trim() === '1') {
+            console.log('\n  Starting full setup from scratch.\n')
+          } else {
+            console.log('\n  Continuing — existing answers will be auto-detected.\n')
+          }
+        }
+      }
+    }
+  }
 
   // ── Step 1: Anthropic API key — activates Claude for all remaining steps ──
 
