@@ -85,6 +85,22 @@ Return ONLY what is asked — no markdown, no fences, no explanations.`,
   } catch { return '' }
 }
 
+// Robust JSON extractor — counts balanced braces so trailing LLM text never breaks parse
+function extractInterviewJSON(text: string): Record<string, string> | null {
+  const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
+  const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
+  const start = cleaned.indexOf('{')
+  if (start === -1) return null
+  let depth = 0, end = -1
+  for (let i = start; i < cleaned.length; i++) {
+    if (cleaned[i] === '{') depth++
+    else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
+  }
+  if (end === -1) return null
+  try { return JSON.parse(cleaned.slice(start, end + 1)) }
+  catch (e) { console.warn('[Setup] Failed to parse interview JSON:', e); return null }
+}
+
 // ─────────────────────────────────────────────────────────────
 // Helper: follow-up if answer is too vague
 function needsFollowUp(answer: string): boolean {
@@ -147,22 +163,6 @@ Never mention you're an AI. Never say "Great answer!" or "Excellent!". Keep it d
 
   let structuredAnswers: Record<string, string> = {}
   let turnCount = 0
-
-  // Robust JSON extractor — counts balanced braces so trailing LLM text never breaks parse
-  const extractInterviewJSON = (text: string): Record<string, string> | null => {
-    const after = text.slice(text.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
-    const cleaned = after.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
-    const start = cleaned.indexOf('{')
-    if (start === -1) return null
-    let depth = 0, end = -1
-    for (let i = start; i < cleaned.length; i++) {
-      if (cleaned[i] === '{') depth++
-      else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
-    }
-    if (end === -1) return null
-    try { return JSON.parse(cleaned.slice(start, end + 1)) }
-    catch (e) { console.warn('[Setup] Failed to parse interview JSON:', e); return null }
-  }
   const MAX_TURNS = 30
 
   while (turnCount < MAX_TURNS) {
