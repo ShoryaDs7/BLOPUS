@@ -1177,7 +1177,6 @@ Return ONLY the reply. No quotes around it.`
         } else if (fb.trim()) {
           topicCorrection = fb.trim()
           globalCorrections.push(fb.trim())
-          synthesized += ` RULE: ${fb.trim()}`
           console.log('  Retrying...\n')
         } else {
           break
@@ -1444,6 +1443,7 @@ Your job:
 {
   "topics": ["topic1", "topic2"],
   "postSourceType": "one of: news-driven | personal-thoughts | opinions-hot-takes | mixed | questions-polls | life-updates",
+  "synthesized": "2-3 sentences describing exactly how this person writes original posts — their tone, format, what triggers them, what they avoid. Write as instructions TO the bot.",
   "formatStyle": "one sentence about how they write",
   "triggers": "one sentence about what makes them post",
   "neverAbout": ["topic1"],
