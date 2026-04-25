@@ -938,7 +938,7 @@ Never say you're an AI. No "Great answer!" Keep it direct.`
 
     // Dedicated extraction call
     console.log('  Processing answers...')
-    const REPLY_JSON_SCHEMA = `{"caseStyle":"","apostropheStyle":"","replyLength":"","emojiUsage":"","onNewsWithTake":"","onFactualClaim":"","onAgreement":"","onDisagreement":"","onFunny":"","onControversial":"","openingStyle":"exact openers: when agreeing: ..., when disagreeing: ..., when own take: ...","bannedPhrases":"","tagUsagePattern":"","replyBehaviorSynthesized":""}`
+    const REPLY_JSON_SCHEMA = `{"caseStyle":"","apostropheStyle":"","replyLength":"","emojiUsage":"","onNewsWithTake":"","onFactualClaim":"","onAgreement":"exact phrases comma separated","onAgreementFrequency":"number 0-100","onDisagreement":"exact phrases comma separated","onDisagreementFrequency":"number 0-100","onOwnTake":"exact phrases comma separated","onOwnTakeFrequency":"number 0-100","onFunny":"","onControversial":"","openingStyle":"exact openers: when agreeing: ..., when disagreeing: ..., when own take: ...","bannedPhrases":"","tagUsagePattern":"","replyBehaviorSynthesized":""}`
     try {
       const extractRes = await client.messages.create({
         model: 'claude-haiku-4-5-20251001', max_tokens: 800,
@@ -1069,6 +1069,14 @@ Write 2-3 sentences describing ONLY how this person writes (style, tone, structu
 
   const globalCorrections: string[] = []
 
+  const openerFreqLine = (() => {
+    const parts: string[] = []
+    if (structuredAnswers.onAgreement) parts.push(`when agreeing (~${structuredAnswers.onAgreementFrequency ?? 30}/100 replies use an opener): occasionally open with one of: ${structuredAnswers.onAgreement} — the rest jump straight to the point`)
+    if (structuredAnswers.onDisagreement) parts.push(`when disagreeing (~${structuredAnswers.onDisagreementFrequency ?? 30}/100): occasionally open with one of: ${structuredAnswers.onDisagreement} — the rest jump straight in`)
+    if (structuredAnswers.onOwnTake) parts.push(`when adding own take (~${structuredAnswers.onOwnTakeFrequency ?? 30}/100): occasionally open with one of: ${structuredAnswers.onOwnTake} — the rest jump straight in`)
+    return parts.length ? `OPENERS (occasional, not always — follow the frequencies):\n${parts.map(p => `- ${p}`).join('\n')}` : ''
+  })()
+
   const buildReplyPrompt = (tweet: string, topicCorrection?: string) => `Reply to this tweet AS this person. Be them exactly.
 
 Tweet: "${tweet}"
@@ -1076,7 +1084,7 @@ Tweet: "${tweet}"
 Writing style: ${synthesized}
 Case: ${structuredAnswers.caseStyle || 'lowercase'}
 STRICT LENGTH RULE: ${structuredAnswers.replyLength || 'short one-liners by default. Only expand to 2-3 sentences when explaining something. Never more than 3 sentences.'}
-${structuredAnswers.openingStyle ? `HOW TO OPEN THE REPLY (follow exactly): ${structuredAnswers.openingStyle}` : ''}
+${openerFreqLine}
 ${structuredAnswers.tagUsagePattern ? `Tagging rule: ${structuredAnswers.tagUsagePattern}` : ''}
 NEVER use: ${splitList(structuredAnswers.bannedPhrases ?? '').join(', ') || 'nothing specified'}
 Reply behavior: ${structuredAnswers.replyBehaviorSynthesized ?? ''}
