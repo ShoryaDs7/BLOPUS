@@ -704,10 +704,23 @@ async function runQuoteTweetInterview(computed: any, askFn: (q: string) => Promi
   try { quoteTopics = JSON.parse(topicsJson) } catch { quoteTopics = [] }
   console.log(`  Got it — quote tweet topics: ${quoteTopics.join(', ') || 'none'}\n`)
 
-  console.log('  [2/4] What would you NEVER quote tweet? (topic, type, or "nothing")')
-  const q2 = await askFn('  > ')
-  const neverKeywords = await expandNeverKeywords(q2, askFn)
-  console.log(`  Got it — ${q2}\n`)
+  // Auto-derive never list from unselected topics — skip [2/4] if user already narrowed down in [1/4]
+  let neverKeywords: string[] = []
+  const qtSelectedAll = /^all$/i.test(q1.trim()) || quoteTopics.length === topics.length
+  if (qtSelectedAll) {
+    console.log('  [2/4] Anything you\'d NEVER quote tweet even within those topics? (type or "nothing")')
+    const q2 = await askFn('  > ')
+    if (!/^(nothing|none|skip|n\/a|-)$/i.test(q2.trim())) {
+      // Map any numbers to topic names, otherwise use as-is
+      neverKeywords = q2.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+        const n = parseInt(s); return (!isNaN(n) && n >= 1 && n <= topics.length) ? topics[n - 1] : s
+      })
+    }
+    console.log(`  Got it.\n`)
+  } else {
+    neverKeywords = topics.filter(t => !quoteTopics.includes(t))
+    console.log(`  Auto-set: never QT ${neverKeywords.join(', ') || 'nothing'}\n`)
+  }
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to quote it?')
   console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
@@ -752,10 +765,21 @@ async function runRetweetInterview(computed: any, askFn: (q: string) => Promise<
   try { retweetTopics = JSON.parse(topicsJson) } catch { retweetTopics = [] }
   console.log(`  Got it — retweet topics: ${retweetTopics.join(', ') || 'none'}\n`)
 
-  console.log('  [2/4] What would you NEVER retweet? (topic, type, or "nothing")')
-  const q2 = await askFn('  > ')
-  const neverKeywords = await expandNeverKeywords(q2, askFn)
-  console.log(`  Got it — ${q2}\n`)
+  let neverKeywords: string[] = []
+  const rtSelectedAll = /^all$/i.test(q1.trim()) || retweetTopics.length === topics.length
+  if (rtSelectedAll) {
+    console.log('  [2/4] Anything you\'d NEVER retweet even within those topics? (type or "nothing")')
+    const q2 = await askFn('  > ')
+    if (!/^(nothing|none|skip|n\/a|-)$/i.test(q2.trim())) {
+      neverKeywords = q2.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+        const n = parseInt(s); return (!isNaN(n) && n >= 1 && n <= topics.length) ? topics[n - 1] : s
+      })
+    }
+    console.log(`  Got it.\n`)
+  } else {
+    neverKeywords = topics.filter(t => !retweetTopics.includes(t))
+    console.log(`  Auto-set: never RT ${neverKeywords.join(', ') || 'nothing'}\n`)
+  }
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to retweet it?')
   console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
@@ -800,10 +824,21 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
   try { likeTopics = JSON.parse(topicsJson) } catch { likeTopics = [] }
   console.log(`  Got it — like topics: ${likeTopics.join(', ') || 'none'}\n`)
 
-  console.log('  [2/4] What would you NEVER like? (topic, type, or "nothing")')
-  const q2 = await askFn('  > ')
-  const neverKeywords = await expandNeverKeywords(q2, askFn)
-  console.log(`  Got it — ${q2}\n`)
+  let neverKeywords: string[] = []
+  const likeSelectedAll = /^all$/i.test(q1.trim()) || likeTopics.length === topics.length
+  if (likeSelectedAll) {
+    console.log('  [2/4] Anything you\'d NEVER like even within those topics? (type or "nothing")')
+    const q2 = await askFn('  > ')
+    if (!/^(nothing|none|skip|n\/a|-)$/i.test(q2.trim())) {
+      neverKeywords = q2.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+        const n = parseInt(s); return (!isNaN(n) && n >= 1 && n <= topics.length) ? topics[n - 1] : s
+      })
+    }
+    console.log(`  Got it.\n`)
+  } else {
+    neverKeywords = topics.filter(t => !likeTopics.includes(t))
+    console.log(`  Auto-set: never like ${neverKeywords.join(', ') || 'nothing'}\n`)
+  }
 
   console.log('  [3/4] When a matching tweet shows up, how likely are you to like it?')
   console.log('        (always / usually / sometimes / rarely) — be specific, not "depends"')
