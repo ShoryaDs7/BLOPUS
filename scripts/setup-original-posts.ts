@@ -341,37 +341,45 @@ Write 2-3 sentences describing ONLY how this person writes original posts (struc
     } catch {}
   }
 
-  // ── LLM validation — one sample post per confirmed topic ──────
+  // ── LLM validation — one sample post per confirmed topic, retry until approved ──
   if (synthesized && goldenExamples.length) {
     console.log('\n─'.repeat(29))
     console.log('  Here\'s how I\'d post on each of your topics.\n  Tell me if any don\'t sound like you.\n')
     try {
       for (const topic of confirmedTopics) {
-        const sampleRes = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 150,
-          messages: [{
-            role: 'user',
-            content: `Write one original post AS this person about "${topic}".
+        let approved = false
+        let correction: string | undefined
+        while (!approved) {
+          const sampleRes = await client.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 150,
+            messages: [{
+              role: 'user',
+              content: `Write one original post AS this person about "${topic}".${correction ? `\n\nPREVIOUS ATTEMPT WAS WRONG. Correction: ${correction}` : ''}
 
 Their post style: ${synthesized}
 Their golden examples:
 ${goldenExamples.slice(0, 4).map((e, i) => `${i + 1}. "${e}"`).join('\n')}
 
 Match their exact voice, length, format. Return ONLY the post text, nothing else.`
-          }]
-        })
-        const c = sampleRes.content[0]
-        if (c.type !== 'text') continue
-        const sample = c.text.trim()
-        console.log(`  [${topic}]`)
-        console.log(`  "${sample}"`)
-        const fb = await ask('  Correct? (yes / tell me what\'s off): ')
-        if (!/^yes|^y$|^yep|^yeah/i.test(fb.trim()) && fb.trim()) {
-          synthesized += ` For ${topic}: ${fb}`
-          console.log('  Got it — noted.\n')
-        } else {
-          console.log()
+            }]
+          })
+          const c = sampleRes.content[0]
+          if (c.type !== 'text') break
+          const sample = c.text.trim()
+          console.log(`  [${topic}]`)
+          console.log(`  "${sample}"`)
+          const fb = await ask('  Correct? (yes / tell me what\'s off): ')
+          if (/^yes|^y$|^yep|^yeah/i.test(fb.trim())) {
+            approved = true
+            console.log()
+          } else if (fb.trim()) {
+            correction = fb.trim()
+            synthesized += ` For ${topic}: ${correction}`
+            console.log('  Retrying...\n')
+          } else {
+            break
+          }
         }
       }
     } catch {}
