@@ -376,19 +376,78 @@ export class LLMReplyEngine {
   async generateAutonomousPost(ctx: AutonomousPostContext): Promise<string> {
     if (!this.llmConfig.enabled || !process.env.ANTHROPIC_API_KEY) return ''
 
-    const mode = this.selectPostMode()
-    const systemPrompt = this.buildAutonomousPrompt(ctx, mode)
-    if (!systemPrompt) return ''  // guard: no examples = skip rather than hallucinate
     const postModel = this.llmConfig.autonomousModel ?? this.llmConfig.model
 
-    const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
-    const isBulletFormat = opp?.postLength?.toLowerCase().includes('bullet') || opp?.postLength?.toLowerCase().includes('point') || opp?.formatStyle?.toLowerCase().includes('bullet')
-    const autonomousMaxTokens = isBulletFormat ? 200 : 80
+    // ── Owner mode: smart-post prompt (same structure as npm run smart-post) ──
+    if (this.isOwnerMode && this.personalityProfile) {
+      const opp = this.personalityProfile.voiceProfile?.originalPostProfile
+      if (!opp?.goldenExamples?.length) return ''
+
+      const goldenBlock = opp.goldenExamples.map((e: string, i: number) => `${i + 1}. "${e}"`).join('\n')
+
+      const topicEx = opp.topicExamples as { scenario: string; post: string }[] | undefined
+      const topicBlock = topicEx?.length
+        ? '\nFor these specific situations you posted like this (most important — shows your exact stance):\n' +
+          topicEx.map((e: { scenario: string; post: string }) => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
+        : ''
+
+      const synthesized: string = opp.synthesized ?? ''
+      const caseStyle: string   = opp.caseStyle ?? ''
+      const postLength: string  = opp.postLength ?? opp.formatStyle ?? ''
+
+      const emojiContext: string  = opp.emojiContext ?? ''
+      const emojiFrequency: number = opp.emojiFrequency ?? 0
+      const emojiRule = emojiContext
+        ? `emoji: ${emojiContext}`
+        : emojiFrequency > 0
+        ? `emoji in ${emojiFrequency}% of posts`
+        : 'no emojis'
+
+      // Trigger: news event / tweet reaction / personal topic — all land here via AutonomousActivity
+      const trigger = ctx.currentEvents?.[0] ?? ctx.recentTopics?.[0] ?? ''
+      if (!trigger) return ''
+
+      const prompt = `These are your real posts on X. Study them — this is your entire guide:
+
+${goldenBlock}
+${topicBlock}
+
+How you write posts: ${synthesized}
+
+Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
+
+Now write a post about this exactly like the examples above:
+"${trigger}"
+
+Post only. Nothing else.`
+
+      const isBullet = postLength.toLowerCase().includes('bullet') || postLength.toLowerCase().includes('point')
+
+      try {
+        const response = await this.client.messages.create({
+          model: postModel,
+          max_tokens: isBullet ? 200 : 100,
+          temperature: this.llmConfig.temperature,
+          system: '',
+          messages: [{ role: 'user', content: prompt }],
+        })
+        const content = response.content[0]
+        if (content.type !== 'text') return ''
+        return cleanReply(content.text).slice(0, 280)
+      } catch {
+        return ''
+      }
+    }
+
+    // ── Bot mode: keep existing behavior unchanged ──
+    const mode = this.selectPostMode()
+    const systemPrompt = this.buildAutonomousPrompt(ctx, mode)
+    if (!systemPrompt) return ''
 
     try {
       const response = await this.client.messages.create({
         model: postModel,
-        max_tokens: autonomousMaxTokens,
+        max_tokens: 80,
         temperature: this.llmConfig.temperature,
         system: systemPrompt,
         messages: [{ role: 'user', content: 'Post:' }],
