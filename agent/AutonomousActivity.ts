@@ -78,20 +78,45 @@ export class AutonomousActivity {
 
       const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
       const postTopics = opp?.topics ?? this.personalityProfile?.postTopics ?? this.personalityProfile?.dominantTopics
-      const postSourceType: string = opp?.postSourceType ?? 'mixed'
-      // Only fetch news if user actually posts news-driven content
-      const needsNews = ['news-driven', 'mixed', 'opinions-hot-takes'].includes(postSourceType)
+
+      // Pick post mode based on user's confirmed source split (or fall back to old postSourceType)
+      const split = opp?.postSourceSplit
+      const postMode: 'personalThought' | 'tweetReaction' | 'newsDriven' = split
+        ? (() => {
+            const rand = Math.random() * 100
+            if (rand < (split.personalThought ?? 0)) return 'personalThought'
+            if (rand < (split.personalThought ?? 0) + (split.tweetReaction ?? 0)) return 'tweetReaction'
+            return 'newsDriven'
+          })()
+        : (['news-driven', 'opinions-hot-takes'].includes(opp?.postSourceType ?? '') ? 'newsDriven' : 'personalThought')
+
+      console.log(`[AutonomousActivity] Post mode: ${postMode}`)
+
+      // Fetch news only when needed
+      const needsNews = postMode === 'newsDriven'
       const currentEvents = needsNews ? await this.tavily.fetchCurrentEvents(postTopics) : []
 
+      // For tweetReaction mode — find a recent tweet on her topic to react to
+      let tweetReactionTrigger: string[] = []
+      if (postMode === 'tweetReaction' && this.xAdapter.playwright) {
+        const topic = postTopics?.[Math.floor(Math.random() * (postTopics?.length ?? 1))] ?? ''
+        if (topic) {
+          const candidates = await this.xAdapter.playwright.searchTweets(topic, 3).catch(() => [])
+          if (candidates.length) {
+            const pick = candidates[Math.floor(Math.random() * candidates.length)]
+            tweetReactionTrigger = [`You just saw this tweet by @${pick.authorHandle}: "${pick.text}" — write your own post reacting to it in your voice.`]
+          }
+        }
+      }
+
       // Inject personal context from Telegram memory — but only if user actually posts personal content
-      // Check their archive's dominant topics for personal/lifestyle signals
       const personalFacts = this.userContext?.getPersonalFacts() ?? []
       const dominantTopics = this.personalityProfile?.dominantTopics ?? []
       const PERSONAL_SIGNALS = ['life', 'personal', 'daily', 'study', 'exam', 'college', 'university', 'health', 'travel', 'family', 'experience']
       const userPostsPersonalContent = dominantTopics.some(t =>
         PERSONAL_SIGNALS.some(s => t.toLowerCase().includes(s))
       )
-      const personalContext = (userPostsPersonalContent && personalFacts.length > 0)
+      const personalContext = (postMode === 'personalThought' && userPostsPersonalContent && personalFacts.length > 0)
         ? personalFacts.map(f => f.text)
         : []
 
@@ -110,6 +135,9 @@ export class AutonomousActivity {
       }
       if (override?.topics?.length) xCtx.recentTopics = override.topics
       if (override?.instruction) xCtx.currentEvents = [override.instruction, ...currentEvents]
+      if (tweetReactionTrigger.length > 0) {
+        xCtx.currentEvents = [...tweetReactionTrigger, ...(xCtx.currentEvents ?? [])]
+      }
       if (personalContext.length > 0) {
         xCtx.currentEvents = [...personalContext, ...(xCtx.currentEvents ?? [])]
       }
