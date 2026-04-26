@@ -40,6 +40,7 @@ function ask(prompt: string): Promise<string> {
 function buildPrompt(
   topic: string,
   goldenExamples: string[],
+  topicExamples: { scenario: string; post: string }[],
   synthesized: string,
   caseStyle: string,
   postLength: string,
@@ -49,9 +50,15 @@ function buildPrompt(
     ? goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')
     : ''
 
+  const topicBlock = topicExamples.length
+    ? '\nFor these specific situations you posted like this (most important — shows your exact stance):\n' +
+      topicExamples.map(e => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
+    : ''
+
   return `These are your real posts on X. Study them — this is your entire guide:
 
 ${examplesBlock}
+${topicBlock}
 
 How you write posts: ${synthesized}
 
@@ -105,10 +112,11 @@ async function main() {
     rl.close(); process.exit(1)
   }
 
-  const goldenExamples: string[] = opp.goldenExamples ?? []
-  const synthesized: string      = opp.synthesized ?? ''
-  const caseStyle: string        = opp.caseStyle ?? ''
-  const postLength: string       = opp.postLength ?? opp.formatStyle ?? ''
+  const goldenExamples: string[]                              = opp.goldenExamples ?? []
+  const topicExamples: { scenario: string; post: string }[]  = opp.topicExamples ?? []
+  const synthesized: string                                   = opp.synthesized ?? ''
+  const caseStyle: string                                     = opp.caseStyle ?? ''
+  const postLength: string                                    = opp.postLength ?? opp.formatStyle ?? ''
 
   const emojiContext: string = opp.emojiContext ?? ''
   const emojiFrequency: number = opp.emojiFrequency ?? 0
@@ -123,6 +131,7 @@ async function main() {
 
   console.log(`  Model: ${model}`)
   console.log(`  Golden examples loaded: ${goldenExamples.length}`)
+  console.log(`  Topic examples loaded:  ${topicExamples.length}`)
   console.log(`  Synthesized:            ${synthesized ? 'yes' : 'MISSING'}`)
   console.log(`  Case style:             ${caseStyle || '(not set)'}`)
   console.log(`  Post length:            ${postLength || '(not set)'}`)
@@ -142,7 +151,7 @@ async function main() {
     const topic = await ask('  Topic: ')
     if (!topic || /^exit$/i.test(topic)) break
 
-    const prompt = buildPrompt(topic, goldenExamples, synthesized, caseStyle, postLength, emojiRule)
+    const prompt = buildPrompt(topic, goldenExamples, topicExamples, synthesized, caseStyle, postLength, emojiRule)
 
     try {
       const res = await client.messages.create({

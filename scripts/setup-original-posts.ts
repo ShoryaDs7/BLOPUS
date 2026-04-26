@@ -302,11 +302,15 @@ RULES:
   if (!prompts.length) prompts = confirmedTopics.map(t => `Your take on something happening in ${t}`)
 
   const goldenExamples: string[] = []
+  const topicExamples: { scenario: string; post: string }[] = []
   for (let i = 0; i < prompts.length; i++) {
     console.log(`  [${i + 1}/${prompts.length}] "${prompts[i]}"`)
     const post = await ask('  Your post > ')
-    if (post && !/^skip$/i.test(post)) { goldenExamples.push(post); console.log('  Got it.\n') }
-    else console.log('  Skipped.\n')
+    if (post && !/^skip$/i.test(post)) {
+      goldenExamples.push(post)
+      topicExamples.push({ scenario: prompts[i], post })
+      console.log('  Got it.\n')
+    } else console.log('  Skipped.\n')
   }
 
   // ── Synthesize post style ─────────────────────────────────────
@@ -374,6 +378,7 @@ Match their exact voice, length, format. Return ONLY the post text, nothing else
   }
 
   result.goldenExamples = goldenExamples
+  result.topicExamples = topicExamples
   if (synthesized) result.synthesized = synthesized
 
   if (!profile.voiceProfile) profile.voiceProfile = {}
