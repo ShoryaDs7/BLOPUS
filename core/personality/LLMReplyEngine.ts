@@ -381,10 +381,14 @@ export class LLMReplyEngine {
     if (!systemPrompt) return ''  // guard: no examples = skip rather than hallucinate
     const postModel = this.llmConfig.autonomousModel ?? this.llmConfig.model
 
+    const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
+    const isBulletFormat = opp?.postLength?.toLowerCase().includes('bullet') || opp?.postLength?.toLowerCase().includes('point') || opp?.formatStyle?.toLowerCase().includes('bullet')
+    const autonomousMaxTokens = isBulletFormat ? 200 : 80
+
     try {
       const response = await this.client.messages.create({
         model: postModel,
-        max_tokens: 80,
+        max_tokens: autonomousMaxTokens,
         temperature: this.llmConfig.temperature,
         system: systemPrompt,
         messages: [{ role: 'user', content: 'Post:' }],
@@ -684,7 +688,7 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
       if (opp && !opp.goldenExamples?.length && !bp?.sampleOriginals?.length) return ''
       const oppBlock = opp ? [
         opp.synthesized ? `Your confirmed post style: ${opp.synthesized}` : '',
-        opp.formatStyle ? `Your original post format: ${opp.formatStyle}` : '',
+        opp.postLength ? `Your post length rule: ${opp.postLength}` : (opp.formatStyle ? `Your original post format: ${opp.formatStyle}` : ''),
         opp.neverAbout?.length ? `NEVER write original posts about: ${opp.neverAbout.slice(0, 20).join(', ')}` : '',
       ].filter(Boolean).join('\n') + '\n' : ''
 
@@ -720,7 +724,9 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
         (stats.emojiUsage ? `- emoji usage: ${stats.emojiUsage}\n` : '') +
         (pp ? `- you avoid: ${pp.avoids.join(', ')}\n` : '') +
         `\n- NO em dashes (—) — banned. NO hashtags. NO tagging users. NOT a bot.\n` +
-        `≤35 words. plain text only.`
+        (opp?.postLength?.toLowerCase().includes('bullet') || opp?.postLength?.toLowerCase().includes('point') || opp?.formatStyle?.toLowerCase().includes('bullet')
+          ? `Bullet point format allowed. Match the format in the examples exactly.`
+          : `≤35 words. plain text only.`)
       )
     }
 
