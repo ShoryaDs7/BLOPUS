@@ -80,6 +80,7 @@ export class AutonomousActivity {
       const postTopics = opp?.topics ?? this.personalityProfile?.postTopics ?? this.personalityProfile?.dominantTopics
 
       // Pick post mode: newsDriven (Tavily) vs tweet-inspired (everything else)
+      // Supports both new 2-field split {tweetInspired, newsDriven} and old 3-field {personalThought, tweetReaction, newsDriven}
       const split = opp?.postSourceSplit
       const newsDrivenChance = split
         ? (split.newsDriven ?? 0)

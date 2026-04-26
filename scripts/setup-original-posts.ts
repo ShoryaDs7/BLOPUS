@@ -136,13 +136,12 @@ Your job:
 - After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next
 - Cover ALL of these areas:
   1. Topics — confirm the archive list is still accurate or if focus has shifted. Show them the list.
-  2. Post source — ask THREE separate questions, one at a time, wait for each answer:
-     a. "Out of 100 posts, how many are purely your own thought — something that came from your head with no external trigger?"
-     b. "Out of 100 posts, how many are reactions to a tweet you just saw — you read something and wanted to respond with your own post?"
-     c. "Out of 100 posts, how many are triggered by news or current events you read somewhere?"
-     - After all three answers, check they add up to roughly 100. If not, ask them to adjust.
+  2. Post source — ask TWO separate questions, one at a time, wait for each answer:
+     a. "Out of 100 posts, how many are triggered by a news headline or current event you read somewhere?"
+     b. "The rest would be posts inspired by something you saw on X — a tweet that sparked a reaction — or just your own thought. Does that split feel right?"
+     - The two numbers should add up to roughly 100. newsDriven = answer to (a). tweetInspired = 100 - newsDriven.
      - Push for numbers. If vague, use the conversion table below.
-     - Save as postSourceSplit with three keys: personalThought, tweetReaction, newsDriven.
+     - Save as postSourceSplit with two keys: tweetInspired, newsDriven.
   3. What they NEVER post about — topics or content types they avoid entirely
   4. Posts per day — ask: "Your archive shows you post about X times a day on average. Does that still feel right, or has it changed?" IMPORTANT: this is asking how many posts per day total, NOT how often (not interval/frequency). If they give an interval like "every 3 hours" or "every few minutes", convert it to a daily count using 16 active hours: e.g. "every 3 hours" = ~5/day, "every 30 mins" = ~32/day. Then confirm: "So roughly [N] posts per day — does that sound right?" Never save an interval as the posts-per-day value.
   5. Mixed language in posts — if the archive shows non-English words, ask: "Out of 100 posts, how many would include a word in [language from archive]? Give me a number." Skip and save 0 if archive is English-only.
@@ -180,7 +179,7 @@ FOLLOW-UP RULES — apply to style/context questions (case, emoji, length):
   Then on the next lines output ONLY this raw JSON (no markdown, no backticks):
 {
   "topics": ["topic1", "topic2"],
-  "postSourceSplit": { "personalThought": NUMBER, "tweetReaction": NUMBER, "newsDriven": NUMBER },
+  "postSourceSplit": { "tweetInspired": NUMBER, "newsDriven": NUMBER },
   "caseStyle": "exact rule: e.g. 'Always sentence case' or 'All lowercase' or 'Title case for hot takes, lowercase otherwise'",
   "postLength": "concrete rule: e.g. 'One-liners for hot takes and reactions. 2-3 sentences when explaining. Threads only for breakdowns.'",
   "emojiContext": "per-emoji mapping: e.g. '😭 on humor/meme posts (20% of posts). 🔥 on AI/tech when excited (5%). Never on geopolitics or serious takes.'",
