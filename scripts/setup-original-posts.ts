@@ -399,6 +399,14 @@ Match their exact voice, length, format. Return ONLY the post text, nothing else
   profile.voiceProfile.originalPostProfile = result
   fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2), 'utf8')
 
+  // voice_profile.json is merged over personality_profile in voice mode — must stay in sync
+  const vpPath = path.join(path.dirname(profilePath), 'voice_profile.json')
+  if (fs.existsSync(vpPath)) {
+    const vp = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+    vp.originalPostProfile = result
+    fs.writeFileSync(vpPath, JSON.stringify(vp, null, 2), 'utf8')
+  }
+
   console.log('\n' + '═'.repeat(58))
   console.log('  Saved to personality_profile.json')
   console.log(`  · Topics:     ${(result.topics ?? []).slice(0, 4).join(', ')}`)
