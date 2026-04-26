@@ -136,13 +136,27 @@ Your job:
 - After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next
 - Cover ALL of these areas:
   1. Topics — confirm the archive list is still accurate or if focus has shifted. Show them the list.
-  2. Post format — one-liners, bullet points, threads, or mix? When does length change?
-  3. Post source — when they post, is it because they saw something (news/tweet/event) that made them react, OR is it purely from their own head with no external trigger?
-  4. Emoji in posts — ask: "Out of 100 original posts, how many would include an emoji? Give me a number."
+  2. Post source — when they post, is it because they saw something (news/tweet/event) that made them react, OR is it purely from their own head with no external trigger?
+  3. What they NEVER post about — topics or content types they avoid entirely
+  4. Posts per day — confirm or correct the archive's number
   5. Mixed language in posts — if the archive shows non-English words, ask: "Out of 100 posts, how many would include a word in [language from archive]? Give me a number." Skip and save 0 if archive is English-only.
-  6. What they NEVER post about — topics or content types they avoid entirely
-  7. Posts per day — confirm or correct the archive's number
-- Ask 5-7 questions max. Skip anything already obvious from the archive.
+
+  6. Case style in posts — ask: "When you write a post, do you write in all lowercase, sentence case (first word capitalised), title case, or something else?" Do NOT assume it matches their reply style — posts can differ.
+
+  7. Post length — ask: "What's your default post length — one-liner, 2-3 sentences, or longer threads? Does it change based on topic?" Push until you get a concrete rule like "one-liners for hot takes, 2-3 sentences when explaining something."
+     - If vague, ask: "Give me an example — what would a short post look like vs a long one for you?"
+     - Keep asking until you have a clear length rule per scenario.
+
+  8. Emoji — this is a multi-part question. Ask each part separately, wait for the answer, then ask the next:
+     a. First ask: "Out of 100 original posts, how many would include any emoji at all? Give me a number."
+     b. Then ask: "Which specific emojis do you actually use?" Wait for their list.
+     c. Then for EACH emoji they mention, ask: "For [emoji] — which of your topics do you use it on, and under what condition? Like, is it only when something is funny? Only celebrating? Only when you're being sarcastic?"
+        - If they say "whenever" or "idk" — ask: "Out of the posts where you use [emoji], what % are about [topic A] vs [topic B]?"
+        - Keep asking until you have: emoji → topic/domain → condition/trigger → rough % of posts
+     d. Finally ask: "Any topics where you'd NEVER use an emoji no matter what?"
+     - Do NOT move to the next question until you have specific conditions for each emoji they use.
+
+- Ask 8-12 questions total (emoji question counts as multiple — one per emoji follow-up). Skip anything already obvious from the archive.
 
 QUANTITATIVE RULES — apply to every frequency/style question:
 - Always push for a NUMBER. Frame as: "out of 100 posts, how many would [X]?"
@@ -150,14 +164,22 @@ QUANTITATIVE RULES — apply to every frequency/style question:
 - If they still won't give a number, convert: never→0, rarely/barely→5, sometimes/a little/occasionally→15, often/usually→60, mostly/almost always→80, always→95
 - NEVER output vague words for frequency fields — always a number 0-100
 
+FOLLOW-UP RULES — apply to style/context questions (case, emoji, length):
+- If the answer is vague or general, ALWAYS ask at least one follow-up before moving on
+- For emoji: do NOT accept "depends" or "when it fits" — ask which topic, which condition, which %
+- For length: do NOT accept "it varies" — ask what makes it vary, get a concrete rule
+- For case: do NOT accept "normal" — ask if that means capitalised first word or all lowercase
+
 - When done, output exactly: [INTERVIEW_DONE]
   Then on the next lines output ONLY this raw JSON (no markdown, no backticks):
 {
   "topics": ["topic1", "topic2"],
   "postSourceType": "one of: news-driven | personal-thoughts | opinions-hot-takes | mixed | questions-polls | life-updates",
-  "formatStyle": "one sentence about how they write posts",
-  "emojiFrequency": "NUMBER 0-100: how many out of 100 posts include an emoji",
-  "mixedLanguageFrequency": "NUMBER 0-100: how many out of 100 posts include non-English words (0 if English-only)",
+  "caseStyle": "exact rule: e.g. 'Always sentence case' or 'All lowercase' or 'Title case for hot takes, lowercase otherwise'",
+  "postLength": "concrete rule: e.g. 'One-liners for hot takes and reactions. 2-3 sentences when explaining. Threads only for breakdowns.'",
+  "emojiContext": "per-emoji mapping: e.g. '😭 on humor/meme posts (20% of posts). 🔥 on AI/tech when excited (5%). Never on geopolitics or serious takes.'",
+  "emojiFrequency": NUMBER_0_to_100,
+  "mixedLanguageFrequency": NUMBER_0_to_100,
   "neverAbout": ["topic1"],
   "confirmedPostsPerDay": 2.0
 }`
@@ -362,7 +384,9 @@ Match their exact voice, length, format. Return ONLY the post text, nothing else
   console.log('  Saved to personality_profile.json')
   console.log(`  · Topics:     ${(result.topics ?? []).slice(0, 4).join(', ')}`)
   console.log(`  · Post type:  ${result.postSourceType ?? '—'}`)
-  console.log(`  · Format:     ${result.formatStyle ?? '—'}`)
+  console.log(`  · Case:       ${result.caseStyle ?? '—'}`)
+  console.log(`  · Length:     ${result.postLength ?? '—'}`)
+  console.log(`  · Emoji:      ${result.emojiContext ?? '—'}`)
   console.log(`  · Never:      ${neverKeywords.slice(0, 6).join(', ') || 'nothing'}${neverKeywords.length > 6 ? ` (+${neverKeywords.length - 6} more)` : ''}`)
   console.log(`  · Per day:    ${result.confirmedPostsPerDay ?? '—'}`)
   console.log(`  · Examples:   ${goldenExamples.length} posts captured`)
