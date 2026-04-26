@@ -883,9 +883,17 @@ export class XTools {
 
     // Shuffle for randomness — don't always like the same top tweets
     const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
-    const ids = shuffled.map(r => r.tweetId)
-    const liked = await this.playwrightClient.likeTweets(ids)
-    return `liked ${liked}/${ids.length} tweets in "${topic}"`
+    let liked = 0
+    for (const r of shuffled) {
+      try {
+        const n = await this.playwrightClient.likeTweets([r.tweetId])
+        if (n > 0) liked++
+        // Random delay 4–12s between likes — human scrolls, doesn't rapid-fire
+        const delay = 4000 + Math.floor(Math.random() * 8000)
+        await new Promise(res => setTimeout(res, delay))
+      } catch {}
+    }
+    return `liked ${liked}/${shuffled.length} tweets in "${topic}"`
   }
 
   private async findAndRetweet(count: number): Promise<string> {

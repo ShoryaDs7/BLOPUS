@@ -174,6 +174,14 @@ server.tool('find_and_retweet',
   })
 )
 
+server.tool('follow_user',
+  'Follow an X user by handle. Use when asked to "follow @someone", "follow this person".',
+  { handle: z.string() },
+  async ({ handle }) => ({
+    content: [{ type: 'text' as const, text: await call('follow_user', { handle }) }]
+  })
+)
+
 const transport = new StdioServerTransport()
 server.connect(transport)
 console.error('[XToolsMcpServer] ready — proxying to XToolsServer :7821')
