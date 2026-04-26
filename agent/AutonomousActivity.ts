@@ -150,7 +150,7 @@ export class AutonomousActivity {
       const isOwner = this.xAccountKey.endsWith('owner-own')
       const doQuoteTweet = isOwner && qtRatio > 0 && Math.random() < qtRatio && this.xAdapter.playwright
 
-      console.log(`[AutonomousActivity] ctx — recentTopics:[${xCtx.recentTopics.join(',')}] currentEvents:${xCtx.currentEvents?.length ?? 0} mode:${postMode}`)
+      console.log(`[AutonomousActivity] ctx — recentTopics:[${xCtx.recentTopics.join(',')}] currentEvents:${xCtx.currentEvents?.length ?? 0} mode:${isNewsDriven ? 'newsDriven' : 'tweetInspired'}`)
 
       if (doQuoteTweet && this.xAdapter.playwright) {
         await this.maybeQuoteTweet(xCtx, mood, currentEvents)
