@@ -426,33 +426,26 @@ export class LLMReplyEngine {
             : ''
 
           const synthesized = vp?.synthesized || ''
-          const replyBehavior = vp?.replyBehavior?.synthesized ? ` ${vp.replyBehavior.synthesized}` : ''
 
           const caseStyle = vp?.caseStyle || stats.caseStyle || 'sentence case'
           const replyLength = vp?.replyLength || stats.medianReplyLength || 'short, 1-2 lines max'
 
-          const emojiPerContext = (vp as any)?.emojiPerContext || ''
           const emojiContext = (vp as any)?.emojiContext || ''
           const emojiUsage = vp?.emojiUsage || stats.emojiUsage || ''
-          const emojiRule = emojiPerContext
-            ? `emoji: ${emojiPerContext}`
-            : emojiContext
+          const emojiRule = emojiContext
             ? `emoji only in ${emojiContext}`
             : emojiUsage
             ? `emoji: ${emojiUsage}`
             : 'no emojis'
-
-          const neverTopics = vp?.neverTopics?.length ? `\nNever reply to tweets about: ${vp.neverTopics.join(', ')}.` : ''
-          const hinglish = vp?.mixedLanguageFrequency ? ` ${vp.mixedLanguageFrequency} non-English words per 100 replies.` : ''
 
           return `These are your real replies on X. Study them — this is your entire guide:
 
 ${goldenBlock}
 ${topicBlock}
 
-How you write: ${synthesized}${replyBehavior}
+How you write: ${synthesized}
 
-Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags. No em dashes.${hinglish}${neverTopics}`
+Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.`
         })()
       : `You are OsBot — sharp, skeptical debate participant on X. Mood: ${mood}.\n\n` +
         `Reply to this tweet in 1-2 sentences (≤25 words).\n\n` +
