@@ -1402,8 +1402,10 @@ Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — neve
 async function runOriginalPostInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic): Promise<any> {
   const ws = computed?.writingStats ?? {}
   const bp = computed?.behaviorProfile ?? {}
+  const postTopics: string[] = computed?.postTopics ?? computed?.dominantTopics ?? []
+
   const archiveContext = JSON.stringify({
-    postTopics:          computed?.postTopics ?? computed?.dominantTopics ?? [],
+    postTopics,
     avgPostsPerDay:      bp.avgPostsPerDay ?? 2,
     typicalPostingHours: bp.typicalPostingHours ?? [],
     sampleOriginals:     (bp.sampleOriginals ?? []).slice(0, 8),
@@ -1420,6 +1422,12 @@ async function runOriginalPostInterview(computed: any, askFn: (q: string) => Pro
   console.log('  Answer like you\'re texting. Claude will ask what it needs.')
   console.log('═'.repeat(58) + '\n')
 
+  if (postTopics.length) {
+    console.log('  Your archive shows these topics in your original posts:')
+    postTopics.forEach((t, i) => console.log(`    ${i + 1}. ${t}`))
+    console.log()
+  }
+
   const SYSTEM = `You are interviewing a Twitter user about their ORIGINAL posts (not replies, not retweets).
 
 You have their archive analysis:
@@ -1429,24 +1437,36 @@ Your job:
 - Ask questions ONE AT A TIME based on what you see in their archive
 - Prefix each question with [Q] — nothing else before the question
 - After each answer, output one line starting with "Got it —" summarizing what you learned, then ask the next
-- If an answer is vague ("depends", "it depends", "varies") ALWAYS follow up: "Give me a specific rule — e.g. 'only tech news, not personal stuff'. Don't say depends."
-- Cover ALL of these areas (ask only what's needed based on the archive):
-  1. Topics — what they actually post about NOW (archive may be outdated)
+- Cover ALL of these areas:
+  1. Topics — confirm the archive list is still accurate or if focus has shifted. Show them the list.
   2. Post source — ask TWO separate questions, one at a time:
      a. "Out of 100 posts, how many are triggered by a news headline or current event you read somewhere?"
-     b. "The rest would be posts inspired by a tweet you saw or your own thought. Does that split feel right?"
+     b. "The rest would be posts inspired by something you saw on X or your own thought. Does that split feel right?"
      - Save as postSourceSplit: { tweetInspired: NUMBER, newsDriven: NUMBER } — must add up to 100.
-  3. Writing format — structure (bullet points, threads, one-liners), tone
-  4. What they NEVER post about
-  5. How often (confirm or correct archive's avg) — ask for posts per day, not interval
-- Ask 5-7 questions max. Don't ask about things already clear from the archive.
+  3. What they NEVER post about
+  4. Posts per day — ask how many per day total (NOT interval). If they give an interval like "every 3 hours", convert using 16 active hours and confirm: "So roughly [N] posts per day?" Never save an interval as posts-per-day.
+  5. Case style — "Do you write in all lowercase, sentence case, title case, or something else?"
+  6. Post length — "What's your default post length — one-liner, 2-3 sentences, longer threads? Does it change by topic?" Push for a concrete rule.
+  7. Emoji — ask in order, one at a time:
+     a. "Out of 100 posts, how many include any emoji?"
+     b. "Which specific emojis do you use?"
+     c. For EACH emoji: "For [emoji] — which topics and under what condition?"
+     d. "Any topics where you'd never use emoji?"
+- Ask 8-12 questions total. Skip what's already clear from the archive.
+
+QUANTITATIVE RULES:
+- Always push for a NUMBER. If vague, ask: "give me your best guess out of 100"
+- If still no number: never→0, rarely→5, sometimes→15, often→60, mostly→80, always→95
+
 - When done, output exactly: [INTERVIEW_DONE]
   Then on the next lines output ONLY this raw JSON (no markdown, no backticks):
 {
   "topics": ["topic1", "topic2"],
   "postSourceSplit": { "tweetInspired": NUMBER, "newsDriven": NUMBER },
-  "synthesized": "2-3 sentences describing exactly how this person writes original posts — their tone, format, what triggers them, what they avoid. Write as instructions TO the bot.",
-  "formatStyle": "one sentence about how they write",
+  "caseStyle": "exact rule e.g. 'Always sentence case'",
+  "postLength": "concrete rule e.g. 'One-liners for hot takes. 2-3 sentences when explaining.'",
+  "emojiContext": "per-emoji mapping e.g. '😭 on humor posts (20%). Never on serious takes.'",
+  "emojiFrequency": NUMBER_0_to_100,
   "neverAbout": ["topic1"],
   "confirmedPostsPerDay": 2.0
 }`
@@ -1468,11 +1488,16 @@ Your job:
 
   while (true) {
     if (assistantText.includes('[INTERVIEW_DONE]')) {
-      const jsonStart = assistantText.indexOf('\n', assistantText.indexOf('[INTERVIEW_DONE]'))
-      const jsonStr = assistantText.slice(jsonStart).trim()
-      try { result = JSON.parse(jsonStr) } catch {
-        const match = jsonStr.match(/\{[\s\S]*\}/)
-        if (match) { try { result = JSON.parse(match[0]) } catch {} }
+      const jsonStr = assistantText.slice(assistantText.indexOf('[INTERVIEW_DONE]') + '[INTERVIEW_DONE]'.length)
+      const cleaned = jsonStr.replace(/```(?:json)?\n?/g, '').replace(/```/g, '')
+      const start = cleaned.indexOf('{')
+      if (start !== -1) {
+        let depth = 0, end = -1
+        for (let i = start; i < cleaned.length; i++) {
+          if (cleaned[i] === '{') depth++
+          else if (cleaned[i] === '}' && --depth === 0) { end = i; break }
+        }
+        if (end !== -1) try { result = JSON.parse(cleaned.slice(start, end + 1)) } catch {}
       }
       break
     }
@@ -1498,7 +1523,135 @@ Your job:
     messages.push({ role: 'assistant', content: assistantText })
   }
 
-  return result ?? {}
+  if (!result) return {}
+
+  // ── Golden examples — user writes real posts as prompts ───────
+  console.log('\n  ─ Golden examples — write exactly how you\'d post this ─\n')
+
+  const confirmedTopics: string[] = result.topics?.length ? result.topics : postTopics
+
+  let prompts: string[] = []
+  try {
+    const promptRes = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: `Generate one posting trigger per topic for a Twitter user. Topics: ${confirmedTopics.join(', ')}
+
+Their archive posts for style reference (DO NOT copy):
+${(bp.sampleOriginals ?? []).slice(0, 6).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}
+
+Mix scenario types — some news events ("X just happened in [topic]"), some personal thoughts ("You're thinking about [aspect]"), some observations.
+
+RULES:
+- Output ONLY the scenario text — no labels, no headers, no numbering
+- One scenario per line
+- Each under 15 words
+- Must sound like a real trigger, not a writing prompt`
+      }]
+    })
+    const c = promptRes.content[0]
+    if (c.type === 'text') prompts = c.text.trim().split('\n')
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 10 && !l.startsWith('#') && !l.startsWith('*') && !/^\d+\./.test(l))
+  } catch {}
+
+  if (!prompts.length) prompts = confirmedTopics.map(t => `Your take on something happening in ${t}`)
+
+  const goldenExamples: string[] = []
+  const topicExamples: { scenario: string; post: string }[] = []
+
+  for (let i = 0; i < prompts.length; i++) {
+    console.log(`  [${i + 1}/${prompts.length}] "${prompts[i]}"`)
+    const post = await askFn('  Your post > ')
+    if (post && !/^skip$/i.test(post)) {
+      goldenExamples.push(post)
+      topicExamples.push({ scenario: prompts[i], post })
+      console.log('  Got it.\n')
+    } else {
+      console.log('  Skipped.\n')
+    }
+  }
+
+  // ── Synthesize post style ─────────────────────────────────────
+  let synthesized = ''
+  if (goldenExamples.length) {
+    console.log('  Synthesizing your post style...\n')
+    try {
+      const synthRes = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 250,
+        messages: [{
+          role: 'user',
+          content: `You are setting up an autonomous X bot that posts AS this exact person.
+
+Confirmed post style:
+- Case: ${result.caseStyle ?? 'unknown'}
+- Length: ${result.postLength ?? 'unknown'}
+- Topics: ${confirmedTopics.join(', ')}
+
+Their actual posts (golden examples):
+${goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')}
+
+Write 2-3 sentences describing ONLY how this person writes original posts (structure, tone, length, style). This gets injected into every post-generation prompt. Write as instructions TO the bot.`
+        }]
+      })
+      const c = synthRes.content[0]
+      if (c.type === 'text') synthesized = c.text.trim()
+    } catch {}
+  }
+
+  // ── Validation — one sample per topic, retry until approved ──
+  if (synthesized && goldenExamples.length) {
+    console.log('\n' + '─'.repeat(58))
+    console.log('  Here\'s how I\'d post on each of your topics.')
+    console.log('  Tell me if any don\'t sound like you.\n')
+    try {
+      for (const topic of confirmedTopics) {
+        let approved = false
+        let correction: string | undefined
+        while (!approved) {
+          const sampleRes = await client.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 150,
+            messages: [{
+              role: 'user',
+              content: `Write one original post AS this person about "${topic}".${correction ? `\n\nPREVIOUS ATTEMPT WAS WRONG. Correction: ${correction}` : ''}
+
+Their post style: ${synthesized}
+Their golden examples:
+${goldenExamples.slice(0, 4).map((e, i) => `${i + 1}. "${e}"`).join('\n')}
+
+Match their exact voice, length, format. Return ONLY the post text.`
+            }]
+          })
+          const c = sampleRes.content[0]
+          if (c.type !== 'text') break
+          const sample = c.text.trim()
+          console.log(`  [${topic}]`)
+          console.log(`  "${sample}"`)
+          const fb = await askFn('  Correct? (yes / tell me what\'s off): ')
+          if (/^yes|^y$|^yep|^yeah/i.test(fb.trim())) {
+            approved = true
+            console.log()
+          } else if (fb.trim()) {
+            correction = fb.trim()
+            synthesized += ` For ${topic}: ${correction}`
+            console.log('  Retrying...\n')
+          } else {
+            break
+          }
+        }
+      }
+    } catch {}
+  }
+
+  result.goldenExamples = goldenExamples
+  result.topicExamples  = topicExamples
+  if (synthesized) result.synthesized = synthesized
+
+  return result
 }
 
 // ─── Sync personality_profile fields → config.json ───────────
