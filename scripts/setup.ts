@@ -1432,20 +1432,21 @@ Your job:
 - If an answer is vague ("depends", "it depends", "varies") ALWAYS follow up: "Give me a specific rule — e.g. 'only tech news, not personal stuff'. Don't say depends."
 - Cover ALL of these areas (ask only what's needed based on the archive):
   1. Topics — what they actually post about NOW (archive may be outdated)
-  2. Post SOURCE TYPE — do they post news reactions, personal thoughts/life updates, hot takes, opinions, questions to followers, random observations? This determines if web search is needed.
+  2. Post source — ask TWO separate questions, one at a time:
+     a. "Out of 100 posts, how many are triggered by a news headline or current event you read somewhere?"
+     b. "The rest would be posts inspired by a tweet you saw or your own thought. Does that split feel right?"
+     - Save as postSourceSplit: { tweetInspired: NUMBER, newsDriven: NUMBER } — must add up to 100.
   3. Writing format — structure (bullet points, threads, one-liners), tone
-  4. What triggers them to post — news, mood, time of day, events
-  5. What they NEVER post about
-  6. How often (confirm or correct archive's avg)
+  4. What they NEVER post about
+  5. How often (confirm or correct archive's avg) — ask for posts per day, not interval
 - Ask 5-7 questions max. Don't ask about things already clear from the archive.
 - When done, output exactly: [INTERVIEW_DONE]
   Then on the next lines output ONLY this raw JSON (no markdown, no backticks):
 {
   "topics": ["topic1", "topic2"],
-  "postSourceType": "one of: news-driven | personal-thoughts | opinions-hot-takes | mixed | questions-polls | life-updates",
+  "postSourceSplit": { "tweetInspired": NUMBER, "newsDriven": NUMBER },
   "synthesized": "2-3 sentences describing exactly how this person writes original posts — their tone, format, what triggers them, what they avoid. Write as instructions TO the bot.",
   "formatStyle": "one sentence about how they write",
-  "triggers": "one sentence about what makes them post",
   "neverAbout": ["topic1"],
   "confirmedPostsPerDay": 2.0
 }`
