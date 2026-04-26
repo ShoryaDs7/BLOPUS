@@ -1166,16 +1166,43 @@ function cleanReply(raw: string): string {
 }
 
 const REFUSAL_PATTERNS = [
-  /^i (won't|will not|can't|cannot|don't want to|am not going to) (write|reply|respond|generate|create|engage|post)/i,
+  // Direct refusals
+  /^i (won't|will not|can't|cannot|don't want to|am not going to|'m not going to|must decline|need to decline|have to decline|'m going to decline|'m choosing not to|'m opting not to|'m going to pass)/i,
+  /^i (won't|will not|can't|cannot) (write|reply|respond|generate|create|engage|post|produce|craft|compose|help with)/i,
+  /^i('m| am) (not able|unable|not comfortable|not willing|not in a position) to/i,
+  /^i('d| would) (rather not|prefer not to|like to decline)/i,
+  /^i('m| am) going to (pass|decline|skip|abstain)/i,
+  /^i('m| am) choosing (not to|to decline)/i,
+  /^i need to (decline|pass|abstain|refrain)/i,
+  /^i must (decline|pass|refrain)/i,
+  /^i can't in good conscience/i,
+  /^i('m| am) not (comfortable|willing|able|going)/i,
+  // Meta-commentary about the content
   /isn't something i('ll| will) do/i,
-  /that's not something i/i,
-  /i('m| am) not (able|going) to (write|reply|respond|generate)/i,
-  /engaging with (this|that) framing/i,
-  /i('d| would) rather not/i,
+  /that'?s not something i/i,
+  /engaging with (this|that) (framing|content|tweet|post)/i,
+  /responding to (this|that) (framing|content|tweet|post)/i,
+  /writing (this|that) (reply|response|post|content)/i,
+  /generating (this|that) (reply|response|post|content)/i,
+  /(this|that) (tweet|post|content) (uses|contains|promotes|spreads|includes)/i,
+  /the (tweet|post|content|framing) (uses|contains|promotes|spreads)/i,
+  // AI identity leaks — should never appear in a tweet
+  /as an ai/i,
+  /as a language model/i,
+  /as claude/i,
+  /i'?m claude/i,
+  /i'?m an ai/i,
+  // Soft refusals / hedging that signal non-compliance
+  /i (don't|do not) feel comfortable/i,
+  /i (don't|do not) think it'?s (appropriate|right|okay)/i,
+  /i('d| would) be doing a disservice/i,
+  /goes against my/i,
+  /not (appropriate|okay|right) for me to/i,
 ]
 
 function isRefusal(text: string): boolean {
-  return REFUSAL_PATTERNS.some(p => p.test(text.trim()))
+  const t = text.trim()
+  return REFUSAL_PATTERNS.some(p => p.test(t))
 }
 
 /**
