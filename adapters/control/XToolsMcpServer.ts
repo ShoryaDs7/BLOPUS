@@ -143,10 +143,34 @@ server.tool('get_status',
 )
 
 server.tool('like_tweet',
-  'Like one or more tweets by URL.',
+  'Like one or more specific tweets by URL.',
   { tweet_urls: z.array(z.string()) },
   async ({ tweet_urls }) => ({
     content: [{ type: 'text' as const, text: await call('like_tweet', { tweet_urls }) }]
+  })
+)
+
+server.tool('retweet_tweet',
+  'Retweet a specific tweet by URL.',
+  { tweet_url: z.string() },
+  async ({ tweet_url }) => ({
+    content: [{ type: 'text' as const, text: await call('retweet_tweet', { tweet_url }) }]
+  })
+)
+
+server.tool('find_and_like',
+  'Find tweets in the owner\'s configured like-domains and like them randomly. Use when asked to "like some tweets", "go like stuff" — no URL needed.',
+  { count: z.number().optional() },
+  async ({ count }) => ({
+    content: [{ type: 'text' as const, text: await call('find_and_like', { count: count ?? 3 }) }]
+  })
+)
+
+server.tool('find_and_retweet',
+  'Find tweets in the owner\'s configured retweet-domains and retweet randomly. Use when asked to "retweet something", "go RT a post" — no URL needed.',
+  { count: z.number().optional() },
+  async ({ count }) => ({
+    content: [{ type: 'text' as const, text: await call('find_and_retweet', { count: count ?? 1 }) }]
   })
 )
 

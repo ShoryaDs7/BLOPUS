@@ -230,7 +230,7 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   },
   {
     name: 'like_tweet',
-    description: 'Like one or more tweets by URL. Max 5 at a time — X flags mass liking as bot activity. Use when asked to "like this tweet", "like @user\'s tweet", "heart this post".',
+    description: 'Like one or more specific tweets by URL. Use when asked to "like this tweet", "like @user\'s tweet", "heart this post".',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -248,6 +248,28 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
         tweet_url: { type: 'string', description: 'Full tweet URL to retweet' },
       },
       required: ['tweet_url'],
+    },
+  },
+  {
+    name: 'find_and_like',
+    description: 'Find tweets in the owner\'s configured like-domains and like them randomly. Use when asked to "like some tweets", "go like stuff", "like a few posts". Automatically uses the owner\'s like topics from setup — no need to specify.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        count: { type: 'number', description: 'How many tweets to like (default 3, max 5)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'find_and_retweet',
+    description: 'Find tweets in the owner\'s configured retweet-domains and retweet one randomly. Use when asked to "retweet something", "go retweet a post", "RT something in my topics". Automatically uses the owner\'s retweet topics from setup.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        count: { type: 'number', description: 'How many tweets to retweet (default 1, max 3)' },
+      },
+      required: [],
     },
   },
   {
@@ -433,6 +455,12 @@ export class XTools {
           await this.xAdapter.retweetTweet(m[1])
           return `retweeted`
         }
+
+        case 'find_and_like':
+          return await this.findAndLike(input.count ?? 3)
+
+        case 'find_and_retweet':
+          return await this.findAndRetweet(input.count ?? 1)
 
         case 'follow_user': {
           const handle = (input.handle as string).replace(/^@/, '')
@@ -800,14 +828,22 @@ export class XTools {
     const pick = pool[0]
     if (!pick) return 'no suitable tweets found'
 
-    // Generate comment in owner's voice
+    // Generate comment in owner's voice using full voice profile
     const client = new Anthropic()
     const pp = this.profile
     const ws = pp?.writingStats ?? {}
+    const vp = (pp as any)?.voiceProfile
+    const golden: string[] = vp?.goldenExamples?.slice(0, 4) ?? []
+    const synthesized: string = vp?.synthesized ?? ''
+    const bannedPhrases: string[] = vp?.bannedPhrases ?? []
+
     const system = [
       `You are @${process.env.OWNER_HANDLE ?? 'owner'} writing a quote tweet comment. Real human, NOT a bot.`,
+      synthesized ? `Your exact writing style (match this precisely): ${synthesized}` : (pp?.writingStyle ? `Your writing style: ${pp.writingStyle}` : ''),
       ws.caseStyle ? `Case style: ${ws.caseStyle}` : '',
       ws.emojiUsage ? `Emoji usage: ${ws.emojiUsage}` : '',
+      golden.length ? `Your real posts (match this voice exactly — do NOT copy word for word):\n${golden.map((e, i) => `${i + 1}. "${e}"`).join('\n')}` : '',
+      bannedPhrases.length ? `NEVER say: ${bannedPhrases.join(', ')}` : '',
       pp?.avoids?.length ? `You avoid: ${pp.avoids.join(', ')}` : '',
       `Write ONE sharp, opinionated comment on this tweet. Under 200 chars. No hashtags. Sound like you, not a generic take.`,
     ].filter(Boolean).join('\n')
@@ -819,11 +855,68 @@ export class XTools {
       system,
       messages: [{ role: 'user', content: `Tweet by @${pick.authorHandle}: "${pick.text}"\n\nYour QT comment:` }],
     })
-    const comment = resp.content[0].type === 'text' ? resp.content[0].text.trim().slice(0, 200) : ''
+    let comment = resp.content[0].type === 'text' ? resp.content[0].text.trim() : ''
+    if (comment.length > 280) comment = comment.slice(0, 280).replace(/\s\S*$/, '')
     if (!comment) return 'failed to generate comment'
 
     await this.playwrightClient.quoteTweet(pick.tweetId, comment)
     return `quote tweeted @${pick.authorHandle} (${pick.likeCount} likes):\ntheir tweet: "${pick.text.slice(0, 80)}"\nyour comment: "${comment}"`
+  }
+
+  private async findAndLike(count: number): Promise<string> {
+    const cap = Math.min(count, 5)
+    const pp = this.profile as any
+    const topics: string[] = pp?.likeBehavior?.topics?.length
+      ? pp.likeBehavior.topics
+      : pp?.dominantTopics ?? []
+
+    if (!topics.length) return 'no like topics configured — run npm run setup to set like behavior'
+
+    const domainSearch = new PlaywrightDomainSearchProvider()
+    if (!domainSearch.enabled) return 'X auth not set — cannot search tweets'
+
+    // Pick a random topic each call for variety
+    const topic = topics[Math.floor(Math.random() * topics.length)]
+    console.log(`[XTools:find_and_like] searching topic: ${topic}`)
+    const results = await domainSearch.searchViralByTopics([topic], cap * 4, 1440)
+    if (!results.length) return `no tweets found for topic: ${topic}`
+
+    // Shuffle for randomness — don't always like the same top tweets
+    const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
+    const ids = shuffled.map(r => r.tweetId)
+    const liked = await this.playwrightClient.likeTweets(ids)
+    return `liked ${liked}/${ids.length} tweets in "${topic}"`
+  }
+
+  private async findAndRetweet(count: number): Promise<string> {
+    const cap = Math.min(count, 3)
+    const pp = this.profile as any
+    const topics: string[] = pp?.retweetBehavior?.topics?.length
+      ? pp.retweetBehavior.topics
+      : pp?.dominantTopics ?? []
+
+    if (!topics.length) return 'no retweet topics configured — run npm run setup to set retweet behavior'
+
+    const domainSearch = new PlaywrightDomainSearchProvider()
+    if (!domainSearch.enabled) return 'X auth not set — cannot search tweets'
+
+    const topic = topics[Math.floor(Math.random() * topics.length)]
+    console.log(`[XTools:find_and_retweet] searching topic: ${topic}`)
+    const results = await domainSearch.searchViralByTopics([topic], cap * 4, 1440)
+    if (!results.length) return `no tweets found for topic: ${topic}`
+
+    const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
+    const log: string[] = []
+    for (const r of shuffled) {
+      try {
+        await this.xAdapter.retweetTweet(r.tweetId)
+        log.push(`@${r.authorHandle}: "${r.text.slice(0, 60)}"`)
+        await new Promise(res => setTimeout(res, 2000))
+      } catch {}
+    }
+    return log.length
+      ? `retweeted ${log.length} tweets in "${topic}":\n${log.join('\n')}`
+      : `failed to retweet any tweets in "${topic}"`
   }
 
   private updateConfig(updates: Record<string, any>): string {
