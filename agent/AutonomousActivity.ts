@@ -200,8 +200,11 @@ export class AutonomousActivity {
       }
 
       const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))]
-      const qtCtx = { ...ctx, currentEvents: [pick.text], recentTopics: [topic], isQuoteTweet: true }
-      const comment = await this.llmEngine.generateAutonomousPost(qtCtx)
+      const comment = await this.llmEngine.generateViralReply(
+        { text: pick.text, authorHandle: pick.authorHandle },
+        mood,
+        false,
+      )
       if (!comment) return
 
       await this.xAdapter.postQuoteTweet(comment, pick.tweetId)
