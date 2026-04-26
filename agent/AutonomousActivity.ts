@@ -39,9 +39,12 @@ export class AutonomousActivity {
       const overrides = readRuntimeConfigOverrides()
       const bp = this.personalityProfile?.behaviorProfile
 
-      // Archive-derived values win unless user explicitly overrode via Telegram
+      // Priority: Telegram override → interview confirmed value → archive-derived → runtime default
+      const confirmedPostsPerDay = this.personalityProfile?.voiceProfile?.originalPostProfile?.confirmedPostsPerDay
       const effectiveDailyCap = overrides.maxAutonomousPostsPerDay != null
         ? rc.maxAutonomousPostsPerDay
+        : confirmedPostsPerDay
+        ? confirmedPostsPerDay
         : (bp?.avgPostsPerDay ? Math.max(1, Math.round(bp.avgPostsPerDay)) : rc.maxAutonomousPostsPerDay)
 
       const effectiveIntervalHours = overrides.minPostIntervalHours != null
