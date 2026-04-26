@@ -198,12 +198,9 @@ export class AutonomousActivity {
       }
 
       const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))]
-      // Generate QT comment in owner's voice
-      const comment = await this.llmEngine.generateViralReply(
-        { text: pick.text, authorHandle: pick.authorHandle },
-        mood,
-        false,
-      )
+      // Quote tweet comment uses POST voice (golden post examples), not reply voice
+      const qtCtx = { ...ctx, currentEvents: [pick.text], recentTopics: [topic] }
+      const comment = await this.llmEngine.generateAutonomousPost(qtCtx)
       if (!comment) return
 
       await this.xAdapter.postQuoteTweet(comment, pick.tweetId)
