@@ -381,7 +381,10 @@ export class LLMReplyEngine {
     // ── Owner mode: smart-post prompt (same structure as npm run smart-post) ──
     if (this.isOwnerMode && this.personalityProfile) {
       const opp = this.personalityProfile.voiceProfile?.originalPostProfile
-      if (!opp?.goldenExamples?.length) return ''
+      if (!opp?.goldenExamples?.length) {
+        console.log(`[LLMReplyEngine] owner post — no goldenExamples (opp:${!!opp}) — skipping`)
+        return ''
+      }
 
       const goldenBlock = opp.goldenExamples.map((e: string, i: number) => `${i + 1}. "${e}"`).join('\n')
 
@@ -405,7 +408,11 @@ export class LLMReplyEngine {
 
       // Trigger: news event / tweet reaction / personal topic — all land here via AutonomousActivity
       const trigger = ctx.currentEvents?.[0] ?? ctx.recentTopics?.[0] ?? ''
-      if (!trigger) return ''
+      console.log(`[LLMReplyEngine] owner post — goldenExamples:${opp.goldenExamples.length} topicEx:${topicEx?.length ?? 0} trigger:"${trigger.slice(0, 80)}" synthesized:${!!synthesized}`)
+      if (!trigger) {
+        console.log('[LLMReplyEngine] owner post — trigger empty, skipping')
+        return ''
+      }
 
       const prompt = `These are your real posts on X. Study them — this is your entire guide:
 
@@ -432,9 +439,15 @@ Post only. Nothing else.`
           messages: [{ role: 'user', content: prompt }],
         })
         const content = response.content[0]
-        if (content.type !== 'text') return ''
-        return cleanReply(content.text).slice(0, 280)
-      } catch {
+        if (content.type !== 'text') {
+          console.log('[LLMReplyEngine] owner post — non-text response')
+          return ''
+        }
+        const result = cleanReply(content.text).slice(0, 280)
+        console.log(`[LLMReplyEngine] owner post — generated: "${result.slice(0, 80)}"`)
+        return result
+      } catch (err: any) {
+        console.log(`[LLMReplyEngine] owner post — API error: ${err?.message ?? err}`)
         return ''
       }
     }

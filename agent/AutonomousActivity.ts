@@ -163,10 +163,15 @@ export class AutonomousActivity {
       const isOwner = this.xAccountKey.endsWith('owner-own')
       const doQuoteTweet = isOwner && qtRatio > 0 && Math.random() < qtRatio && this.xAdapter.playwright
 
+      console.log(`[AutonomousActivity] ctx — recentTopics:[${xCtx.recentTopics.join(',')}] currentEvents:${xCtx.currentEvents?.length ?? 0} mode:${postMode}`)
+
       if (doQuoteTweet && this.xAdapter.playwright) {
         await this.maybeQuoteTweet(xCtx, mood, currentEvents)
       } else {
         const xText = await this.llmEngine.generateAutonomousPost(xCtx)
+        if (!xText) {
+          console.log('[AutonomousActivity] generateAutonomousPost returned empty — skipping post')
+        }
         if (xText) {
           const tweetId = await this.xAdapter.postTweet(xText)
           const topic = xCtx.recentTopics[0] ?? (xCtx.currentEvents?.[0]?.slice(0, 60) ?? 'unknown')
