@@ -445,6 +445,7 @@ Post only. Nothing else.`
           return ''
         }
         const result = cleanReply(content.text).slice(0, 280)
+        if (isRefusal(result)) { console.log('[LLMReplyEngine] owner post — LLM refused, skipping'); return '' }
         console.log(`[LLMReplyEngine] owner post — generated: "${result.slice(0, 80)}"`)
         return result
       } catch (err: any) {
@@ -615,6 +616,7 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
         console.log(`[LLMReplyEngine] Dropping reply — cut off mid-sentence: "${raw.slice(0, 80)}"`)
         return ''
       }
+      if (isRefusal(raw)) { console.log(`[LLMReplyEngine] LLM refused — skipping reply`); return '' }
       console.log(`[LLMReplyEngine] Generated reply: "${raw.slice(0, 80)}"`)
       return raw.slice(0, 280)
     } catch {
@@ -1161,6 +1163,19 @@ function cleanReply(raw: string): string {
     .replace(/—/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+const REFUSAL_PATTERNS = [
+  /^i (won't|will not|can't|cannot|don't want to|am not going to) (write|reply|respond|generate|create|engage|post)/i,
+  /isn't something i('ll| will) do/i,
+  /that's not something i/i,
+  /i('m| am) not (able|going) to (write|reply|respond|generate)/i,
+  /engaging with (this|that) framing/i,
+  /i('d| would) rather not/i,
+]
+
+function isRefusal(text: string): boolean {
+  return REFUSAL_PATTERNS.some(p => p.test(text.trim()))
 }
 
 /**
