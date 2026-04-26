@@ -184,8 +184,9 @@ export class AutonomousActivity {
   private async maybeQuoteTweet(ctx: AutonomousPostContext, mood: Mood, currentEvents: string[]): Promise<void> {
     try {
       const pp = this.personalityProfile
-      const opp = pp?.voiceProfile?.originalPostProfile
-      const topics = opp?.topics ?? pp?.postTopics ?? ctx.recentTopics
+      const topics = (pp?.quoteTweetBehavior as any)?.topics?.length
+        ? (pp.quoteTweetBehavior as any).topics
+        : pp?.postTopics ?? ctx.recentTopics
       // Search for a viral tweet on a random dominant topic
       const topic = topics[Math.floor(Math.random() * topics.length)]
       if (!topic || !this.xAdapter.playwright) return
