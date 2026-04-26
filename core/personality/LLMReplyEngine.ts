@@ -430,13 +430,18 @@ export class LLMReplyEngine {
           const caseStyle = vp?.caseStyle || stats.caseStyle || 'sentence case'
           const replyLength = vp?.replyLength || stats.medianReplyLength || 'short, 1-2 lines max'
 
+          const emojiPerContext = (vp as any)?.emojiPerContext || ''
           const emojiContext = (vp as any)?.emojiContext || ''
           const emojiUsage = vp?.emojiUsage || stats.emojiUsage || ''
-          const emojiRule = emojiContext
+          const emojiRule = emojiPerContext
+            ? `emoji: ${emojiPerContext}`
+            : emojiContext
             ? `emoji only in ${emojiContext}`
             : emojiUsage
             ? `emoji: ${emojiUsage}`
             : 'no emojis'
+
+          const neverTopics = vp?.neverTopics?.length ? `\nNever reply to tweets about: ${vp.neverTopics.join(', ')}.` : ''
 
           return `These are your real replies on X. Study them — this is your entire guide:
 
@@ -445,7 +450,7 @@ ${topicBlock}
 
 How you write: ${synthesized}
 
-Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.`
+Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
         })()
       : `You are OsBot — sharp, skeptical debate participant on X. Mood: ${mood}.\n\n` +
         `Reply to this tweet in 1-2 sentences (≤25 words).\n\n` +
