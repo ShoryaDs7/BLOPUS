@@ -131,7 +131,23 @@ export class AutonomousActivity {
           let rand = Math.random() * (total || 1)
           const picked = entries.find(([, v]) => { rand -= v.engagementShare ?? 0; return rand <= 0 })?.[0] ?? entries[0][0]
           xCtx.recentTopics = [picked]
+        } else if (postTopics?.length) {
+          xCtx.recentTopics = [postTopics[Math.floor(Math.random() * postTopics.length)]]
         }
+      }
+
+      // For personalThought mode — build a real trigger from her topic + a random scenario from topicExamples
+      if (postMode === 'personalThought' && !xCtx.currentEvents?.length) {
+        const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
+        const topic = xCtx.recentTopics[0] ?? postTopics?.[0] ?? ''
+        const topicExamples = opp?.topicExamples as { scenario: string; post: string }[] | undefined
+        const matchingScenario = topicExamples?.find(e =>
+          e.scenario.toLowerCase().includes(topic.toLowerCase().split(' ')[0])
+        )
+        const trigger = matchingScenario
+          ? `${matchingScenario.scenario}`
+          : `You have a strong opinion about ${topic} — write it from your own head, no external trigger.`
+        xCtx.currentEvents = [trigger]
       }
       if (override?.topics?.length) xCtx.recentTopics = override.topics
       if (override?.instruction) xCtx.currentEvents = [override.instruction, ...currentEvents]
