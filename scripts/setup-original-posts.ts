@@ -138,7 +138,7 @@ Your job:
   1. Topics — confirm the archive list is still accurate or if focus has shifted. Show them the list.
   2. Post source — when they post, is it because they saw something (news/tweet/event) that made them react, OR is it purely from their own head with no external trigger?
   3. What they NEVER post about — topics or content types they avoid entirely
-  4. Posts per day — confirm or correct the archive's number
+  4. Posts per day — ask: "Your archive shows you post about X times a day on average. Does that still feel right, or has it changed?" IMPORTANT: this is asking how many posts per day total, NOT how often (not interval/frequency). If they give an interval like "every 3 hours" or "every few minutes", convert it to a daily count using 16 active hours: e.g. "every 3 hours" = ~5/day, "every 30 mins" = ~32/day. Then confirm: "So roughly [N] posts per day — does that sound right?" Never save an interval as the posts-per-day value.
   5. Mixed language in posts — if the archive shows non-English words, ask: "Out of 100 posts, how many would include a word in [language from archive]? Give me a number." Skip and save 0 if archive is English-only.
 
   6. Case style in posts — ask: "When you write a post, do you write in all lowercase, sentence case (first word capitalised), title case, or something else?" Do NOT assume it matches their reply style — posts can differ.
