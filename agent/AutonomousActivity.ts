@@ -79,49 +79,21 @@ export class AutonomousActivity {
       const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
       const postTopics = opp?.topics ?? this.personalityProfile?.postTopics ?? this.personalityProfile?.dominantTopics
 
-      // Pick post mode based on user's confirmed source split (or fall back to old postSourceType)
+      // Pick post mode: newsDriven (Tavily) vs tweet-inspired (everything else)
       const split = opp?.postSourceSplit
-      const postMode: 'personalThought' | 'tweetReaction' | 'newsDriven' = split
-        ? (() => {
-            const rand = Math.random() * 100
-            if (rand < (split.personalThought ?? 0)) return 'personalThought'
-            if (rand < (split.personalThought ?? 0) + (split.tweetReaction ?? 0)) return 'tweetReaction'
-            return 'newsDriven'
-          })()
-        : (['news-driven', 'opinions-hot-takes'].includes(opp?.postSourceType ?? '') ? 'newsDriven' : 'personalThought')
+      const newsDrivenChance = split
+        ? (split.newsDriven ?? 0)
+        : (['news-driven', 'opinions-hot-takes'].includes(opp?.postSourceType ?? '') ? 70 : 20)
+      const isNewsDriven = Math.random() * 100 < newsDrivenChance
 
-      console.log(`[AutonomousActivity] Post mode: ${postMode}`)
+      console.log(`[AutonomousActivity] Post mode: ${isNewsDriven ? 'newsDriven' : 'tweetInspired'}`)
 
-      // Fetch news only when needed
-      const needsNews = postMode === 'newsDriven'
-      const currentEvents = needsNews ? await this.tavily.fetchCurrentEvents(postTopics) : []
-
-      // For tweetReaction mode — find a recent tweet on her topic to react to
-      let tweetReactionTrigger: string[] = []
-      if (postMode === 'tweetReaction' && this.xAdapter.playwright) {
-        const topic = postTopics?.[Math.floor(Math.random() * (postTopics?.length ?? 1))] ?? ''
-        if (topic) {
-          const candidates = await this.xAdapter.playwright.searchTweets(topic, 3).catch(() => [])
-          if (candidates.length) {
-            const pick = candidates[Math.floor(Math.random() * candidates.length)]
-            tweetReactionTrigger = [`You just saw this tweet by @${pick.authorHandle}: "${pick.text}" — write your own post reacting to it in your voice.`]
-          }
-        }
-      }
-
-      // Inject personal context from Telegram memory — but only if user actually posts personal content
-      const personalFacts = this.userContext?.getPersonalFacts() ?? []
-      const dominantTopics = this.personalityProfile?.dominantTopics ?? []
-      const PERSONAL_SIGNALS = ['life', 'personal', 'daily', 'study', 'exam', 'college', 'university', 'health', 'travel', 'family', 'experience']
-      const userPostsPersonalContent = dominantTopics.some(t =>
-        PERSONAL_SIGNALS.some(s => t.toLowerCase().includes(s))
-      )
-      const personalContext = (postMode === 'personalThought' && userPostsPersonalContent && personalFacts.length > 0)
-        ? personalFacts.map(f => f.text)
-        : []
+      // Fetch news when needed
+      const currentEvents = isNewsDriven ? await this.tavily.fetchCurrentEvents(postTopics) : []
 
       // Post on X
       const xCtx = this.gatherContext(mood, currentEvents, this.xAccountKey)
+
       // Weighted topic selection — pick topic based on engagementShare from setup
       if (!override?.topics?.length) {
         const tp = this.personalityProfile?.topicProfiles
@@ -136,27 +108,41 @@ export class AutonomousActivity {
         }
       }
 
-      // For personalThought mode — build a real trigger from her topic + a random scenario from topicExamples
-      if (postMode === 'personalThought' && !xCtx.currentEvents?.length) {
-        const opp = this.personalityProfile?.voiceProfile?.originalPostProfile
+      // Tweet-inspired mode: find a real tweet on the topic as concrete trigger.
+      // Tweet text is passed raw — no "you saw this" framing. LLM writes in the user's own voice.
+      // Falls back to a topicExample scenario if search fails or Playwright unavailable.
+      if (!isNewsDriven && !xCtx.currentEvents?.length) {
         const topic = xCtx.recentTopics[0] ?? postTopics?.[0] ?? ''
-        const topicExamples = opp?.topicExamples as { scenario: string; post: string }[] | undefined
-        const matchingScenario = topicExamples?.find(e =>
-          e.scenario.toLowerCase().includes(topic.toLowerCase().split(' ')[0])
-        )
-        const trigger = matchingScenario
-          ? `${matchingScenario.scenario}`
-          : `You have a strong opinion about ${topic} — write it from your own head, no external trigger.`
-        xCtx.currentEvents = [trigger]
+        const oppRef = this.personalityProfile?.voiceProfile?.originalPostProfile
+        const topicExamples = oppRef?.topicExamples as { scenario: string; post: string }[] | undefined
+
+        let trigger = ''
+
+        // Try live tweet search first
+        if (topic && this.xAdapter.playwright) {
+          const candidates = await this.xAdapter.playwright.searchTweets(topic, 5).catch(() => [])
+          if (candidates.length) {
+            const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))]
+            trigger = pick.text
+          }
+        }
+
+        // Fall back to topicExample scenario (try matching, else pick any)
+        if (!trigger && topicExamples?.length) {
+          const firstWord = topic.toLowerCase().split(' ')[0]
+          const matched = topicExamples.find(e => e.scenario.toLowerCase().includes(firstWord))
+          const fallback = topicExamples[Math.floor(Math.random() * topicExamples.length)]
+          trigger = (matched ?? fallback).scenario
+        }
+
+        // Last resort: bare topic
+        if (!trigger) trigger = topic
+
+        if (trigger) xCtx.currentEvents = [trigger]
       }
+
       if (override?.topics?.length) xCtx.recentTopics = override.topics
       if (override?.instruction) xCtx.currentEvents = [override.instruction, ...currentEvents]
-      if (tweetReactionTrigger.length > 0) {
-        xCtx.currentEvents = [...tweetReactionTrigger, ...(xCtx.currentEvents ?? [])]
-      }
-      if (personalContext.length > 0) {
-        xCtx.currentEvents = [...personalContext, ...(xCtx.currentEvents ?? [])]
-      }
 
       // Decide: quote tweet or original post — based on archive-derived QT ratio
       const qtRatio = bp?.quoteTweetRatio ?? 0

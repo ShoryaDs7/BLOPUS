@@ -423,9 +423,10 @@ How you write posts: ${synthesized}
 
 Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
-Now write a post about this exactly like the examples above:
+Write a completely new post in your exact style, inspired by this:
 "${trigger}"
 
+Do NOT copy or reproduce any example above word for word. Write something new.
 Post only. Nothing else.`
 
       const isBullet = postLength.toLowerCase().includes('bullet') || postLength.toLowerCase().includes('point')
