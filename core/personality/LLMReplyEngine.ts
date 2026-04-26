@@ -424,13 +424,12 @@ ${topicBlock}
 
 How you write: ${synthesized}
 
-Rules: ${caseStyle || 'sentence case'}. Keep it SHORT — 1 sentence max for a QT comment. ${emojiRule}. No hashtags.
+Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
-Someone posted this tweet and you are quote tweeting it. Write your sharp, direct reaction in your exact voice:
+You are quote tweeting this tweet. Write your comment in your exact voice:
 "${trigger}"
 
-Give your take — agree, push back, add context, or call out what's missing. Sound like you, not a generic commentator.
-Do NOT copy wording from examples above. One sentence only. Nothing else.`
+Do NOT copy wording from examples above. Nothing else.`
         : `These are your real posts on X. Study them — this is your entire guide:
 
 ${goldenBlock}
