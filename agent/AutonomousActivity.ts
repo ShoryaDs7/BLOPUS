@@ -200,8 +200,7 @@ export class AutonomousActivity {
       }
 
       const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))]
-      // Quote tweet comment uses POST voice (golden post examples), not reply voice
-      const qtCtx = { ...ctx, currentEvents: [pick.text], recentTopics: [topic] }
+      const qtCtx = { ...ctx, currentEvents: [pick.text], recentTopics: [topic], isQuoteTweet: true }
       const comment = await this.llmEngine.generateAutonomousPost(qtCtx)
       if (!comment) return
 

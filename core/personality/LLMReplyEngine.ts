@@ -100,6 +100,7 @@ export interface AutonomousPostContext {
   ownerHandle?: string                    // used in owner-own voice
   smartContext?: SmartContext             // curated account memory (replaces platformEvents)
   recentInteractions?: RecentInteraction[] // last N reply exchanges with their authors
+  isQuoteTweet?: boolean                  // true when generating a QT comment — changes prompt framing
 }
 
 interface LLMConfig {
@@ -414,7 +415,23 @@ export class LLMReplyEngine {
         return ''
       }
 
-      const prompt = `These are your real posts on X. Study them — this is your entire guide:
+      const isQT = ctx.isQuoteTweet === true
+      const prompt = isQT
+        ? `These are your real posts on X. Study them — this is your voice:
+
+${goldenBlock}
+${topicBlock}
+
+How you write: ${synthesized}
+
+Rules: ${caseStyle || 'sentence case'}. Keep it SHORT — 1 sentence max for a QT comment. ${emojiRule}. No hashtags.
+
+Someone posted this tweet and you are quote tweeting it. Write your sharp, direct reaction in your exact voice:
+"${trigger}"
+
+Give your take — agree, push back, add context, or call out what's missing. Sound like you, not a generic commentator.
+Do NOT copy wording from examples above. One sentence only. Nothing else.`
+        : `These are your real posts on X. Study them — this is your entire guide:
 
 ${goldenBlock}
 ${topicBlock}
