@@ -95,8 +95,8 @@ server.tool('search_and_reply',
 )
 
 server.tool('find_viral_and_act',
-  'Find viral tweets by conditions and reply/quote in owner\'s voice. Use for "reply to 3 AI tweets", "find politics 1M+ views and quote", "2 AI replies and 2 politics replies" (call twice). topic is optional — omit for any viral tweet.',
-  { topic: z.string().optional(), count: z.number().optional(), action: z.enum(['reply', 'quote', 'both']).optional(), min_views: z.number().optional(), max_age_hours: z.number().optional() },
+  'Find tweets and reply/quote/both in owner\'s voice. action = "reply", "quote", or "both". min_views default 1000 — only set higher if user says "viral" or "trending". topic optional.',
+  { topic: z.string().optional(), count: z.number().optional(), action: z.string().optional(), min_views: z.number().optional(), max_age_hours: z.number().optional() },
   async ({ topic, count, action, min_views, max_age_hours }) => ({
     content: [{ type: 'text' as const, text: await call('find_viral_and_act', { topic: topic ?? '', count: count ?? 1, action: action ?? 'reply', min_views: min_views ?? 1000, max_age_hours: max_age_hours ?? 24 }) }]
   })
