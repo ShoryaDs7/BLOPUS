@@ -14,6 +14,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { XAdapter } from '../adapters/x/XAdapter'
 import { PlaywrightDomainSearchProvider } from '../adapters/x/PlaywrightDomainSearchProvider'
+import { MemoryEngine } from '../core/memory/MemoryEngine'
 
 interface Candidate {
   id: string
@@ -56,6 +57,7 @@ export class EngagementEngine {
     private voiceCaseStyle?: string,
     private voicePostLength?: string,
     private voiceEmojiRule?: string,
+    private memory?: MemoryEngine,
   ) {
     if (process.env.ANTHROPIC_API_KEY) {
       this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -113,7 +115,8 @@ export class EngagementEngine {
   private isEligible(c: Candidate, behavior: EngagementBehavior, seen: Set<string>): boolean {
     if (!behavior.enabled) return false
     if (seen.has(c.id)) return false
-    if (this.engagedIds.has(c.id)) return false  // already liked/retweeted/quoted this tweet
+    if (this.engagedIds.has(c.id)) return false
+    if (this.memory?.hasEngaged(c.id)) return false  // persisted across restarts
     if (this.neverMatch(c.text, behavior.never)) return false
     if (this.neverMatch(c.authorHandle, behavior.never)) return false
     if (!this.topicMatch(c.text, behavior.topics)) return false
@@ -162,6 +165,7 @@ Answer only YES or NO.`
         await this.xAdapter.likeTweet(c.id)
         this.likedIds.add(c.id)
         this.engagedIds.add(c.id)
+        this.memory?.recordEngaged(c.id)
         used.add(c.id)
         this.lastLikeRun = Date.now()
         console.log(`[Engagement:like] Liked ${c.id} by @${c.authorHandle}`)
@@ -192,6 +196,7 @@ Answer only YES or NO.`
         await this.xAdapter.retweetTweet(c.id)
         this.retweetedIds.add(c.id)
         this.engagedIds.add(c.id)
+        this.memory?.recordEngaged(c.id)
         used.add(c.id)
         this.lastRetweetRun = Date.now()
         console.log(`[Engagement:retweet] Retweeted ${c.id} by @${c.authorHandle}`)
@@ -207,10 +212,21 @@ Answer only YES or NO.`
     if (!this.quoteBehavior?.enabled || !this.client) return
     if (Date.now() - this.lastQuoteRun < this.quoteBehavior.cooldownMs) return
 
-    let pool = candidates.filter(c => !used.has(c.id) && this.isEligible(c, this.quoteBehavior!, this.quotedIds))
+    // Topic rotation — exclude recently QT'd topics until all others used
+    const qtTopics = this.quoteBehavior.topics
+    const cooldown = Math.max(qtTopics.length - 1, 0)
+    const recentQTTopics = this.memory?.getRecentQTTopics() ?? []
+    const availableTopics = cooldown > 0 && recentQTTopics.length >= cooldown
+      ? qtTopics.filter(t => !recentQTTopics.includes(t))
+      : qtTopics
+    const activeBehavior = availableTopics.length
+      ? { ...this.quoteBehavior, topics: availableTopics }
+      : this.quoteBehavior
+
+    let pool = candidates.filter(c => !used.has(c.id) && this.isEligible(c, activeBehavior, this.quotedIds))
     if (pool.length === 0) {
-      const searched = await this.searchFallback('quote', this.quoteBehavior)
-      pool = searched.filter(c => !used.has(c.id) && this.isEligible(c, this.quoteBehavior!, this.quotedIds))
+      const searched = await this.searchFallback('quote', activeBehavior)
+      pool = searched.filter(c => !used.has(c.id) && this.isEligible(c, activeBehavior, this.quotedIds))
     }
 
     for (const c of pool) {
@@ -244,6 +260,10 @@ Answer only YES or NO.`
         const text = block.text.trim().replace(/^["']|["']$/g, '').replace(/—/g, ' ').trim().slice(0, 280)
         await this.xAdapter.postQuoteTweet(text, c.id)
         this.engagedIds.add(c.id)
+        this.memory?.recordEngaged(c.id)
+        // Record which topic was QT'd for rotation
+        const matchedTopic = activeBehavior.topics.find(t => this.topicMatch(c.text, [t])) ?? activeBehavior.topics[0]
+        if (matchedTopic && cooldown > 0) this.memory?.recordQTTopic(matchedTopic, cooldown)
         this.lastQuoteRun = Date.now()
         console.log(`[Engagement:quote] Quote tweeted ${c.id} by @${c.authorHandle}: "${text.slice(0, 60)}"`)
       } catch (e) {

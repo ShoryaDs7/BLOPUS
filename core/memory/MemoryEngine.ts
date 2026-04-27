@@ -21,6 +21,8 @@ const DEFAULT_STORE: MemoryStore = {
   accounts: {},
   memorySummaries: [],
   autonomousPosts: [],
+  engagedTweetIds: [],
+  recentQTTopics: [],
 }
 
 export class MemoryEngine {
@@ -475,6 +477,33 @@ export class MemoryEngine {
       const unsent = this.store.pendingReplies.filter(p => !p.sent)
       this.store.pendingReplies = [...sentReplies.slice(-100), ...unsent]
     }
+    this.flush()
+  }
+
+  // ── Engagement dedup — persisted across restarts ──
+  hasEngaged(tweetId: string): boolean {
+    if (!this.store.engagedTweetIds) this.store.engagedTweetIds = []
+    return this.store.engagedTweetIds.includes(tweetId)
+  }
+
+  recordEngaged(tweetId: string): void {
+    if (!this.store.engagedTweetIds) this.store.engagedTweetIds = []
+    if (!this.store.engagedTweetIds.includes(tweetId)) {
+      this.store.engagedTweetIds.push(tweetId)
+      if (this.store.engagedTweetIds.length > 2000) this.store.engagedTweetIds = this.store.engagedTweetIds.slice(-2000)
+      this.flush()
+    }
+  }
+
+  // ── QT topic rotation ──
+  getRecentQTTopics(): string[] {
+    return this.store.recentQTTopics ?? []
+  }
+
+  recordQTTopic(topic: string, cooldown: number): void {
+    if (!this.store.recentQTTopics) this.store.recentQTTopics = []
+    this.store.recentQTTopics.push(topic)
+    if (this.store.recentQTTopics.length > cooldown) this.store.recentQTTopics = this.store.recentQTTopics.slice(-cooldown)
     this.flush()
   }
 

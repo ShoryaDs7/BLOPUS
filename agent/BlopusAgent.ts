@@ -407,6 +407,7 @@ async function boot(): Promise<void> {
     _opp?.caseStyle,
     _opp?.postLength ?? _opp?.formatStyle,
     _oppEmojiRule,
+    memory,
   ) : null
 
   // Auto-generate packId if not in config — bot account only

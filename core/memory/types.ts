@@ -129,4 +129,6 @@ export interface MemoryStore {
   accounts: Record<string, AccountMemory>   // per-account smart memory slots
   memorySummaries: MemorySummary[]          // curated weekly digests — stored forever
   autonomousPosts: AutoPost[]               // every tweet OsBot posted autonomously (last 200)
+  engagedTweetIds: string[]                 // tweet IDs already liked/RT'd/QT'd — persisted across restarts
+  recentQTTopics: string[]                  // last N QT topics — for rotation cooldown
 }
