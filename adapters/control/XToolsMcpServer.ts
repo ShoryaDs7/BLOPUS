@@ -39,10 +39,10 @@ server.tool('post_tweet',
 )
 
 server.tool('reply_to_tweet',
-  'Reply to a specific tweet by URL. Give the full tweet URL and your reply text.',
-  { tweet_url: z.string(), text: z.string() },
+  'Reply to a specific tweet by URL in the owner\'s voice. Omit text to auto-generate the reply from voice profile.',
+  { tweet_url: z.string(), text: z.string().optional() },
   async ({ tweet_url, text }) => ({
-    content: [{ type: 'text' as const, text: await call('reply_to_tweet', { tweet_url, text }) }]
+    content: [{ type: 'text' as const, text: await call('reply_to_tweet', { tweet_url, text: text ?? '' }) }]
   })
 )
 
@@ -98,7 +98,7 @@ server.tool('find_viral_and_act',
   'Find viral tweets by conditions and reply/quote in owner\'s voice. Use for "reply to 3 AI tweets", "find politics 1M+ views and quote", "2 AI replies and 2 politics replies" (call twice). topic is optional — omit for any viral tweet.',
   { topic: z.string().optional(), count: z.number().optional(), action: z.enum(['reply', 'quote', 'both']).optional(), min_views: z.number().optional(), max_age_hours: z.number().optional() },
   async ({ topic, count, action, min_views, max_age_hours }) => ({
-    content: [{ type: 'text' as const, text: await call('find_viral_and_act', { topic: topic ?? '', count: count ?? 3, action: action ?? 'reply', min_views: min_views ?? 500000, max_age_hours: max_age_hours ?? 12 }) }]
+    content: [{ type: 'text' as const, text: await call('find_viral_and_act', { topic: topic ?? '', count: count ?? 1, action: action ?? 'reply', min_views: min_views ?? 1000, max_age_hours: max_age_hours ?? 24 }) }]
   })
 )
 
