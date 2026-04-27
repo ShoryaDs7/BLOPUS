@@ -66,7 +66,7 @@ export class EngagementEngine {
   private async searchFallback(action: string, behavior: EngagementBehavior): Promise<Candidate[]> {
     if (!this.domainSearch.enabled || !behavior.topics.length) return []
     console.log(`[Engagement:${action}] No home candidates — searching by topics: ${behavior.topics.slice(0, 3).join(', ')}...`)
-    const results = await this.domainSearch.searchViralByTopics(behavior.topics, 50, 1440)
+    const results = await this.domainSearch.searchViralByTopics(behavior.topics, 50, 1440, undefined, this.topicKeywords ?? undefined)
     console.log(`[Engagement:${action}] Search returned ${results.length} candidates`)
     return results.map(r => ({ id: r.tweetId, text: r.text, authorHandle: r.authorHandle, likeCount: r.likeCount }))
   }

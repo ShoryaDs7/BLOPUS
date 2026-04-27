@@ -57,10 +57,10 @@ export class PlaywrightDomainSearchProvider {
     for (const topic of topics) {
       try {
         const topicMinLikes = resolveMinLikes(topic, minLikes, domainMinLikes)
-        // Use expanded keyword list if available, fall back to toSearchQuery
+        // Use expanded keyword list if available, fall back to toSearchQueries
         const keywords = domainSearchKeywords?.[topic]?.length
           ? domainSearchKeywords[topic]
-          : [toSearchQuery(topic)]
+          : toSearchQueries(topic)
 
         for (const keyword of keywords) {
           try {
@@ -71,7 +71,6 @@ export class PlaywrightDomainSearchProvider {
                 allResults.push(r)
               }
             }
-            if (allResults.length > 0) break  // got one — stop searching this topic
           } catch (err) {
             console.warn(`[DomainSearch] Error searching keyword "${keyword}": ${err}`)
             if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
@@ -80,7 +79,6 @@ export class PlaywrightDomainSearchProvider {
             }
           }
         }
-        if (allResults.length > 0) break  // got one — stop searching other topics too
       } catch (err) {
         console.warn(`[DomainSearch] Error searching topic "${topic}": ${err}`)
         if (String(err).includes('closed') || String(err).includes('crashed') || String(err).includes('Target page')) {
@@ -242,18 +240,29 @@ function resolveMinLikes(topic: string, globalMin: number, domainMinLikes?: Reco
 }
 
 /**
- * Converts a long dominantTopic phrase into a short X search query.
- * "AI agents and autonomous systems" → "AI agents autonomous"
- * Strips stop words, keeps first 3 meaningful words max.
+ * Expands a topic phrase into multiple search queries.
+ * "Humor and memes (funny videos, viral content, jokes)" → ["humor", "memes", "funny", "viral"]
+ * Tries parenthesized words too — they're usually the best search terms.
  */
-function toSearchQuery(topic: string): string {
-  const STOP = new Set(['and','the','for','with','from','that','this','are','was','has','have','not','but','can','its','will','just','about','they','their','what','when','your','you','all','been','one','more','also','after','than','then','some','into','over','building','tactics','mindset','growth'])
-  const words = topic
+function toSearchQueries(topic: string): string[] {
+  const STOP = new Set(['and','the','for','with','from','that','this','are','was','has','have','not','but','can','its','will','just','about','they','their','what','when','your','you','all','been','one','more','also','after','than','then','some','into','over','building','tactics','mindset','growth','videos','content'])
+  const parenMatch = topic.match(/\(([^)]+)\)/)
+  const parenWords = parenMatch
+    ? parenMatch[1].split(/[,\s]+/).filter(w => w.length >= 3 && !STOP.has(w.toLowerCase()))
+    : []
+  const mainWords = topic
+    .replace(/\([^)]*\)/g, '')
     .replace(/[^a-zA-Z0-9\s/-]/g, '')
     .split(/[\s/\-]+/)
-    .filter(w => w.length >= 2 && !STOP.has(w.toLowerCase()))
-  // Use just the single most distinctive keyword — short queries return far more X results
-  return words[0] || topic.split(' ')[0]
+    .filter(w => w.length >= 3 && !STOP.has(w.toLowerCase()))
+  const all = [...mainWords, ...parenWords]
+    .map(w => w.toLowerCase())
+    .filter((w, i, arr) => arr.indexOf(w) === i)
+  return all.slice(0, 4).length ? all.slice(0, 4) : [topic.split(' ')[0].toLowerCase()]
+}
+
+function toSearchQuery(topic: string): string {
+  return toSearchQueries(topic)[0] || topic.split(' ')[0]
 }
 
 function parseLikeCount(label: string): number {
