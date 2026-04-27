@@ -175,6 +175,7 @@ export interface VoiceProfile {
     onChallenge?: string
     onChallengeFrequency?: number
     confirmedAt: string
+    replyBackGoldenExamples?: { theirReply: string; yourResponse: string }[]
   }
   bannedPhrases: string[]
   neverTopics: string[]
@@ -329,9 +330,19 @@ export class LLMReplyEngine {
 
       // Owner mode: merge system prompt + user prompt into one user message so
       // Claude pattern-matches examples rather than treating them as system rules.
+      // Reply-back golden examples — injected when someone replied to owner's own post
+      let replyBackBlock = ''
+      if (this.isOwnerMode && context.ownPostContext) {
+        const rbGolden = this.personalityProfile?.voiceProfile?.replyBackRules?.replyBackGoldenExamples
+        if (rbGolden?.length) {
+          replyBackBlock = '\n\nWhen people reply to YOUR posts, you respond like this (most important — use these as your guide):\n' +
+            rbGolden.map((ex, i) => `${i + 1}. They said: "${ex.theirReply}"\n   You replied: "${ex.yourResponse}"`).join('\n')
+        }
+      }
+
       const finalSystem = this.isOwnerMode ? '' : this.systemPrompt + ragSystemAppend
       const finalUserText = this.isOwnerMode
-        ? `${this.systemPrompt}${ragSystemAppend}\n\n${userPrompt}`
+        ? `${this.systemPrompt}${ragSystemAppend}${replyBackBlock}\n\n${userPrompt}`
         : userPrompt
       userContent.push({ type: 'text', text: finalUserText })
 

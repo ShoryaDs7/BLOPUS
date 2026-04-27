@@ -863,6 +863,94 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
   }
 }
 
+// ─── Engagement mode: minimal 4-question style interview ─────
+async function runEngagementStyleInterview(askFn: (q: string) => Promise<string>): Promise<any> {
+  console.log('\n' + '═'.repeat(58))
+  console.log('  WRITING STYLE — 4 quick questions')
+  console.log('═'.repeat(58) + '\n')
+
+  console.log('  [1] How do you capitalize? (e.g. sentence case / all lowercase / mixed)')
+  const caseRaw = (await askFn('  > ')).trim() || 'sentence case'
+  console.log()
+
+  console.log('  [2] Contractions — "don\'t" or "do not"? (or "both")')
+  const apostropheRaw = (await askFn('  > ')).trim() || "don't"
+  console.log()
+
+  console.log('  [3] Emojis — never / sometimes / often?')
+  const emojiRaw = (await askFn('  > ')).trim() || 'sometimes'
+  console.log()
+
+  console.log('  [4] Reply length — one word / one liner / can go longer?')
+  const lengthRaw = (await askFn('  > ')).trim() || 'one liner'
+  console.log()
+
+  console.log('  Got it —')
+  console.log(`    Case: ${caseRaw}`)
+  console.log(`    Contractions: ${apostropheRaw}`)
+  console.log(`    Emoji: ${emojiRaw}`)
+  console.log(`    Length: ${lengthRaw}\n`)
+
+  return { caseStyle: caseRaw, apostropheStyle: apostropheRaw, emojiUsage: emojiRaw, replyLength: lengthRaw }
+}
+
+// ─── Engagement mode: reply-back rules + golden examples ─────
+async function runEngagementReplyBackInterview(
+  personalityProfile: any,
+  askFn: (q: string) => Promise<string>,
+  client: Anthropic
+): Promise<any> {
+  // Part 1: existing who/when rules
+  const rules = await runReplyBackInterview(askFn, client)
+
+  // Part 2: golden examples from archive posts
+  const samplePosts: string[] = (personalityProfile?.behaviorProfile?.sampleOriginals ?? []).slice(0, 5)
+  if (!samplePosts.length) {
+    console.log('  No archive posts found — skipping golden examples.\n')
+    return rules
+  }
+
+  console.log('\n' + '═'.repeat(58))
+  console.log('  REPLY-BACK GOLDEN EXAMPLES')
+  console.log('  We\'ll show your own posts with simulated replies people might leave.')
+  console.log('  Type how you\'d respond, or "skip" to skip.')
+  console.log('═'.repeat(58) + '\n')
+
+  const replyBackGoldenExamples: { theirReply: string; yourResponse: string }[] = []
+
+  for (const post of samplePosts) {
+    let simulated: string[] = []
+    try {
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        messages: [{
+          role: 'user',
+          content: `Generate 5 realistic replies different people might leave on this tweet:\n"${post.slice(0, 280)}"\n\nMake them diverse — one supportive, one critical/pushback, one dumb/irrelevant, one genuine question, one short reaction. Each under 40 words. Return ONLY a JSON array of strings.`
+        }]
+      })
+      const text = res.content[0].type === 'text' ? res.content[0].text : ''
+      const match = text.match(/\[[\s\S]*?\]/)
+      if (match) simulated = JSON.parse(match[0])
+    } catch { continue }
+
+    if (!simulated.length) continue
+
+    console.log(`  Your post: "${post.slice(0, 120)}${post.length > 120 ? '...' : ''}"\n`)
+
+    for (const reply of simulated) {
+      console.log(`  Reply: "${reply}"`)
+      const response = (await askFn('  Your response (or "skip"): ')).trim()
+      console.log()
+      if (/^skip$/i.test(response) || !response) continue
+      replyBackGoldenExamples.push({ theirReply: reply, yourResponse: response })
+    }
+  }
+
+  console.log(`  Got it — ${replyBackGoldenExamples.length} golden examples saved.\n`)
+  return { ...rules, replyBackGoldenExamples }
+}
+
 // ─── Part 2: How You Reply (merged voice + reply behavior) ───
 async function runReplyInterview(computed: any, askFn: (q: string) => Promise<string>, client: Anthropic, replyModel: string): Promise<any> {
   const topics: string[] = computed?.dominantTopics ?? []
@@ -2642,9 +2730,13 @@ async function main() {
       }
     }
 
-    // ── Voice vs RAG selection — skipped for Neither mode (no replies = no reply voice needed) ──
+    // ── Voice / style setup — varies by reply strategy ───────────
     let replyEngineRaw = ''
-    if (replyStrategy !== 'none') {
+    if (replyStrategy === 'engagement') {
+      // Engagement mode: just 4 style questions — no full voice interview
+      voiceProfile = await runEngagementStyleInterview(ask)
+      saveProfile()
+    } else if (replyStrategy === 'growth') {
       section(11, 'How should Blopus sound like you?')
       console.log(`
   1 · Voice mode  — you do a short interview, Blopus learns your exact style
@@ -2771,9 +2863,15 @@ async function main() {
 
     if (replyStrategy !== 'none') {
       if (!await askSkip('REPLY BACK — who you reply to when people engage with you', ask)) {
-        const replyBackRules = await runReplyBackInterview(ask, setupClient)
-        if (voiceProfile) voiceProfile.replyBackRules = replyBackRules
-        else { if (!personalityProfile?.voiceProfile) (personalityProfile as any).voiceProfile = {}; (personalityProfile as any).voiceProfile.replyBackRules = replyBackRules }
+        let replyBackRules: any
+        if (replyStrategy === 'engagement') {
+          // Engagement mode: rules + golden examples from archive posts
+          replyBackRules = await runEngagementReplyBackInterview(personalityProfile, ask, setupClient)
+        } else {
+          replyBackRules = await runReplyBackInterview(ask, setupClient)
+        }
+        if (!voiceProfile) voiceProfile = {} as any
+        voiceProfile.replyBackRules = replyBackRules
         saveProfile()
       } else console.log('  Skipped — Blopus will reply to everyone.\n')
     }
