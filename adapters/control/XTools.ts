@@ -270,22 +270,24 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   },
   {
     name: 'find_and_like',
-    description: 'Find tweets in the owner\'s configured like-domains and like them randomly. Use when asked to "like some tweets", "go like stuff", "like a few posts". Automatically uses the owner\'s like topics from setup — no need to specify.',
+    description: 'Find tweets and like them. Pass topic to search any specific subject (e.g. "religion", "civic sense", "AI"). Omit topic to use owner\'s configured like-domains automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
         count: { type: 'number', description: 'How many tweets to like (default 3, max 5)' },
+        topic: { type: 'string', description: 'Optional topic override. E.g. "religion politics", "civic sense", "humor". Omit to use profile default.' },
       },
       required: [],
     },
   },
   {
     name: 'find_and_retweet',
-    description: 'Find tweets in the owner\'s configured retweet-domains and retweet one randomly. Use when asked to "retweet something", "go retweet a post", "RT something in my topics". Automatically uses the owner\'s retweet topics from setup.',
+    description: 'Find tweets and retweet one. Pass topic to search any specific subject. Omit topic to use owner\'s configured retweet-domains automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
         count: { type: 'number', description: 'How many tweets to retweet (default 1, max 3)' },
+        topic: { type: 'string', description: 'Optional topic override. E.g. "politics", "AI", "cricket". Omit to use profile default.' },
       },
       required: [],
     },
@@ -475,10 +477,10 @@ export class XTools {
         }
 
         case 'find_and_like':
-          return await this.findAndLike(input.count ?? 3)
+          return await this.findAndLike(input.count ?? 3, input.topic)
 
         case 'find_and_retweet':
-          return await this.findAndRetweet(input.count ?? 1)
+          return await this.findAndRetweet(input.count ?? 1, input.topic)
 
         case 'follow_user': {
           const handle = (input.handle as string).replace(/^@/, '')
@@ -913,18 +915,22 @@ Comment only. Nothing else.`
     return `quote tweeted @${pick.authorHandle} (${pick.likeCount} likes):\ntheir tweet: "${pick.text.slice(0, 80)}"\nyour comment: "${comment}"`
   }
 
-  private async findAndLike(count: number): Promise<string> {
+  private async findAndLike(count: number, topicOverride?: string): Promise<string> {
     const cap = Math.min(count, 5)
     const pp = this.profile as any
-    const topics: string[] = pp?.likeBehavior?.topics?.length
-      ? pp.likeBehavior.topics
-      : pp?.dominantTopics ?? []
 
-    if (!topics.length) return 'no like topics configured — run npm run setup to set like behavior'
+    // Use override topic if provided, else pick random from profile
+    let topic: string
+    if (topicOverride) {
+      topic = topicOverride
+    } else {
+      const topics: string[] = pp?.likeBehavior?.topics?.length
+        ? pp.likeBehavior.topics
+        : pp?.dominantTopics ?? []
+      if (!topics.length) return 'no like topics configured — run npm run setup to set like behavior'
+      topic = topics[Math.floor(Math.random() * topics.length)]
+    }
 
-    // Pick a random topic each call for variety
-    const topic = topics[Math.floor(Math.random() * topics.length)]
-    // Extract first meaningful keyword from topic phrase for search
     const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
     console.log(`[XTools:find_and_like] searching topic: "${topic}" → keyword: "${keyword}"`)
 
@@ -955,16 +961,21 @@ Comment only. Nothing else.`
     return `liked ${liked}/${shuffled.length} tweets in "${topic}"`
   }
 
-  private async findAndRetweet(count: number): Promise<string> {
+  private async findAndRetweet(count: number, topicOverride?: string): Promise<string> {
     const cap = Math.min(count, 3)
     const pp = this.profile as any
-    const topics: string[] = pp?.retweetBehavior?.topics?.length
-      ? pp.retweetBehavior.topics
-      : pp?.dominantTopics ?? []
 
-    if (!topics.length) return 'no retweet topics configured — run npm run setup to set retweet behavior'
+    let topic: string
+    if (topicOverride) {
+      topic = topicOverride
+    } else {
+      const topics: string[] = pp?.retweetBehavior?.topics?.length
+        ? pp.retweetBehavior.topics
+        : pp?.dominantTopics ?? []
+      if (!topics.length) return 'no retweet topics configured — run npm run setup to set retweet behavior'
+      topic = topics[Math.floor(Math.random() * topics.length)]
+    }
 
-    const topic = topics[Math.floor(Math.random() * topics.length)]
     const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
     console.log(`[XTools:find_and_retweet] searching topic: "${topic}" → keyword: "${keyword}"`)
 
