@@ -227,8 +227,8 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
         topic: { type: 'string', description: 'Topic to search (e.g. "AI", "politics", "crypto"). Omit to pick any viral tweets from home feed.' },
         count: { type: 'number', description: 'How many tweets to act on (default 3, max 10)' },
         action: { type: 'string', enum: ['reply', 'quote', 'both'], description: '"reply" to post a reply, "quote" to quote tweet, "both" to do both on each tweet. Default: reply.' },
-        min_views: { type: 'number', description: 'Minimum likes/views the tweet must have (default 500000)' },
-        max_age_hours: { type: 'number', description: 'Max age of tweet in hours (default 12)' },
+        min_views: { type: 'number', description: 'Minimum likes the tweet must have. Default 1000. Only set higher if user explicitly asks for "viral" or "trending".' },
+        max_age_hours: { type: 'number', description: 'Max age of tweet in hours (default 24)' },
       },
       required: [],
     },
@@ -448,8 +448,8 @@ export class XTools {
             input.topic ?? '',
             input.count ?? 3,
             String(input.action ?? 'reply'),
-            input.min_views ?? 500000,
-            input.max_age_hours ?? 12,
+            input.min_views ?? 1000,
+            input.max_age_hours ?? 24,
           )
 
         case 'control_autonomous':
@@ -894,13 +894,14 @@ Comment only. Nothing else.`
 
     if (!topics.length) return 'no like topics configured — run npm run setup to set like behavior'
 
-    const domainSearch = new PlaywrightDomainSearchProvider()
-    if (!domainSearch.enabled) return 'X auth not set — cannot search tweets'
-
     // Pick a random topic each call for variety
     const topic = topics[Math.floor(Math.random() * topics.length)]
-    console.log(`[XTools:find_and_like] searching topic: ${topic}`)
-    const results = await domainSearch.searchViralByTopics([topic], cap * 4, 1440)
+    // Extract first meaningful keyword from topic phrase for search
+    const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
+    console.log(`[XTools:find_and_like] searching topic: "${topic}" → keyword: "${keyword}"`)
+
+    // Use already-authenticated playwrightClient — more reliable than a fresh browser context
+    const results = await this.playwrightClient.searchTweets(keyword, cap * 5)
     if (!results.length) return `no tweets found for topic: ${topic}`
 
     // Shuffle for randomness — don't always like the same top tweets
@@ -927,12 +928,11 @@ Comment only. Nothing else.`
 
     if (!topics.length) return 'no retweet topics configured — run npm run setup to set retweet behavior'
 
-    const domainSearch = new PlaywrightDomainSearchProvider()
-    if (!domainSearch.enabled) return 'X auth not set — cannot search tweets'
-
     const topic = topics[Math.floor(Math.random() * topics.length)]
-    console.log(`[XTools:find_and_retweet] searching topic: ${topic}`)
-    const results = await domainSearch.searchViralByTopics([topic], cap * 4, 1440)
+    const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
+    console.log(`[XTools:find_and_retweet] searching topic: "${topic}" → keyword: "${keyword}"`)
+
+    const results = await this.playwrightClient.searchTweets(keyword, cap * 5)
     if (!results.length) return `no tweets found for topic: ${topic}`
 
     const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
