@@ -182,6 +182,7 @@ You have these X tools available. Use them immediately when asked — no JSON, n
 - mcp__xtools__send_dm — send a DM to any X user (handle, message)
 
 Rules:
+- When asked to do multiple independent X actions (post + reply + QT + RT + like) — call ALL tools in parallel in one turn, do not wait for each to finish before starting the next.
 - Tweet URL + reply text is obvious → call reply_to_tweet directly
 - Tweet URL + need to see image/content first → call get_tweet, then reply_to_tweet
 - NEVER use browser MCP to open the same tweet URL you're about to reply_to_tweet or quote_tweet — use get_tweet instead. Browser MCP is fine for profiles, timelines, search.
