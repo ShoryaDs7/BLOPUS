@@ -86,16 +86,36 @@ function loadCreatorConfig(): any {
  * Compact instruction header injected on every resumed session message.
  * Keeps critical rules in context without replacing full system prompt.
  */
+function loadPostTopics(): string[] {
+  try {
+    const cfg = loadCreatorConfig()
+    const configPath = process.env.BLOPUS_CONFIG_PATH
+      ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
+      : path.resolve('./config/blopus.config.json')
+    const ppPath = path.join(path.dirname(configPath), 'personality_profile.json')
+    const pp = JSON.parse(fs.readFileSync(ppPath, 'utf-8'))
+    const opp = pp?.voiceProfile?.originalPostProfile
+    return opp?.topics ?? pp?.postTopics ?? pp?.dominantTopics ?? []
+  } catch {
+    return []
+  }
+}
+
 function buildInstructionHeader(): string {
   const cfg = loadCreatorConfig()
   const botHandle   = cfg?.osbot?.handle ?? 'the bot account'
   const ownerHandle = cfg?.owner?.handle ?? 'the owner'
   const projectDir  = BLOPUS_DIR.replace(/\\/g, '/')
   const skillIndex  = buildSkillIndex()
+  const postTopics  = loadPostTopics()
+  const topicsLine  = postTopics.length
+    ? `Owner's post domains (ONLY pick topics from this list when posting): ${postTopics.join(' | ')}`
+    : ''
 
   return `[INSTRUCTIONS — always follow these]
 Past conversations: [PAST CONVERSATIONS] and [TODAY] sections above contain the real history. Answer questions about past work FROM THOSE SECTIONS FIRST — do not run git log or find commands to reconstruct what you already know.
 X actions: use mcp__xtools__ tools. reply_to_tweet(tweet_url, text), post_tweet(topic), quote_tweet(tweet_url, text), search_trending_and_reply(category). Browser MCP ok for profiles/timelines, not for tweet URLs you're replying to.
+${topicsLine}
 Scheduling: any recurring request → CronCreate immediately, no confirmation needed. Natural language → cron expression. CronList = show tasks. CronDelete = remove.
 Browser: non-X sites only. navigate→screenshot→snapshot→click→repeat.
 Memory: @handle → Read ${projectDir}/creators/memory-store/persons/<handle>.json directly. Never glob first.
@@ -114,9 +134,15 @@ function buildSystemPrompt(): string {
   const skillIndex  = buildSkillIndex()
   const scriptIndex = buildScriptIndex()
 
+  const postTopics  = loadPostTopics()
+  const topicsLine  = postTopics.length
+    ? `\n# Owner's post domains\nONLY pick topics from this list when posting — never invent topics from conversation history:\n${postTopics.map(t => `- ${t}`).join('\n')}`
+    : ''
+
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
 Owner: ${ownerName} (@${ownerHandle}). Bot account: @${botHandle}. Project: ${projectDir}
+${topicsLine}
 
 # X / Twitter actions — use mcp__xtools__ tools directly
 You have these X tools available. Use them immediately when asked — no JSON, no Bash, no x-cli:
