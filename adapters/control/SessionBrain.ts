@@ -328,6 +328,16 @@ function toolSummary(name: string, input: any): string {
   return `${emoji} ${n}: ${JSON.stringify(input).slice(0, 60)}`
 }
 
+// Strip lone Unicode surrogates — tweets/profile data can contain broken emoji
+// that Node represents as lone surrogates (U+D800–U+DFFF), which are invalid JSON
+function sanitizeUnicode(s: string): string {
+  return s.replace(/[\uD800-\uDFFF]/g, c => {
+    const code = c.charCodeAt(0)
+    // High surrogate must be followed by low surrogate — if alone, drop it
+    return (code >= 0xD800 && code <= 0xDBFF) ? '' : ''
+  })
+}
+
 const LOGS_DIR = path.join(BLOPUS_DIR, 'logs')
 
 // MCP browser gets its own copy of the authenticated profile so it doesn't conflict
@@ -654,11 +664,11 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
       }
 
       // Always fresh session — system prompt injected every time, memory via task_log + today's log
-      options.systemPrompt = buildSystemPrompt()
+      options.systemPrompt = sanitizeUnicode(buildSystemPrompt())
 
       const memoryContext = buildMemoryContext()
       const memoryPrefix = memoryContext ? memoryContext + '\n\n---\n\n' : ''
-      const effectivePrompt = memoryPrefix + userMessage
+      const effectivePrompt = sanitizeUnicode(memoryPrefix + userMessage)
 
       for await (const message of query({ prompt: effectivePrompt, options })) {
         const msg = message as any

@@ -19,6 +19,10 @@ import { BrowserAgent } from './BrowserAgent'
 import { MCPBrowserDM } from '../../agent/MCPBrowserDM'
 import fs from 'fs'
 import path from 'path'
+
+function sanitizeUnicode(s: string): string {
+  return s.replace(/[\uD800-\uDFFF]/g, () => '')
+}
 import { writeRuntimeConfig, readRuntimeConfig } from './RuntimeConfig'
 import { PlaywrightWebScraper } from '../web/PlaywrightWebScraper'
 
@@ -809,6 +813,7 @@ export class XTools {
         topicExamples.map(e => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
       : ''
 
+    const cleanTweetText = sanitizeUnicode(tweetText)
     const prompt = `These are your real posts on X. Study them — this is your entire guide:
 
 ${examplesBlock}
@@ -819,7 +824,7 @@ How you write posts: ${synthesized}
 Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
 Now write your quote tweet comment on this exactly like the examples above:
-"${tweetText}"
+"${cleanTweetText}"
 
 Comment only. Nothing else.`
 
