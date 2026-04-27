@@ -1413,18 +1413,20 @@ Your job:
 
   1. Do they reply to comments on their OWN original posts? (yes/no required)
      - If yes: do they reply to ALL comments or only ones that meet a condition? If condition, what is it?
-  2. Do they reply when someone replies to THEIR reply on someone else's tweet? (yes/no required)
+  2. If yes to #1: max replies per post — after how many people's comments on a single post should Blopus stop replying? (must give a number, e.g. 10 means stop after replying to 10 different commenters on that post)
+  3. Do they reply when someone replies to THEIR reply on someone else's tweet? (yes/no required)
      - If yes: do they reply to ALL such replies or only ones that meet a condition? If condition, what is it?
-  3. Conversation limit — after how many back-and-forth exchanges with the same person do they stop replying? (must give a number)
-  4. Are there specific accounts they NEVER reply to? (yes/no required)
+  4. Conversation limit — after how many back-and-forth exchanges with the same person do they stop replying? (must give a number)
+  5. Are there specific accounts they NEVER reply to? (yes/no required)
      - If yes: which @handles?
 
-- Ask 4-6 questions total (follow-ups count). Track with [Q x/6].
+- Ask 5-7 questions total (follow-ups count). Track with [Q x/7].
 - When done output exactly: [INTERVIEW_DONE]
   Then ONLY this raw JSON (no markdown, no backticks):
 {
   "replyToOwnPostComments": true or false,
   "ownPostCommentCondition": "describe condition or empty string if reply to all",
+  "maxRepliesPerPost": number or null,
   "replyToRepliesOnOthers": true or false,
   "replyToRepliesCondition": "describe condition or empty string if reply to all",
   "conversationLimit": number,
@@ -1470,6 +1472,9 @@ Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — neve
   console.log('\n' + '─'.repeat(58))
   console.log('  REPLY BACK RULES:\n')
   console.log(`  Own post comments:  ${structuredAnswers.replyToOwnPostComments ? 'YES' : 'NO'}${structuredAnswers.ownPostCommentCondition ? ` — only if: ${structuredAnswers.ownPostCommentCondition}` : ''}`)
+  if (structuredAnswers.replyToOwnPostComments && structuredAnswers.maxRepliesPerPost != null) {
+    console.log(`  Max replies/post:   ${structuredAnswers.maxRepliesPerPost}`)
+  }
   console.log(`  Replies on others:  ${structuredAnswers.replyToRepliesOnOthers ? 'YES' : 'NO'}${structuredAnswers.replyToRepliesCondition ? ` — only if: ${structuredAnswers.replyToRepliesCondition}` : ''}`)
   console.log(`  Conversation limit: ${structuredAnswers.conversationLimit} back-and-forth`)
   console.log(`  Never reply to:     ${structuredAnswers.neverReplyTo?.length ? structuredAnswers.neverReplyTo.join(', ') : 'none'}`)
@@ -1478,6 +1483,7 @@ Never say you're an AI. No "Great answer!" Keep it direct. Force yes/no — neve
   return {
     replyToOwnPostComments:  structuredAnswers.replyToOwnPostComments ?? false,
     ownPostCommentCondition: structuredAnswers.ownPostCommentCondition ?? '',
+    maxRepliesPerPost:       structuredAnswers.maxRepliesPerPost ?? null,
     replyToRepliesOnOthers:  structuredAnswers.replyToRepliesOnOthers ?? false,
     replyToRepliesCondition: structuredAnswers.replyToRepliesCondition ?? '',
     conversationLimit:       structuredAnswers.conversationLimit ?? 3,

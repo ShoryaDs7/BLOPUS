@@ -166,6 +166,7 @@ export interface VoiceProfile {
   replyBackRules?: {
     replyToOwnPostComments: boolean
     ownPostCommentCondition: string
+    maxRepliesPerPost: number | null
     replyToRepliesOnOthers: boolean
     replyToRepliesCondition: string
     conversationLimit: number
