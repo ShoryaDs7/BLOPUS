@@ -917,6 +917,7 @@ async function runEngagementReplyBackInterview(
   console.log('═'.repeat(58) + '\n')
 
   const replyBackGoldenExamples: { theirReply: string; yourResponse: string }[] = []
+  const replyBackSkipTypes: string[] = []
 
   for (const post of samplePosts) {
     let simulated: string[] = []
@@ -942,13 +943,16 @@ async function runEngagementReplyBackInterview(
       console.log(`  Reply: "${reply}"`)
       const response = (await askFn('  Your response (or "skip"): ')).trim()
       console.log()
-      if (/^skip$/i.test(response) || !response) continue
-      replyBackGoldenExamples.push({ theirReply: reply, yourResponse: response })
+      if (/^skip$/i.test(response) || !response) {
+        replyBackSkipTypes.push(reply)
+      } else {
+        replyBackGoldenExamples.push({ theirReply: reply, yourResponse: response })
+      }
     }
   }
 
-  console.log(`  Got it — ${replyBackGoldenExamples.length} golden examples saved.\n`)
-  return { ...rules, replyBackGoldenExamples }
+  console.log(`  Got it — ${replyBackGoldenExamples.length} golden examples, ${replyBackSkipTypes.length} skip types saved.\n`)
+  return { ...rules, replyBackGoldenExamples, replyBackSkipTypes }
 }
 
 // ─── Part 2: How You Reply (merged voice + reply behavior) ───

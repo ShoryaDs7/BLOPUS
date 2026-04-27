@@ -177,6 +177,7 @@ export interface VoiceProfile {
     onChallengeFrequency?: number
     confirmedAt: string
     replyBackGoldenExamples?: { theirReply: string; yourResponse: string }[]
+    replyBackSkipTypes?: string[]
   }
   bannedPhrases: string[]
   neverTopics: string[]
@@ -334,10 +335,16 @@ export class LLMReplyEngine {
       // Reply-back golden examples — injected when someone replied to owner's own post
       let replyBackBlock = ''
       if (this.isOwnerMode && context.ownPostContext) {
-        const rbGolden = this.personalityProfile?.voiceProfile?.replyBackRules?.replyBackGoldenExamples
+        const rbRules = this.personalityProfile?.voiceProfile?.replyBackRules
+        const rbGolden = rbRules?.replyBackGoldenExamples
+        const rbSkips = rbRules?.replyBackSkipTypes
         if (rbGolden?.length) {
           replyBackBlock = '\n\nWhen people reply to YOUR posts, you respond like this (most important — use these as your guide):\n' +
             rbGolden.map((ex, i) => `${i + 1}. They said: "${ex.theirReply}"\n   You replied: "${ex.yourResponse}"`).join('\n')
+        }
+        if (rbSkips?.length) {
+          replyBackBlock += '\n\nTypes of replies you NEVER respond to (ignore these completely):\n' +
+            rbSkips.map((s, i) => `${i + 1}. "${s}"`).join('\n')
         }
       }
 
