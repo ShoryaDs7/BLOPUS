@@ -529,40 +529,15 @@ export class XTools {
   }
 
   private async postTweet(topic: string, angle: string): Promise<string> {
-    const pp = this.profile
-    const ws = pp?.writingStats ?? {}
-    const vp = (pp as any)?.voiceProfile
-    const golden: string[] = vp?.goldenExamples?.slice(0, 4) ?? []
-    const synthesized: string = vp?.synthesized ?? ''
-    const bannedPhrases: string[] = vp?.bannedPhrases ?? []
-
-    const system = [
-      `You are @${process.env.OWNER_HANDLE ?? 'owner'} posting on X. Real human, NOT a bot.`,
-      synthesized ? `Your exact writing style (match this precisely): ${synthesized}` : (pp?.writingStyle ? `Your writing style: ${pp.writingStyle}` : ''),
-      ws.caseStyle ? `Case style: ${ws.caseStyle}` : '',
-      ws.apostropheStyle ? `Apostrophe style: ${ws.apostropheStyle}` : '',
-      ws.emojiUsage ? `Emoji usage: ${ws.emojiUsage}` : '',
-      golden.length ? `Your real posts (match this voice exactly — do NOT copy these word for word):\n${golden.map((e, i) => `${i + 1}. "${e}"`).join('\n')}` : '',
-      bannedPhrases.length ? `NEVER say: ${bannedPhrases.join(', ')}` : '',
-      pp?.dominantTopics?.length ? `Your usual topics: ${pp.dominantTopics.join(', ')}` : '',
-      `Write ONE tweet specifically about: ${topic}`,
-      angle ? `Angle/tone: ${angle}` : '',
-      `No hashtags unless natural. Under 270 chars. Sound like a real person, not a bot summarizing. If including a URL, always put it at the very end.`,
-    ].filter(Boolean).join('\n')
-
-    const client = new Anthropic()
-    const resp = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 120,
-      temperature: 1.0,
-      system,
-      messages: [{ role: 'user', content: 'Post:' }],
+    // Use same path as autonomous posts — generateAutonomousPost with originalPostProfile
+    const trigger = angle ? `${topic} — ${angle}` : topic
+    const text = await this.llmEngine.generateAutonomousPost({
+      mentionsToday: 0, repliesToday: 0, hoursSinceLastMention: 99,
+      recentTopics: [topic], mood: 'chill' as any,
+      currentEvents: [trigger], targetPlatform: 'x', accountType: 'owner-own',
+      ownerHandle: process.env.OWNER_HANDLE ?? '',
     })
-    // Never slice mid-word — trim at last space before 280 (Twitter's hard limit)
-    let text = resp.content[0].type === 'text' ? resp.content[0].text.trim() : topic
-    if (text.length > 280) {
-      text = text.slice(0, 280).replace(/\s\S*$/, '')
-    }
+    if (!text) return '❌ Could not generate post — voice profile may be missing'
     await this.xAdapter.postTweet(text)
     return `posted tweet: "${text}"`
   }
