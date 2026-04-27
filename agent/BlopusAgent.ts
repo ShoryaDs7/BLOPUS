@@ -390,23 +390,23 @@ async function boot(): Promise<void> {
   )
 
   // Engagement engine — like / retweet / quote tweet based on voice profile rules
-  const _vp = personalityProfile?.voiceProfile as any
-  const _emojiRule = _vp?.emojiContext
-    ? `emoji only in ${_vp.emojiContext}`
-    : _vp?.emojiUsage ? `emoji: ${_vp.emojiUsage}` : 'no emojis'
+  const _opp = (personalityProfile?.voiceProfile as any)?.originalPostProfile
+  const _oppEmojiRule = _opp?.emojiContext
+    ? `emoji: ${_opp.emojiContext}`
+    : (_opp?.emojiFrequency > 0) ? `emoji in ${_opp.emojiFrequency}% of posts` : 'no emojis'
   const engagementEngine = isOwnerMode ? new EngagementEngine(
     xAdapter,
     config.owner.handle,
     personalityProfile?.likeBehavior as any,
     (personalityProfile as any)?.retweetBehavior,
     personalityProfile?.quoteTweetBehavior as any,
-    personalityProfile?.voiceProfile?.synthesized,
+    _opp?.synthesized ?? personalityProfile?.voiceProfile?.synthesized,
     personalityProfile?.topicKeywords as any,
-    _vp?.goldenExamples,
-    _vp?.topicExamples,
-    _vp?.caseStyle,
-    _vp?.replyLength,
-    _emojiRule,
+    _opp?.goldenExamples,
+    _opp?.topicExamples,
+    _opp?.caseStyle,
+    _opp?.postLength ?? _opp?.formatStyle,
+    _oppEmojiRule,
   ) : null
 
   // Auto-generate packId if not in config — bot account only

@@ -828,35 +828,37 @@ export class XTools {
     const pick = pool[0]
     if (!pick) return 'no suitable tweets found'
 
-    // Load voice_profile.json directly — same as smart-reply.ts
+    // Load personality_profile.json → originalPostProfile — same as smart-post.ts
     const creatorDir = path.dirname(path.resolve(this.configPath))
-    const vpPath = path.join(creatorDir, 'voice_profile.json')
-    if (!fs.existsSync(vpPath)) return 'voice_profile.json not found — run npm run setup'
-    const vp = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+    const ppPath = path.join(creatorDir, 'personality_profile.json')
+    if (!fs.existsSync(ppPath)) return 'personality_profile.json not found — run npm run setup'
+    const pp = JSON.parse(fs.readFileSync(ppPath, 'utf8'))
+    const opp = pp?.voiceProfile?.originalPostProfile
+    if (!opp?.goldenExamples?.length) return 'no post voice profile found — run npm run setup'
 
-    const goldenExamples: string[] = vp.goldenExamples ?? []
-    const topicExamples: { tweet: string; reply: string }[] = vp.topicExamples ?? []
-    const synthesized: string = vp.synthesized ?? ''
-    const caseStyle: string = vp.caseStyle ?? ''
-    const replyLength: string = vp.replyLength ?? ''
-    const emojiContext: string = vp.emojiContext ?? ''
-    const emojiUsage: string = vp.emojiUsage ?? ''
-    const emojiRule = emojiContext ? `emoji only in ${emojiContext}` : emojiUsage ? `emoji: ${emojiUsage}` : 'no emojis'
+    const goldenExamples: string[] = opp.goldenExamples ?? []
+    const topicExamples: { scenario: string; post: string }[] = opp.topicExamples ?? []
+    const synthesized: string = opp.synthesized ?? ''
+    const caseStyle: string = opp.caseStyle ?? ''
+    const postLength: string = opp.postLength ?? opp.formatStyle ?? ''
+    const emojiContext: string = opp.emojiContext ?? ''
+    const emojiFrequency: number = opp.emojiFrequency ?? 0
+    const emojiRule = emojiContext ? `emoji: ${emojiContext}` : emojiFrequency > 0 ? `emoji in ${emojiFrequency}% of posts` : 'no emojis'
 
     const examplesBlock = goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')
     const topicBlock = topicExamples.length
-      ? '\nFor these specific tweets you replied like this (most important — shows your stance per topic):\n' +
-        topicExamples.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')
+      ? '\nFor these specific situations you posted like this (most important — shows your exact stance):\n' +
+        topicExamples.map(e => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
       : ''
 
-    const prompt = `These are your real replies on X. Study them — this is your entire guide:
+    const prompt = `These are your real posts on X. Study them — this is your entire guide:
 
 ${examplesBlock}
 ${topicBlock}
 
-How you write: ${synthesized}
+How you write posts: ${synthesized}
 
-Rules: ${caseStyle || 'sentence case'}. ${replyLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
+Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
 Now write your quote tweet comment on this exactly like the examples above:
 "${pick.text}"

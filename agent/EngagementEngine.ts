@@ -52,9 +52,9 @@ export class EngagementEngine {
     private voiceSynthesized?: string,
     private topicKeywords?: Record<string, string[]>,
     private voiceGoldenExamples?: string[],
-    private voiceTopicExamples?: { tweet: string; reply: string }[],
+    private voiceTopicExamples?: { scenario: string; post: string }[],
     private voiceCaseStyle?: string,
-    private voiceReplyLength?: string,
+    private voicePostLength?: string,
     private voiceEmojiRule?: string,
   ) {
     if (process.env.ANTHROPIC_API_KEY) {
@@ -226,12 +226,12 @@ Answer only YES or NO.`
         const topicEx = this.voiceTopicExamples ?? []
         const examplesBlock = golden.map((e, i) => `${i + 1}. "${e}"`).join('\n')
         const topicBlock = topicEx.length
-          ? '\nFor these specific tweets you replied like this (most important — shows your stance per topic):\n' +
-            topicEx.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')
+          ? '\nFor these specific situations you posted like this (most important — shows your exact stance):\n' +
+            topicEx.map(e => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
           : ''
         const emojiRule = this.voiceEmojiRule ?? 'no emojis'
         const prompt = golden.length
-          ? `These are your real replies on X. Study them — this is your entire guide:\n\n${examplesBlock}${topicBlock}\n\nHow you write: ${this.voiceSynthesized ?? ''}\n\nRules: ${this.voiceCaseStyle || 'sentence case'}. ${this.voiceReplyLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.\n\nNow write your quote tweet comment on this exactly like the examples above:\n"${c.text}"\n\nComment only. Nothing else.`
+          ? `These are your real posts on X. Study them — this is your entire guide:\n\n${examplesBlock}${topicBlock}\n\nHow you write posts: ${this.voiceSynthesized ?? ''}\n\nRules: ${this.voiceCaseStyle || 'sentence case'}. ${this.voicePostLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.\n\nNow write your quote tweet comment on this exactly like the examples above:\n"${c.text}"\n\nComment only. Nothing else.`
           : `You are @${this.ownerHandle} — a real human on X. NOT a bot.\n${this.voiceSynthesized ? `Your voice: ${this.voiceSynthesized}` : ''}\nWrite a short quote tweet comment. One line max.\n\nTweet: "${c.text}"\n\nComment only.`
 
         const res = await this.client.messages.create({

@@ -2,8 +2,8 @@
 /**
  * smart-qt.ts — example-first quote tweet comment generator.
  *
- * Same structure as smart-reply. Examples first → synthesized → rules → tweet → done.
- * Only difference: final instruction is "write your quote tweet comment" not "reply".
+ * Uses originalPostProfile (same as smart-post) — QT is publishing your own take, not replying.
+ * Examples first → synthesized → rules → tweet → done.
  *
  * Usage: npx tsx scripts/smart-qt.ts
  */
@@ -22,7 +22,7 @@ function findCreators(): string[] {
   if (!fs.existsSync(creatorsBase)) return []
   return fs.readdirSync(creatorsBase).filter(d => {
     const p = path.join(creatorsBase, d)
-    return fs.statSync(p).isDirectory() && fs.existsSync(path.join(p, 'voice_profile.json'))
+    return fs.statSync(p).isDirectory() && fs.existsSync(path.join(p, 'personality_profile.json'))
   })
 }
 
@@ -39,10 +39,10 @@ function ask(prompt: string): Promise<string> {
 function buildPrompt(
   tweet: string,
   goldenExamples: string[],
-  topicExamples: { tweet: string; reply: string }[],
+  topicExamples: { scenario: string; post: string }[],
   synthesized: string,
   caseStyle: string,
-  replyLength: string,
+  postLength: string,
   emojiRule: string,
 ): string {
   const examplesBlock = goldenExamples.length
@@ -50,18 +50,18 @@ function buildPrompt(
     : ''
 
   const topicBlock = topicExamples.length
-    ? '\nFor these specific tweets you replied like this (most important — shows your stance per topic):\n' +
-      topicExamples.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')
+    ? '\nFor these specific situations you posted like this (most important — shows your exact stance):\n' +
+      topicExamples.map(e => `Situation: "${e.scenario}"\nYour post: "${e.post}"`).join('\n\n')
     : ''
 
-  return `These are your real replies on X. Study them — this is your entire guide:
+  return `These are your real posts on X. Study them — this is your entire guide:
 
 ${examplesBlock}
 ${topicBlock}
 
-How you write: ${synthesized}
+How you write posts: ${synthesized}
 
-Rules: ${caseStyle || 'sentence case'}. ${replyLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
+Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
 Now write your quote tweet comment on this exactly like the examples above:
 "${tweet}"
@@ -79,7 +79,7 @@ async function main() {
   let creatorName = ''
 
   if (!creators.length) {
-    console.log('  No voice profiles found. Run npm run setup first.\n')
+    console.log('  No personality profiles found. Run npm run setup first.\n')
     rl.close(); process.exit(1)
   } else if (creators.length === 1) {
     creatorName = creators[0]
@@ -101,21 +101,28 @@ async function main() {
     rl.close(); process.exit(1)
   }
 
-  const vpPath = path.join(creatorDir, 'voice_profile.json')
-  const vp = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+  const ppPath = path.join(creatorDir, 'personality_profile.json')
+  const pp = JSON.parse(fs.readFileSync(ppPath, 'utf8'))
+  const opp = pp?.voiceProfile?.originalPostProfile
 
-  const goldenExamples: string[]                          = vp.goldenExamples ?? []
-  const topicExamples: { tweet: string; reply: string }[] = vp.topicExamples ?? []
-  const synthesized: string                               = vp.synthesized ?? ''
-  const caseStyle: string                                 = vp.caseStyle ?? ''
-  const replyLength: string                               = vp.replyLength ?? ''
+  if (!opp) {
+    console.log('  No original post profile found.')
+    console.log('  Run: npx tsx scripts/setup-original-posts.ts\n')
+    rl.close(); process.exit(1)
+  }
 
-  const emojiUsage: string  = vp.emojiUsage ?? ''
-  const emojiContext: string = vp.emojiContext ?? ''
+  const goldenExamples: string[]                              = opp.goldenExamples ?? []
+  const topicExamples: { scenario: string; post: string }[]  = opp.topicExamples ?? []
+  const synthesized: string                                   = opp.synthesized ?? ''
+  const caseStyle: string                                     = opp.caseStyle ?? ''
+  const postLength: string                                    = opp.postLength ?? opp.formatStyle ?? ''
+
+  const emojiContext: string  = opp.emojiContext ?? ''
+  const emojiFrequency: number = opp.emojiFrequency ?? 0
   const emojiRule = emojiContext
-    ? `emoji only in ${emojiContext}`
-    : emojiUsage
-    ? `emoji: ${emojiUsage}`
+    ? `emoji: ${emojiContext}`
+    : emojiFrequency > 0
+    ? `emoji in ${emojiFrequency}% of posts`
     : 'no emojis'
 
   const model: string = process.env.REPLY_MODEL ?? 'claude-haiku-4-5-20251001'
@@ -128,8 +135,8 @@ async function main() {
   console.log()
 
   if (!goldenExamples.length) {
-    console.log('  No golden examples in voice_profile.json.')
-    console.log('  Run npm run setup to complete the voice interview first.\n')
+    console.log('  No golden examples in originalPostProfile.')
+    console.log('  Run: npx tsx scripts/setup-original-posts.ts\n')
     rl.close(); process.exit(1)
   }
 
@@ -141,7 +148,7 @@ async function main() {
     const tweet = await ask('  Tweet to QT: ')
     if (!tweet || /^exit$/i.test(tweet)) break
 
-    const prompt = buildPrompt(tweet, goldenExamples, topicExamples, synthesized, caseStyle, replyLength, emojiRule)
+    const prompt = buildPrompt(tweet, goldenExamples, topicExamples, synthesized, caseStyle, postLength, emojiRule)
 
     try {
       const res = await client.messages.create({
