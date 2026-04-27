@@ -934,17 +934,29 @@ Comment only. Nothing else.`
     const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
     console.log(`[XTools:find_and_like] searching topic: "${topic}" → keyword: "${keyword}"`)
 
-    // Use already-authenticated playwrightClient — more reliable than a fresh browser context
     let tweetIds: string[] = []
+
+    // Level 1: X search
     const searched = await this.playwrightClient.searchTweets(keyword, cap * 5)
     tweetIds = searched.map(r => r.tweetId)
 
-    // Fallback: web search via Tavily if X search returns nothing
+    // Level 2: home timeline (always loaded, proven to work)
     if (!tweetIds.length) {
-      console.log(`[XTools:find_and_like] X search empty — trying Tavily for: ${keyword}`)
+      console.log(`[XTools:find_and_like] X search empty — trying home timeline`)
+      const homeTimeline = new PlaywrightHomeTimelineProvider()
+      if (homeTimeline.enabled) {
+        const homeTweets = await homeTimeline.getViralFromHome(10, 1440)
+        tweetIds = homeTweets.map(t => t.tweetId)
+      }
+    }
+
+    // Level 3: Tavily web search (if API key configured)
+    if (!tweetIds.length) {
+      console.log(`[XTools:find_and_like] Home timeline empty — trying Tavily for: ${keyword}`)
       tweetIds = await new TavilyClient().searchTweetIds(keyword, cap * 5)
     }
-    if (!tweetIds.length) return `no tweets found for topic: ${topic}`
+
+    if (!tweetIds.length) return `no tweets found for topic: ${topic} — X search, home feed, and web search all dry`
 
     // Shuffle for randomness — don't always like the same top tweets
     const shuffled = tweetIds.sort(() => Math.random() - 0.5).slice(0, cap)
@@ -980,15 +992,25 @@ Comment only. Nothing else.`
     console.log(`[XTools:find_and_retweet] searching topic: "${topic}" → keyword: "${keyword}"`)
 
     let tweetIds: string[] = []
+
     const searched = await this.playwrightClient.searchTweets(keyword, cap * 5)
     tweetIds = searched.map(r => r.tweetId)
 
-    // Fallback: web search via Tavily if X search returns nothing
     if (!tweetIds.length) {
-      console.log(`[XTools:find_and_retweet] X search empty — trying Tavily for: ${keyword}`)
+      console.log(`[XTools:find_and_retweet] X search empty — trying home timeline`)
+      const homeTimeline = new PlaywrightHomeTimelineProvider()
+      if (homeTimeline.enabled) {
+        const homeTweets = await homeTimeline.getViralFromHome(10, 1440)
+        tweetIds = homeTweets.map(t => t.tweetId)
+      }
+    }
+
+    if (!tweetIds.length) {
+      console.log(`[XTools:find_and_retweet] Home timeline empty — trying Tavily for: ${keyword}`)
       tweetIds = await new TavilyClient().searchTweetIds(keyword, cap * 5)
     }
-    if (!tweetIds.length) return `no tweets found for topic: ${topic}`
+
+    if (!tweetIds.length) return `no tweets found for topic: ${topic} — X search, home feed, and web search all dry`
 
     const shuffled = tweetIds.sort(() => Math.random() - 0.5).slice(0, cap)
     const log: string[] = []
