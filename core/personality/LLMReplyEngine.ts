@@ -500,6 +500,7 @@ Post only. Nothing else.`
     tweet: { text: string; authorHandle: string; mediaUrls?: string[] },
     mood: Mood,
     useSocialTag: boolean,
+    mode: 'reply' | 'quoteTweet' = 'reply',
   ): Promise<string> {
     if (!this.llmConfig.enabled || !process.env.ANTHROPIC_API_KEY) return ''
 
@@ -590,7 +591,9 @@ Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
     try {
       // Everything in user message — examples + tweet together.
       // System prompt kept empty so Claude pattern-matches examples instead of following rules.
-      const tweetLine = `Now reply to this tweet exactly like the examples above:\n"${tweet.text}"\n\nReply only. Nothing else.`
+      const tweetLine = mode === 'quoteTweet'
+        ? `Now write your quote tweet comment on this exactly like the examples above:\n"${tweet.text}"\n\nComment only. Nothing else.`
+        : `Now reply to this tweet exactly like the examples above:\n"${tweet.text}"\n\nReply only. Nothing else.`
       const fullUserPrompt = this.isOwnerMode
         ? `${systemPrompt}${ragBlock}\n\n${tweetLine}`
         : tweetLine

@@ -204,6 +204,7 @@ export class AutonomousActivity {
         { text: pick.text, authorHandle: pick.authorHandle },
         mood,
         false,
+        'quoteTweet',
       )
       if (!comment) return
 
