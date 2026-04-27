@@ -622,7 +622,18 @@ export class XTools {
             mood: 'chill' as any,
             traits: { aggression: 0.3, warmth: 0.6, humor: 0.7, formality: 0.1, verbosity: 0.4 } as any,
           })
-          await this.xAdapter.postAutonomousReply(tweet.tweetId, replyText)
+          // Retry once on failure — X sometimes rejects the first attempt
+          let posted = false
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await this.xAdapter.postAutonomousReply(tweet.tweetId, replyText)
+              posted = true
+              break
+            } catch {
+              if (attempt === 0) await new Promise(r => setTimeout(r, 4000))
+            }
+          }
+          if (!posted) { log.push(`✗ @${tweet.authorHandle}: reply failed after retry`); continue }
         }
         if (action === 'quote' || action === 'both') {
           qtText = await this.generateQTComment(tweet.text)
@@ -630,10 +641,10 @@ export class XTools {
         }
 
         const shown = replyText || qtText
-        log.push(`✓ @${tweet.authorHandle} (${tweet.likeCount.toLocaleString()} likes): "${shown}"`)
+        log.push(`✓ @${tweet.authorHandle}: "${shown.slice(0, 80)}"`)
         await new Promise(r => setTimeout(r, 3000))
-      } catch (err) {
-        log.push(`✗ @${tweet.authorHandle}: failed`)
+      } catch (err: any) {
+        log.push(`✗ @${tweet.authorHandle}: ${String(err?.message ?? err).slice(0, 60)}`)
       }
     }
 

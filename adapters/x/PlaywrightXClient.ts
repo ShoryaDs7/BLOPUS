@@ -548,20 +548,26 @@ export class PlaywrightXClient {
     let liked = 0
     try {
       for (const tweetId of tweetIds) {
-        await page.goto(`https://x.com/i/web/status/${tweetId}`, { waitUntil: 'domcontentloaded', timeout: 20000 })
-        await page.waitForTimeout(2000)
-        // data-testid="like" = not yet liked, "unlike" = already liked
+        await page.goto(`https://x.com/i/web/status/${tweetId}`, { waitUntil: 'domcontentloaded', timeout: 25000 })
+        // Wait for tweet to fully render — like/unlike buttons only appear after hydration
+        await page.waitForSelector('[data-testid="like"],[data-testid="unlike"]', { timeout: 12000 }).catch(() => {})
+        await page.waitForTimeout(500)
+
+        // data-testid="unlike" = already liked
         const alreadyLiked = page.locator('[data-testid="unlike"]').first()
-        if (await alreadyLiked.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (await alreadyLiked.isVisible({ timeout: 1000 }).catch(() => false)) {
           console.log(`[PlaywrightX] Tweet ${tweetId} already liked — skipping`)
           continue
         }
         const likeBtn = page.locator('[data-testid="like"]').first()
-        if (await likeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await likeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
           await likeBtn.click()
+          await page.waitForTimeout(1500)
           liked++
           console.log(`[PlaywrightX] Liked tweet ${tweetId}`)
-          await page.waitForTimeout(2000 + Math.random() * 1000)
+          await page.waitForTimeout(1500 + Math.random() * 1000)
+        } else {
+          console.log(`[PlaywrightX] Like button not found for ${tweetId} — tweet may be restricted`)
         }
       }
     } finally {
