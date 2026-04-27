@@ -86,19 +86,42 @@ function loadCreatorConfig(): any {
  * Compact instruction header injected on every resumed session message.
  * Keeps critical rules in context without replacing full system prompt.
  */
-function loadPostTopics(): string[] {
+interface OwnerDomains {
+  postTopics: string[]
+  replyTopics: string[]
+  likeTopics: string[]
+  retweetTopics: string[]
+  qtTopics: string[]
+}
+
+function loadOwnerDomains(): OwnerDomains {
   try {
-    const cfg = loadCreatorConfig()
     const configPath = process.env.BLOPUS_CONFIG_PATH
       ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
       : path.resolve('./config/blopus.config.json')
     const ppPath = path.join(path.dirname(configPath), 'personality_profile.json')
     const pp = JSON.parse(fs.readFileSync(ppPath, 'utf-8'))
     const opp = pp?.voiceProfile?.originalPostProfile
-    return opp?.topics ?? pp?.postTopics ?? pp?.dominantTopics ?? []
+    return {
+      postTopics:    opp?.topics ?? pp?.postTopics ?? pp?.dominantTopics ?? [],
+      replyTopics:   pp?.replyTopics ?? pp?.voiceProfile?.replyTopics ?? pp?.dominantTopics ?? [],
+      likeTopics:    pp?.likeBehavior?.topics ?? [],
+      retweetTopics: pp?.retweetBehavior?.topics ?? [],
+      qtTopics:      pp?.quoteTweetBehavior?.topics ?? [],
+    }
   } catch {
-    return []
+    return { postTopics: [], replyTopics: [], likeTopics: [], retweetTopics: [], qtTopics: [] }
   }
+}
+
+function buildDomainsBlock(d: OwnerDomains): string {
+  const lines: string[] = []
+  if (d.postTopics.length)    lines.push(`Post topics (use ONLY these when posting): ${d.postTopics.join(' | ')}`)
+  if (d.replyTopics.length)   lines.push(`Reply topics (use ONLY these when replying): ${d.replyTopics.join(' | ')}`)
+  if (d.likeTopics.length)    lines.push(`Like topics (use ONLY these for find_and_like): ${d.likeTopics.join(' | ')}`)
+  if (d.retweetTopics.length) lines.push(`Retweet topics (use ONLY these for find_and_retweet): ${d.retweetTopics.join(' | ')}`)
+  if (d.qtTopics.length)      lines.push(`QT topics (use ONLY these for quote_tweet_from_feed): ${d.qtTopics.join(' | ')}`)
+  return lines.join('\n')
 }
 
 function buildInstructionHeader(): string {
@@ -107,15 +130,13 @@ function buildInstructionHeader(): string {
   const ownerHandle = cfg?.owner?.handle ?? 'the owner'
   const projectDir  = BLOPUS_DIR.replace(/\\/g, '/')
   const skillIndex  = buildSkillIndex()
-  const postTopics  = loadPostTopics()
-  const topicsLine  = postTopics.length
-    ? `Owner's post domains (ONLY pick topics from this list when posting): ${postTopics.join(' | ')}`
-    : ''
+  const domains     = loadOwnerDomains()
+  const domainsBlock = buildDomainsBlock(domains)
 
   return `[INSTRUCTIONS — always follow these]
 Past conversations: [PAST CONVERSATIONS] and [TODAY] sections above contain the real history. Answer questions about past work FROM THOSE SECTIONS FIRST — do not run git log or find commands to reconstruct what you already know.
 X actions: use mcp__xtools__ tools. reply_to_tweet(tweet_url, text), post_tweet(topic), quote_tweet(tweet_url, text), search_trending_and_reply(category). Browser MCP ok for profiles/timelines, not for tweet URLs you're replying to.
-${topicsLine}
+${domainsBlock}
 Scheduling: any recurring request → CronCreate immediately, no confirmation needed. Natural language → cron expression. CronList = show tasks. CronDelete = remove.
 Browser: non-X sites only. navigate→screenshot→snapshot→click→repeat.
 Memory: @handle → Read ${projectDir}/creators/memory-store/persons/<handle>.json directly. Never glob first.
@@ -134,15 +155,15 @@ function buildSystemPrompt(): string {
   const skillIndex  = buildSkillIndex()
   const scriptIndex = buildScriptIndex()
 
-  const postTopics  = loadPostTopics()
-  const topicsLine  = postTopics.length
-    ? `\n# Owner's post domains\nONLY pick topics from this list when posting — never invent topics from conversation history:\n${postTopics.map(t => `- ${t}`).join('\n')}`
-    : ''
+  const domains      = loadOwnerDomains()
+  const domainsBlock = buildDomainsBlock(domains)
 
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
 Owner: ${ownerName} (@${ownerHandle}). Bot account: @${botHandle}. Project: ${projectDir}
-${topicsLine}
+
+# Owner domains — always use these, never invent from conversation history
+${domainsBlock}
 
 # X / Twitter actions — use mcp__xtools__ tools directly
 You have these X tools available. Use them immediately when asked — no JSON, no Bash, no x-cli:
