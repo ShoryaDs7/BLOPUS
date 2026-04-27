@@ -206,6 +206,29 @@ export class PlaywrightXClient {
     }
   }
 
+  // Browse the home timeline — uses this client's own profile (no conflict with autonomous session)
+  async getHomeTweets(count: number = 20): Promise<{ tweetId: string; text: string; authorHandle: string }[]> {
+    const context = await this.getContext()
+    const page = await context.newPage()
+    try {
+      await page.goto('https://x.com/home', { waitUntil: 'domcontentloaded', timeout: 25000 })
+      await page.waitForTimeout(3000)
+      await page.waitForSelector('article[data-testid="tweet"]', { timeout: 10000 }).catch(() => {})
+      for (let i = 0; i < 3; i++) {
+        await page.mouse.wheel(0, 2000)
+        await page.waitForTimeout(700)
+      }
+      const tweets = await this.scrapeTweetArticles(page, 'home timeline')
+      console.log(`[PlaywrightX] Home timeline: found ${tweets.length} tweets`)
+      return tweets.slice(0, count)
+    } catch (err) {
+      console.warn(`[PlaywrightX] Home timeline failed:`, err)
+      return []
+    } finally {
+      await page.close()
+    }
+  }
+
   // Get trending tweets by category.
   // Strategy: explore/tabs/trending shows topic cards not tweet articles.
   // Real fix: search top tweets for category-specific high-signal queries.

@@ -13,7 +13,6 @@ import { XAdapter } from '../x/XAdapter'
 import { PlaywrightXClient } from '../x/PlaywrightXClient'
 import { LLMReplyEngine } from '../../core/personality/LLMReplyEngine'
 import { PersonalityProfile } from '../../core/personality/LLMReplyEngine'
-import { PlaywrightHomeTimelineProvider } from '../x/PlaywrightHomeTimelineProvider'
 import { PlaywrightDomainSearchProvider } from '../x/PlaywrightDomainSearchProvider'
 import { ExampleRetriever } from '../../core/rag/ExampleRetriever'
 import { BrowserAgent } from './BrowserAgent'
@@ -574,10 +573,8 @@ export class XTools {
       action = action.startsWith('quot') ? 'quote' : action.startsWith('both') ? 'both' : 'reply'
     }
     const cap = Math.min(count, 10)
-    const homeTimeline = new PlaywrightHomeTimelineProvider()
-    if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
 
-    let candidates = await homeTimeline.getViralFromHome(minViews, maxAgeHours * 60)
+    let candidates = await this.playwrightClient.getHomeTweets(50)
 
     // Filter by topic if specified
     if (topic) {
@@ -646,9 +643,7 @@ export class XTools {
   private async searchTrendingAndReply(category: string, count: number, angle: string): Promise<string> {
     const cap = Math.min(count, 10)
 
-    // Use home timeline (same as autonomous viral hunter) — filters by likes, returns real viral tweets
-    const homeTimeline = new PlaywrightHomeTimelineProvider()
-    let candidates = await homeTimeline.getViralFromHome(1000, 1440) // 1000+ likes, last 24h
+    let candidates = await this.playwrightClient.getHomeTweets(30)
 
     // Filter by category keyword if possible
     const cat = category.toLowerCase()
@@ -656,11 +651,11 @@ export class XTools {
     if (topicMatch.length > 0) candidates = topicMatch
 
     if (!candidates.length) {
-      // Fallback: lower the bar and try without topic filter
-      candidates = await homeTimeline.getViralFromHome(500, 1440)
+      const searched = await this.playwrightClient.searchTweets(category, cap * 3)
+      candidates = searched
     }
 
-    if (!candidates.length) return `no viral tweets found in home feed for "${category}" right now`
+    if (!candidates.length) return `no tweets found for "${category}" right now`
 
     // Sort by likes, take top ones
     candidates.sort((a, b) => b.likeCount - a.likeCount)
@@ -861,39 +856,18 @@ Comment only. Nothing else.`
   }
 
   private async quoteTweetFromFeed(topicHint: string): Promise<string> {
-    // Browse home timeline for viral tweets
-    const homeTimeline = new PlaywrightHomeTimelineProvider()
-    if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
+    let candidates = await this.playwrightClient.getHomeTweets(30)
 
-    let candidates = await homeTimeline.getViralFromHome(200, 1440)
-
-    // Fallback: home feed empty → search by topic hint or a profile topic
+    // Fallback: home feed empty → search by topic hint or profile topic
     if (!candidates.length) {
-      console.log('[XTools:quote_tweet_from_feed] Home feed empty — falling back to X search')
       const pp = this.profile as any
-      const searchTerm = topicHint
-        || (pp?.quoteTweetBehavior?.topics?.[0])
-        || (pp?.dominantTopics?.[0])
-        || 'India'
+      const searchTerm = topicHint || (pp?.dominantTopics?.[0]) || 'India'
       const keyword = searchTerm.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find((w: string) => w.length >= 4) ?? searchTerm.split(' ')[0]
-      const searched = await this.playwrightClient.searchTweets(keyword, 20)
-      candidates = searched.map(t => ({
-        tweetId: t.tweetId, text: t.text, authorHandle: t.authorHandle,
-        likeCount: 0, ageMinutes: 0, mediaUrls: [], viewCount: 0, viewsPerMinute: 0,
-      } as any))
-
-      // Final fallback: Tavily web search for tweet URLs
-      if (!candidates.length) {
-        console.log('[XTools:quote_tweet_from_feed] X search empty — trying Tavily')
-        const ids = await new TavilyClient().searchTweetIds(keyword, 10)
-        candidates = ids.map(id => ({
-          tweetId: id, text: '', authorHandle: '', likeCount: 0,
-          ageMinutes: 0, mediaUrls: [], viewCount: 0, viewsPerMinute: 0,
-        } as any))
-      }
+      console.log(`[XTools:quote_tweet_from_feed] Home empty — searching: ${keyword}`)
+      candidates = await this.playwrightClient.searchTweets(keyword, 20)
     }
 
-    if (!candidates.length) return 'no tweets found in feed, search, or web — try again in a few minutes'
+    if (!candidates.length) return 'no tweets found — try again in a few minutes'
 
     // Filter by topic hint if given
     let pool = candidates.filter((c: any) => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
@@ -940,14 +914,11 @@ Comment only. Nothing else.`
     const searched = await this.playwrightClient.searchTweets(keyword, cap * 5)
     tweetIds = searched.map(r => r.tweetId)
 
-    // Level 2: home timeline (always loaded, proven to work)
+    // Level 2: home timeline via same authenticated client (no profile conflict)
     if (!tweetIds.length) {
       console.log(`[XTools:find_and_like] X search empty — trying home timeline`)
-      const homeTimeline = new PlaywrightHomeTimelineProvider()
-      if (homeTimeline.enabled) {
-        const homeTweets = await homeTimeline.getViralFromHome(10, 1440)
-        tweetIds = homeTweets.map(t => t.tweetId)
-      }
+      const homeTweets = await this.playwrightClient.getHomeTweets(20)
+      tweetIds = homeTweets.map(t => t.tweetId)
     }
 
     // Level 3: Tavily web search (if API key configured)
@@ -998,11 +969,8 @@ Comment only. Nothing else.`
 
     if (!tweetIds.length) {
       console.log(`[XTools:find_and_retweet] X search empty — trying home timeline`)
-      const homeTimeline = new PlaywrightHomeTimelineProvider()
-      if (homeTimeline.enabled) {
-        const homeTweets = await homeTimeline.getViralFromHome(10, 1440)
-        tweetIds = homeTweets.map(t => t.tweetId)
-      }
+      const homeTweets = await this.playwrightClient.getHomeTweets(20)
+      tweetIds = homeTweets.map(t => t.tweetId)
     }
 
     if (!tweetIds.length) {
