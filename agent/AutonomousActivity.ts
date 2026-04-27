@@ -13,6 +13,7 @@ import { OwnerPostIndex } from '../core/memory/OwnerPostIndex'
 
 export class AutonomousActivity {
   private tavily = new TavilyClient()
+  private recentTopicsQueue: string[] = []
 
   constructor(
     private memory: MemoryEngine,
@@ -96,16 +97,28 @@ export class AutonomousActivity {
       const xCtx = this.gatherContext(mood, currentEvents, this.xAccountKey)
 
       // Weighted topic selection — pick topic based on engagementShare from setup
+      // Cooldown: never repeat a topic until all others have been used (N = topic count)
       if (!override?.topics?.length) {
         const tp = this.personalityProfile?.topicProfiles
         if (tp && Object.keys(tp).length) {
           const entries = Object.entries(tp) as [string, { engagementShare: number }][]
-          const total = entries.reduce((s, [, v]) => s + (v.engagementShare ?? 0), 0)
+          const cooldown = entries.length - 1
+          const available = entries.filter(([t]) => !this.recentTopicsQueue.includes(t))
+          const pool = available.length ? available : entries
+          const total = pool.reduce((s, [, v]) => s + (v.engagementShare ?? 0), 0)
           let rand = Math.random() * (total || 1)
-          const picked = entries.find(([, v]) => { rand -= v.engagementShare ?? 0; return rand <= 0 })?.[0] ?? entries[0][0]
+          const picked = pool.find(([, v]) => { rand -= v.engagementShare ?? 0; return rand <= 0 })?.[0] ?? pool[0][0]
           xCtx.recentTopics = [picked]
+          this.recentTopicsQueue.push(picked)
+          if (this.recentTopicsQueue.length > cooldown) this.recentTopicsQueue.shift()
         } else if (postTopics?.length) {
-          xCtx.recentTopics = [postTopics[Math.floor(Math.random() * postTopics.length)]]
+          const cooldown = postTopics.length - 1
+          const available = postTopics.filter(t => !this.recentTopicsQueue.includes(t))
+          const pool = available.length ? available : postTopics
+          const picked = pool[Math.floor(Math.random() * pool.length)]
+          xCtx.recentTopics = [picked]
+          this.recentTopicsQueue.push(picked)
+          if (this.recentTopicsQueue.length > cooldown) this.recentTopicsQueue.shift()
         }
       }
 
