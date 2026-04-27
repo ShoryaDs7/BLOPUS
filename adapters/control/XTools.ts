@@ -588,24 +588,28 @@ export class XTools {
 
     for (const tweet of targets) {
       try {
-        const replyText = await this.llmEngine.generateReply({
-          mentionText: tweet.text,
-          authorHandle: tweet.authorHandle,
-          authorId: '',
-          mentionType: 'viral_reply' as any,
-          previousInteractions: 0,
-          mood: 'chill' as any,
-          traits: { aggression: 0.3, warmth: 0.6, humor: 0.7, formality: 0.1, verbosity: 0.4 } as any,
-        })
+        let replyText = ''
+        let qtText = ''
 
         if (action === 'reply' || action === 'both') {
+          replyText = await this.llmEngine.generateReply({
+            mentionText: tweet.text,
+            authorHandle: tweet.authorHandle,
+            authorId: '',
+            mentionType: 'viral_reply' as any,
+            previousInteractions: 0,
+            mood: 'chill' as any,
+            traits: { aggression: 0.3, warmth: 0.6, humor: 0.7, formality: 0.1, verbosity: 0.4 } as any,
+          })
           await this.xAdapter.postAutonomousReply(tweet.tweetId, replyText)
         }
         if (action === 'quote' || action === 'both') {
-          await this.playwrightClient.quoteTweet(tweet.tweetId, replyText)
+          qtText = await this.generateQTComment(tweet.text)
+          if (qtText) await this.playwrightClient.quoteTweet(tweet.tweetId, qtText)
         }
 
-        log.push(`✓ @${tweet.authorHandle} (${tweet.likeCount.toLocaleString()} likes): "${replyText}"`)
+        const shown = replyText || qtText
+        log.push(`✓ @${tweet.authorHandle} (${tweet.likeCount.toLocaleString()} likes): "${shown}"`)
         await new Promise(r => setTimeout(r, 3000))
       } catch (err) {
         log.push(`✗ @${tweet.authorHandle}: failed`)
@@ -782,34 +786,13 @@ export class XTools {
     return `quote tweeted ${tweetUrl} with: "${text}"`
   }
 
-  private async quoteTweetFromFeed(topicHint: string): Promise<string> {
-    // Browse home timeline for viral tweets
-    const homeTimeline = new PlaywrightHomeTimelineProvider()
-    if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
-
-    const candidates = await homeTimeline.getViralFromHome(200, 1440)
-    if (!candidates.length) return 'no viral tweets found in home feed right now'
-
-    // Filter by topic hint if given
-    let pool = candidates.filter(c => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
-    if (topicHint) {
-      const hint = topicHint.toLowerCase()
-      const topicMatch = pool.filter(c => c.text.toLowerCase().includes(hint))
-      if (topicMatch.length > 0) pool = topicMatch
-    }
-
-    // Pick the most liked from top 5
-    pool.sort((a, b) => b.likeCount - a.likeCount)
-    const pick = pool[0]
-    if (!pick) return 'no suitable tweets found'
-
-    // Load personality_profile.json → originalPostProfile — same as smart-post.ts
+  private async generateQTComment(tweetText: string): Promise<string> {
     const creatorDir = path.dirname(path.resolve(this.configPath))
     const ppPath = path.join(creatorDir, 'personality_profile.json')
-    if (!fs.existsSync(ppPath)) return 'personality_profile.json not found — run npm run setup'
+    if (!fs.existsSync(ppPath)) return ''
     const pp = JSON.parse(fs.readFileSync(ppPath, 'utf8'))
     const opp = pp?.voiceProfile?.originalPostProfile
-    if (!opp?.goldenExamples?.length) return 'no post voice profile found — run npm run setup'
+    if (!opp?.goldenExamples?.length) return ''
 
     const goldenExamples: string[] = opp.goldenExamples ?? []
     const topicExamples: { scenario: string; post: string }[] = opp.topicExamples ?? []
@@ -836,7 +819,7 @@ How you write posts: ${synthesized}
 Rules: ${caseStyle || 'sentence case'}. ${postLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
 
 Now write your quote tweet comment on this exactly like the examples above:
-"${pick.text}"
+"${tweetText}"
 
 Comment only. Nothing else.`
 
@@ -849,7 +832,32 @@ Comment only. Nothing else.`
     let comment = resp.content[0]?.type === 'text' ? resp.content[0].text.trim() : ''
     comment = comment.replace(/^["']|["']$/g, '').replace(/—/g, ' ').trim()
     if (comment.length > 280) comment = comment.slice(0, 280).replace(/\s\S*$/, '')
-    if (!comment) return 'failed to generate comment'
+    return comment
+  }
+
+  private async quoteTweetFromFeed(topicHint: string): Promise<string> {
+    // Browse home timeline for viral tweets
+    const homeTimeline = new PlaywrightHomeTimelineProvider()
+    if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
+
+    const candidates = await homeTimeline.getViralFromHome(200, 1440)
+    if (!candidates.length) return 'no viral tweets found in home feed right now'
+
+    // Filter by topic hint if given
+    let pool = candidates.filter(c => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
+    if (topicHint) {
+      const hint = topicHint.toLowerCase()
+      const topicMatch = pool.filter(c => c.text.toLowerCase().includes(hint))
+      if (topicMatch.length > 0) pool = topicMatch
+    }
+
+    // Pick the most liked from top 5
+    pool.sort((a, b) => b.likeCount - a.likeCount)
+    const pick = pool[0]
+    if (!pick) return 'no suitable tweets found'
+
+    const comment = await this.generateQTComment(pick.text)
+    if (!comment) return 'failed to generate comment — personality_profile.json may be missing or incomplete'
 
     await this.playwrightClient.quoteTweet(pick.tweetId, comment)
     return `quote tweeted @${pick.authorHandle} (${pick.likeCount} likes):\ntheir tweet: "${pick.text.slice(0, 80)}"\nyour comment: "${comment}"`
