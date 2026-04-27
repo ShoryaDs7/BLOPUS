@@ -828,35 +828,13 @@ export class XTools {
     const pick = pool[0]
     if (!pick) return 'no suitable tweets found'
 
-    // Generate comment in owner's voice using full voice profile
-    const client = new Anthropic()
-    const pp = this.profile
-    const ws = pp?.writingStats ?? {}
-    const vp = (pp as any)?.voiceProfile
-    const golden: string[] = vp?.goldenExamples?.slice(0, 4) ?? []
-    const synthesized: string = vp?.synthesized ?? ''
-    const bannedPhrases: string[] = vp?.bannedPhrases ?? []
-
-    const system = [
-      `You are @${process.env.OWNER_HANDLE ?? 'owner'} writing a quote tweet comment. Real human, NOT a bot.`,
-      synthesized ? `Your exact writing style (match this precisely): ${synthesized}` : (pp?.writingStyle ? `Your writing style: ${pp.writingStyle}` : ''),
-      ws.caseStyle ? `Case style: ${ws.caseStyle}` : '',
-      ws.emojiUsage ? `Emoji usage: ${ws.emojiUsage}` : '',
-      golden.length ? `Your real posts (match this voice exactly — do NOT copy word for word):\n${golden.map((e, i) => `${i + 1}. "${e}"`).join('\n')}` : '',
-      bannedPhrases.length ? `NEVER say: ${bannedPhrases.join(', ')}` : '',
-      pp?.avoids?.length ? `You avoid: ${pp.avoids.join(', ')}` : '',
-      `Write ONE sharp, opinionated comment on this tweet. Under 200 chars. No hashtags. Sound like you, not a generic take.`,
-    ].filter(Boolean).join('\n')
-
-    const resp = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 100,
-      temperature: 1.0,
-      system,
-      messages: [{ role: 'user', content: `Tweet by @${pick.authorHandle}: "${pick.text}"\n\nYour QT comment:` }],
-    })
-    let comment = resp.content[0].type === 'text' ? resp.content[0].text.trim() : ''
-    if (comment.length > 280) comment = comment.slice(0, 280).replace(/\s\S*$/, '')
+    // Generate comment using the same voice path as replies — identical injection, just different final instruction
+    const comment = await this.llmEngine.generateViralReply(
+      { text: pick.text, authorHandle: pick.authorHandle },
+      'chill' as any,
+      false,
+      'quoteTweet',
+    )
     if (!comment) return 'failed to generate comment'
 
     await this.playwrightClient.quoteTweet(pick.tweetId, comment)
