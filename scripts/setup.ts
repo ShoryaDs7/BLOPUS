@@ -1967,13 +1967,15 @@ async function main() {
 
   2 · Bot mode     — Blopus runs its OWN separate X bot account
                      Has its own handle and personality.
+                     (coming soon — not available yet)
 `)
 
   const existingMode = process.env.BLOPUS_MODE?.trim()
   let modeRaw = existingMode === 'owner' ? '1' : existingMode === 'bot' ? '2' : ''
   if (modeRaw) { console.log(`  ✓ Mode: found in .env (${existingMode})\n`) }
-  while (!['1','2'].includes(modeRaw)) {
-    modeRaw = await ask('  Enter 1 or 2: ')
+  while (!['1'].includes(modeRaw)) {
+    modeRaw = await ask('  Enter 1: ')
+    if (modeRaw === '2') console.log('\n  Bot mode is coming soon — only Owner mode is available right now.\n')
   }
   const mode = modeRaw === '1' ? 'owner' : 'bot'
   console.log(`  ✓ Mode: ${mode}`)
@@ -2803,7 +2805,11 @@ async function main() {
 
   let replyMode: string
   if ((personalityProfile as any)?._replyMode) {
+    // Growth mode already set this during reply targeting section
     replyMode = (personalityProfile as any)._replyMode
+  } else if (replyStrategy === 'engagement' || replyStrategy === 'none') {
+    // Engagement/none mode doesn't hunt tweets — domain/viral question is irrelevant
+    replyMode = 'domain'
   } else {
     const replyModeStepN = mode === 'bot' ? 8 : 9
     section(replyModeStepN, 'How should Blopus find tweets to reply to?')

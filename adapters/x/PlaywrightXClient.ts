@@ -32,8 +32,8 @@ export class PlaywrightXClient {
       const url = `https://x.com/i/web/status/${tweetId}`
       console.log(`[PlaywrightX] Navigating to tweet ${tweetId}`)
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      // Wait for React to hydrate after initial load
-      await page.waitForTimeout(6000)
+      // Wait for React to hydrate — randomized so it doesn't look like a fixed-interval bot
+      await page.waitForTimeout(4000 + Math.random() * 3000)
       // Extra wait if page still loading
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
@@ -509,7 +509,8 @@ export class PlaywrightXClient {
     try {
       const h = handle.replace(/^@/, '')
       await page.goto(`https://x.com/${h}`, { waitUntil: 'domcontentloaded', timeout: 20000 })
-      await page.waitForTimeout(3000)
+      // Simulate reading the profile before acting — human doesn't click follow instantly
+      await page.waitForTimeout(5000 + Math.random() * 5000)
 
       // Already following — aria-label contains "Following"
       const alreadyFollowing = page.locator('[aria-label*="Following"]').first()
@@ -517,6 +518,10 @@ export class PlaywrightXClient {
         console.log(`[PlaywrightX] Already following @${h}`)
         return 'already_following'
       }
+
+      // Scroll down a bit — simulate reading before following
+      await page.mouse.wheel(0, 300 + Math.random() * 300)
+      await page.waitForTimeout(1500 + Math.random() * 1500)
 
       // Try multiple selectors for follow button
       const selectors = [
@@ -528,7 +533,7 @@ export class PlaywrightXClient {
         const btn = page.locator(sel).first()
         if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
           await btn.click()
-          await page.waitForTimeout(1500)
+          await page.waitForTimeout(1500 + Math.random() * 1500)
           console.log(`[PlaywrightX] Followed @${h}`)
           return 'followed'
         }
@@ -757,8 +762,10 @@ export class PlaywrightXClient {
         return false
       }
 
-      await msgBox.fill(text)
-      await page.waitForTimeout(500)
+      await msgBox.click()
+      await page.waitForTimeout(300 + Math.random() * 400)
+      await page.keyboard.type(text, { delay: 40 + Math.random() * 40 })
+      await page.waitForTimeout(500 + Math.random() * 500)
 
       // Send
       const sendBtn = page.locator('[data-testid="dmComposerSendButton"]').first()

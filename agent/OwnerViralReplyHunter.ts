@@ -130,6 +130,11 @@ export class OwnerViralReplyHunter {
         domainMinLikes = cfg.domainMinLikes
         domainSearchKeywords = cfg.domainSearchKeywords
         if (cfg.maxAgeTweetMinutes) rc.maxAgeTweetMinutes = cfg.maxAgeTweetMinutes
+        // Use lowest domain threshold as global base — so home feed scan catches tweets that qualify for any domain
+        if (domainMinLikes) {
+          const vals = Object.values(domainMinLikes).filter((v): v is number => typeof v === 'number')
+          if (vals.length) rc.minLikes = Math.min(...vals)
+        }
       } catch {}
 
       this.lastRunAt = Date.now()

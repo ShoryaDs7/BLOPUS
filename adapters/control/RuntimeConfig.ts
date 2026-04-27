@@ -15,7 +15,7 @@ export interface RuntimeConfig {
 const DEFAULTS: Required<Omit<RuntimeConfig, 'updatedAt'>> = {
   maxRepliesPerDay: 10,
   cooldownMinutes: 3,
-  minLikes: 500,
+  minLikes: 200,
   maxAgeTweetMinutes: 120,
   consecutiveTopicLimit: 2,
   maxAutonomousPostsPerDay: 50,

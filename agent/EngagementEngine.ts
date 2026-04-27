@@ -12,6 +12,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import fs from 'fs'
+import path from 'path'
 import { XAdapter } from '../adapters/x/XAdapter'
 import { PlaywrightDomainSearchProvider } from '../adapters/x/PlaywrightDomainSearchProvider'
 import { MemoryEngine } from '../core/memory/MemoryEngine'
@@ -64,11 +66,25 @@ export class EngagementEngine {
     }
   }
 
+  // Read the user's configured minLikes from config.json (set during npm run setup)
+  // Falls back to 200 if not configured — never uses the old hardcoded 50
+  private getConfiguredMinLikes(): number {
+    try {
+      const configPath = process.env.BLOPUS_CONFIG_PATH ?? ''
+      if (!configPath) return 200
+      const cfg = JSON.parse(fs.readFileSync(path.resolve(configPath), 'utf-8'))
+      const domainMinLikes: Record<string, number> = cfg.domainMinLikes ?? {}
+      const vals = Object.values(domainMinLikes).filter((v): v is number => typeof v === 'number')
+      return vals.length ? Math.min(...vals) : 200
+    } catch { return 200 }
+  }
+
   // ── Fallback search when home timeline has no matching candidates ─
   private async searchFallback(action: string, behavior: EngagementBehavior): Promise<Candidate[]> {
     if (!this.domainSearch.enabled || !behavior.topics.length) return []
+    const minLikes = this.getConfiguredMinLikes()
     console.log(`[Engagement:${action}] No home candidates — searching by topics: ${behavior.topics.slice(0, 3).join(', ')}...`)
-    const results = await this.domainSearch.searchViralByTopics(behavior.topics, 50, 1440, undefined, this.topicKeywords ?? undefined)
+    const results = await this.domainSearch.searchViralByTopics(behavior.topics, minLikes, 1440, undefined, this.topicKeywords ?? undefined)
     console.log(`[Engagement:${action}] Search returned ${results.length} candidates`)
     return results.map(r => ({ id: r.tweetId, text: r.text, authorHandle: r.authorHandle, likeCount: r.likeCount }))
   }

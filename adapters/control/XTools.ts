@@ -293,7 +293,7 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   },
   {
     name: 'follow_user',
-    description: 'Follow an X user by handle. Use when asked to "follow @someone", "follow this person".',
+    description: 'Follow an X user by handle. HIGH RISK — X locks accounts for rapid follows. Only use when user explicitly asks to follow someone. Max 1 follow per 10 minutes enforced automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -334,6 +334,7 @@ export class XTools {
   private configPath: string
   private llmEngine: LLMReplyEngine
   private mcpDm?: MCPBrowserDM
+  private lastFollowAt = 0  // timestamp of last follow — enforce min gap
 
 
   constructor(options: XToolsOptions) {
@@ -483,9 +484,17 @@ export class XTools {
 
         case 'follow_user': {
           const handle = (input.handle as string).replace(/^@/, '')
+          // Rate limit: minimum 10 minutes between follows — X flags rapid programmatic follows
+          const minGapMs = 10 * 60 * 1000
+          const msSinceLast = Date.now() - this.lastFollowAt
+          if (this.lastFollowAt > 0 && msSinceLast < minGapMs) {
+            const waitMins = Math.ceil((minGapMs - msSinceLast) / 60000)
+            return `⚠️ follow rate limit — wait ${waitMins} more minute${waitMins > 1 ? 's' : ''} before following again (X flags rapid follows and locks accounts)`
+          }
           const result = await this.xAdapter.followUser(handle)
           if (result === 'already_following') return `already following @${handle}`
           if (result === 'not_found') return `couldn't find @${handle} — check the handle`
+          this.lastFollowAt = Date.now()
           return `followed @${handle}`
         }
 
@@ -538,7 +547,7 @@ export class XTools {
         })
         await this.xAdapter.postAutonomousReply(tweet.tweetId, replyText)
         log.push(`@${tweet.authorHandle}: "${tweet.text.slice(0, 80)}" → your reply: "${replyText}"`)
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise(r => setTimeout(r, 3000 + Math.random() * 4000))
       } catch (err) {
         console.warn(`[XTools] Reply failed for ${tweet.tweetId}:`, err)
       }
@@ -603,7 +612,7 @@ export class XTools {
 
     if (!candidates.length) return `no viral tweets found${topic ? ` on "${topic}"` : ''} with ${(minViews / 1000).toFixed(0)}k+ views in last ${maxAgeHours}h`
 
-    candidates.sort((a, b) => b.likeCount - a.likeCount)
+    candidates.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
     const targets = candidates.slice(0, cap)
     const log: string[] = []
 
@@ -642,7 +651,7 @@ export class XTools {
 
         const shown = replyText || qtText
         log.push(`✓ @${tweet.authorHandle}: "${shown.slice(0, 80)}"`)
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise(r => setTimeout(r, 3000 + Math.random() * 4000))
       } catch (err: any) {
         log.push(`✗ @${tweet.authorHandle}: ${String(err?.message ?? err).slice(0, 60)}`)
       }
@@ -669,7 +678,7 @@ export class XTools {
     if (!candidates.length) return `no tweets found for "${category}" right now`
 
     // Sort by likes, take top ones
-    candidates.sort((a, b) => b.likeCount - a.likeCount)
+    candidates.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
     const targets = candidates.slice(0, cap)
     const log: string[] = []
 
@@ -686,7 +695,7 @@ export class XTools {
         })
         await this.xAdapter.postAutonomousReply(tweet.tweetId, replyText)
         log.push(`@${tweet.authorHandle} (${tweet.likeCount.toLocaleString()} likes): "${tweet.text.slice(0, 80)}" → your reply: "${replyText}"`)
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise(r => setTimeout(r, 3000 + Math.random() * 4000))
       } catch (err) {
         console.warn(`[XTools] Reply failed for ${tweet.tweetId}:`, err)
       }
@@ -709,7 +718,39 @@ export class XTools {
   }
 
   private getStatus(): string {
-    return `status: X tools ready. use search_and_reply, post_tweet, or search_trending_and_reply to act.`
+    try {
+      const memPath = path.join(path.dirname(this.configPath), 'memory.json')
+      if (!fs.existsSync(memPath)) return 'OsBot status: running — no memory.json yet (no activity logged)'
+      const mem = JSON.parse(fs.readFileSync(memPath, 'utf8'))
+      const today = new Date().toISOString().slice(0, 10)
+      const events: any[] = mem.events ?? []
+      const todayEvents = events.filter((e: any) => (e.timestamp ?? '').startsWith(today))
+      const repliedIds: string[] = mem.repliedTweetIds ?? []
+      const recentEvents = todayEvents.slice(-5).reverse()
+      const lines: string[] = [
+        `OsBot status — ${today}`,
+        `Total replies sent today: ${todayEvents.filter((e:any) => e.type === 'reply').length}`,
+        `Total replies ever: ${repliedIds.length}`,
+        `Autonomous posts today: ${todayEvents.filter((e:any) => e.type === 'post').length}`,
+      ]
+      if (recentEvents.length) {
+        lines.push(`\nLast ${recentEvents.length} actions today:`)
+        for (const e of recentEvents) {
+          const time = (e.timestamp ?? '').slice(11, 16)
+          lines.push(`  ${time} — ${e.type ?? 'action'}: ${String(e.summary ?? e.text ?? '').slice(0, 80)}`)
+        }
+      }
+      // Also show focus override if active
+      const focusFile = path.join(path.dirname(this.configPath), 'focus_override.json')
+      if (fs.existsSync(focusFile)) {
+        const fo = JSON.parse(fs.readFileSync(focusFile, 'utf8'))
+        if (fo.paused) lines.push(`\n⏸ Autonomous posting PAUSED${fo.pausedUntil ? ` until ${fo.pausedUntil.slice(0,16)}` : ' (indefinitely)'}`)
+        if (fo.topics?.length) lines.push(`Focus topics: ${fo.topics.join(', ')}`)
+      }
+      return lines.join('\n')
+    } catch {
+      return 'OsBot status: running (could not read memory.json)'
+    }
   }
 
   private async getUserTweets(handle: string, count: number, type: 'tweets' | 'replies' | 'likes' | 'media' = 'tweets'): Promise<string> {
@@ -720,24 +761,35 @@ export class XTools {
       const tabPath = type === 'replies' ? 'with_replies' : type === 'likes' ? 'likes' : type === 'media' ? 'media' : ''
       const url = tabPath ? `https://x.com/${cleanHandle}/${tabPath}` : `https://x.com/${cleanHandle}`
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      await page.waitForTimeout(4000)
 
-      const tweets = await page.evaluate((maxCount: number) => {
+      // Wait for first article — up to 12s
+      await page.waitForSelector('article[data-testid="tweet"]', { timeout: 12000 }).catch(() => {})
+      await page.evaluate('window.scrollBy(0, 500)')
+      await page.waitForTimeout(1500)
+
+      const includeReplies = type === 'replies'
+      const tweets = await page.evaluate(({ maxCount, incReplies }: { maxCount: number; incReplies: boolean }) => {
         const results: { url: string; text: string }[] = []
-        const articles = (document as any).querySelectorAll('article[data-testid="tweet"]')
-        for (const article of Array.from(articles) as any[]) {
+        const articles = document.querySelectorAll('article[data-testid="tweet"]')
+        for (const article of Array.from(articles)) {
           if (results.length >= maxCount) break
+          const isReply = (article.textContent || '').includes('Replying to')
+          if (isReply && !incReplies) continue
           const textEl = article.querySelector('[data-testid="tweetText"]')
-          const text = textEl ? (textEl as any).innerText.trim() : ''
-          const timeEl = article.querySelector('time')
-          const timeLink = timeEl ? timeEl.closest('a') : null
-          const url = timeLink ? `https://x.com${(timeLink as any).getAttribute('href')}` : ''
-          if (url) results.push({ url, text })
+          const text = textEl ? (textEl as HTMLElement).innerText?.trim() || textEl.textContent?.trim() || '' : ''
+          // Use status link — same approach as scrapeTweetArticles
+          let tweetUrl = ''
+          const links = article.querySelectorAll('a[href*="/status/"]')
+          for (const link of Array.from(links)) {
+            const m = (link as HTMLAnchorElement).href.match(/\/status\/(\d+)/)
+            if (m) { tweetUrl = (link as HTMLAnchorElement).href; break }
+          }
+          if (tweetUrl && text) results.push({ url: tweetUrl, text })
         }
         return results
-      }, cap)
+      }, { maxCount: cap, incReplies: includeReplies })
 
-      if (!tweets.length) return `no tweets found for @${cleanHandle}`
+      if (!tweets.length) return `no tweets found for @${cleanHandle} — profile may be private or page didn't load`
 
       return tweets.map((t, i) =>
         `${i + 1}. ${t.url}\n   ${t.text.slice(0, 200)}`
@@ -754,7 +806,9 @@ export class XTools {
     const { page, close } = await this.playwrightClient.createPage()
     try {
       await page.goto(tweetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      await page.waitForTimeout(4000)
+      // Wait for tweet text element — up to 10s, then proceed anyway
+      await page.waitForSelector('[data-testid="tweetText"]', { timeout: 10000 }).catch(() => {})
+      await page.waitForTimeout(500)
 
       // Extract tweet text via DOM
       const tweetText = await page.evaluate(() => {
@@ -889,7 +943,7 @@ Comment only. Nothing else.`
     }
 
     // Pick the most liked from top 5
-    pool.sort((a, b) => b.likeCount - a.likeCount)
+    pool.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
     const pick = pool[0]
     if (!pick) return 'no suitable tweets found'
 
@@ -997,7 +1051,7 @@ Comment only. Nothing else.`
       try {
         await this.xAdapter.retweetTweet(id)
         log.push(id)
-        await new Promise(res => setTimeout(res, 2000))
+        await new Promise(res => setTimeout(res, 3000 + Math.random() * 4000))
       } catch {}
     }
     return log.length
