@@ -1663,7 +1663,7 @@ RULES:
   for (let i = 0; i < prompts.length; i++) {
     console.log(`  [${i + 1}/${prompts.length}] "${prompts[i]}"`)
     const post = await askFn('  Your post > ')
-    if (post && !/^skip$/i.test(post)) {
+    if (post && !/^(skip|na|n\/a|no|-)$/i.test(post.trim())) {
       goldenExamples.push(post)
       topicExamples.push({ scenario: prompts[i], post })
       console.log('  Got it.\n')

@@ -775,11 +775,11 @@ async function boot(): Promise<void> {
               const context = rootText ? `Original post: "${rootText.slice(0, 200)}"\nComment on it: "${text.slice(0, 300)}"` : `Comment: "${text.slice(0, 300)}"`
               const res = await llmEngine['client'].messages.create({
                 model: 'claude-haiku-4-5-20251001', max_tokens: 5,
-                messages: [{ role: 'user', content: `You are deciding whether to reply to a comment. Consider the full context — a comment can express doubt or disagreement without a question mark.\nCondition to reply: "${condition}"\n${context}\nDoes this comment meet the condition? Reply only YES or NO.` }],
+                messages: [{ role: 'user', content: `You are deciding whether to reply to a comment. Be LIBERAL — if there is ANY reasonable interpretation where this comment meets the condition, say YES. Only say NO if the comment clearly and obviously does not meet the condition at all.\nCondition to reply: "${condition}"\n${context}\nDoes this comment meet the condition? Reply only YES or NO.` }],
               })
-              const ans = res.content[0].type === 'text' ? res.content[0].text.trim().toUpperCase() : 'NO'
+              const ans = res.content[0].type === 'text' ? res.content[0].text.trim().toUpperCase() : 'YES'
               return ans.startsWith('YES')
-            } catch { return false }
+            } catch { return true }  // on error, don't block replies
           }
 
           if (rules) {
