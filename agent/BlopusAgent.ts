@@ -710,7 +710,7 @@ async function boot(): Promise<void> {
     await autonomousActivity.maybePost(moodEngine.getCurrentMood())
     // Growth mode only — engagement mode users don't hunt viral tweets
     const replyStrategyMode = (config as any).replyStrategy ?? 'growth'
-    if (replyStrategyMode !== 'engagement') {
+    if (replyStrategyMode === 'growth') {
       await viralReplyHunter.maybeReply(moodEngine.getCurrentMood())
     }
 

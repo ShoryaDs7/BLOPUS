@@ -2626,31 +2626,6 @@ async function main() {
       }
     } // end growth mode domain filter
 
-    // ── Voice vs RAG selection ────────────────────────────────
-    section(11, 'How should Blopus sound like you?')
-    console.log(`
-  1 · Voice mode  — you do a short interview, Blopus learns your exact style
-                    banned phrases, golden examples, posting rules
-                    Recommended for accounts that care about sounding authentic
-
-  2 · RAG mode    — Blopus reads your tweet archive and copies your style automatically
-                    No interview needed — faster setup, slightly less precise
-                    Good if your archive already reflects how you write
-
-  3 · Skip        — skip this entirely, Blopus uses archive as-is
-`)
-    let replyEngineRaw = ''
-    while (!['1', '2', '3'].includes(replyEngineRaw)) {
-      replyEngineRaw = await ask('  Enter 1, 2 or 3: ')
-    }
-    if (replyEngineRaw === '3') {
-      replyEngine = 'rag'
-      console.log('  Skipped — using archive style as-is.\n')
-    } else {
-      replyEngine = replyEngineRaw === '1' ? 'voice' : 'rag'
-      console.log(`  Got it — ${replyEngine} mode\n`)
-    }
-
     let originalPostProfile: any = undefined
 
     const saveProfile = () => {
@@ -2667,28 +2642,57 @@ async function main() {
       }
     }
 
-    if (replyEngine === 'voice') {
-      voiceProfile = await runReplyInterview(personalityProfile, ask, setupClient, replyModel)
-      saveProfile()
-      originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
-      saveProfile()
-    } else if (replyEngineRaw === '2') {
-      // RAG mode — just capture banned phrases + never topics (archive handles the rest)
-      console.log('\n' + '─'.repeat(58))
-      console.log('  QUICK SETTINGS (RAG mode)\n')
-      console.log('  Any words or phrases Blopus should NEVER say?')
-      console.log('  e.g. "lol, bro, ngl, tbh" — or press Enter to skip')
-      const bannedRaw = await ask('  > ')
-      const bannedPhrases = bannedRaw.trim()
-        ? bannedRaw.split(',').map((p: string) => p.trim()).filter(Boolean)
-        : []
-      if (bannedPhrases.length) console.log(`  Got it — never say: ${bannedPhrases.join(', ')}\n`)
-      if (!voiceProfile) voiceProfile = {} as any
-      voiceProfile.bannedPhrases = bannedPhrases
-      if (bannedPhrases.length && personalityProfile) {
-        personalityProfile.avoids = [...(personalityProfile.avoids ?? []), ...bannedPhrases]
+    // ── Voice vs RAG selection — skipped for Neither mode (no replies = no reply voice needed) ──
+    let replyEngineRaw = ''
+    if (replyStrategy !== 'none') {
+      section(11, 'How should Blopus sound like you?')
+      console.log(`
+  1 · Voice mode  — you do a short interview, Blopus learns your exact style
+                    banned phrases, golden examples, posting rules
+                    Recommended for accounts that care about sounding authentic
+
+  2 · RAG mode    — Blopus reads your tweet archive and copies your style automatically
+                    No interview needed — faster setup, slightly less precise
+                    Good if your archive already reflects how you write
+
+  3 · Skip        — skip this entirely, Blopus uses archive as-is
+`)
+      while (!['1', '2', '3'].includes(replyEngineRaw)) {
+        replyEngineRaw = await ask('  Enter 1, 2 or 3: ')
       }
-      console.log('─'.repeat(58))
+      if (replyEngineRaw === '3') {
+        replyEngine = 'rag'
+        console.log('  Skipped — using archive style as-is.\n')
+      } else {
+        replyEngine = replyEngineRaw === '1' ? 'voice' : 'rag'
+        console.log(`  Got it — ${replyEngine} mode\n`)
+      }
+
+      if (replyEngine === 'voice') {
+        voiceProfile = await runReplyInterview(personalityProfile, ask, setupClient, replyModel)
+        saveProfile()
+        originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
+        saveProfile()
+      } else if (replyEngineRaw === '2') {
+        // RAG mode — just capture banned phrases + never topics (archive handles the rest)
+        console.log('\n' + '─'.repeat(58))
+        console.log('  QUICK SETTINGS (RAG mode)\n')
+        console.log('  Any words or phrases Blopus should NEVER say?')
+        console.log('  e.g. "lol, bro, ngl, tbh" — or press Enter to skip')
+        const bannedRaw = await ask('  > ')
+        const bannedPhrases = bannedRaw.trim()
+          ? bannedRaw.split(',').map((p: string) => p.trim()).filter(Boolean)
+          : []
+        if (bannedPhrases.length) console.log(`  Got it — never say: ${bannedPhrases.join(', ')}\n`)
+        if (!voiceProfile) voiceProfile = {} as any
+        voiceProfile.bannedPhrases = bannedPhrases
+        if (bannedPhrases.length && personalityProfile) {
+          personalityProfile.avoids = [...(personalityProfile.avoids ?? []), ...bannedPhrases]
+        }
+        console.log('─'.repeat(58))
+      }
+    } else {
+      console.log('  Neither mode — skipping reply voice setup.\n')
     }
 
     if (replyEngine !== 'voice') {
@@ -2765,12 +2769,14 @@ async function main() {
       saveProfile()
     } else console.log('  Skipped — auto-liking disabled.\n')
 
-    if (!await askSkip('REPLY BACK — who you reply to when people engage with you', ask)) {
-      const replyBackRules = await runReplyBackInterview(ask, setupClient)
-      if (voiceProfile) voiceProfile.replyBackRules = replyBackRules
-      else { if (!personalityProfile?.voiceProfile) (personalityProfile as any).voiceProfile = {}; (personalityProfile as any).voiceProfile.replyBackRules = replyBackRules }
-      saveProfile()
-    } else console.log('  Skipped — Blopus will reply to everyone.\n')
+    if (replyStrategy !== 'none') {
+      if (!await askSkip('REPLY BACK — who you reply to when people engage with you', ask)) {
+        const replyBackRules = await runReplyBackInterview(ask, setupClient)
+        if (voiceProfile) voiceProfile.replyBackRules = replyBackRules
+        else { if (!personalityProfile?.voiceProfile) (personalityProfile as any).voiceProfile = {}; (personalityProfile as any).voiceProfile.replyBackRules = replyBackRules }
+        saveProfile()
+      } else console.log('  Skipped — Blopus will reply to everyone.\n')
+    }
 
     // Merge into personalityProfile so it gets saved together
     if (personalityProfile) {
