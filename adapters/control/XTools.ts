@@ -14,6 +14,7 @@ import { PlaywrightXClient } from '../x/PlaywrightXClient'
 import { LLMReplyEngine } from '../../core/personality/LLMReplyEngine'
 import { PersonalityProfile } from '../../core/personality/LLMReplyEngine'
 import { PlaywrightHomeTimelineProvider } from '../x/PlaywrightHomeTimelineProvider'
+import { PlaywrightDomainSearchProvider } from '../x/PlaywrightDomainSearchProvider'
 import { ExampleRetriever } from '../../core/rag/ExampleRetriever'
 import { BrowserAgent } from './BrowserAgent'
 import { MCPBrowserDM } from '../../agent/MCPBrowserDM'
@@ -38,6 +39,18 @@ export interface XToolsOptions {
 
 // Tool definitions Claude sees — these describe what each tool does
 export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
+  {
+    name: 'reply_to_tweet',
+    description: 'Reply to a specific tweet by URL in the owner\'s exact voice. If you provide text, that text is posted. If you omit text, the reply is auto-generated from the owner\'s voice profile. Use when you have a specific tweet URL to reply to.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tweet_url: { type: 'string', description: 'Full tweet URL, e.g. https://x.com/user/status/123456789' },
+        text: { type: 'string', description: 'Optional reply text. Omit to auto-generate in owner\'s voice.' },
+      },
+      required: ['tweet_url'],
+    },
+  },
   {
     name: 'search_and_reply',
     description: 'Search for tweets by keyword/topic and reply to them. Use for "reply to tweets about X", "engage with trending tech posts", etc.',
@@ -434,7 +447,7 @@ export class XTools {
           return await this.findViralAndAct(
             input.topic ?? '',
             input.count ?? 3,
-            input.action ?? 'reply',
+            String(input.action ?? 'reply'),
             input.min_views ?? 500000,
             input.max_age_hours ?? 12,
           )
@@ -549,10 +562,14 @@ export class XTools {
   private async findViralAndAct(
     topic: string,
     count: number,
-    action: 'reply' | 'quote' | 'both',
+    action: string,
     minViews: number,
     maxAgeHours: number,
   ): Promise<string> {
+    // Normalize — accept prefix matches so "repl" → "reply", "quot" → "quote"
+    if (!['reply', 'quote', 'both'].includes(action)) {
+      action = action.startsWith('quot') ? 'quote' : action.startsWith('both') ? 'both' : 'reply'
+    }
     const cap = Math.min(count, 10)
     const homeTimeline = new PlaywrightHomeTimelineProvider()
     if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
