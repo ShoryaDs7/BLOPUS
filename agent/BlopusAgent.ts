@@ -673,7 +673,11 @@ async function boot(): Promise<void> {
         log('info', `[Post topics — what you post about]:`)
         personalityProfile.postTopics.forEach(t => log('info', `  · ${t}`))
       }
-      log('info', `[Reply topics — what bot will hunt & reply to]:`)
+      const replyStrategyForDisplay = (config as any).replyStrategy ?? 'growth'
+      const replyTopicsLabel = replyStrategyForDisplay === 'growth'
+        ? '[Reply topics — what bot will hunt & reply to]:'
+        : '[Audience topics — your followers engage with]:'
+      log('info', replyTopicsLabel)
       personalityProfile.dominantTopics.forEach(t => log('info', `  · ${t}`))
     }
   }
