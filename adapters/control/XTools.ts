@@ -862,11 +862,28 @@ Comment only. Nothing else.`
     const homeTimeline = new PlaywrightHomeTimelineProvider()
     if (!homeTimeline.enabled) return 'home timeline not available — X auth tokens not set'
 
-    const candidates = await homeTimeline.getViralFromHome(200, 1440)
-    if (!candidates.length) return 'no viral tweets found in home feed right now'
+    let candidates = await homeTimeline.getViralFromHome(200, 1440)
+
+    // Fallback: home feed empty → search by topic hint or a profile topic
+    if (!candidates.length) {
+      console.log('[XTools:quote_tweet_from_feed] Home feed empty — falling back to search')
+      const pp = this.profile as any
+      const searchTerm = topicHint
+        || (pp?.quoteTweetBehavior?.topics?.[0])
+        || (pp?.dominantTopics?.[0])
+        || 'India'
+      const keyword = searchTerm.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find((w: string) => w.length >= 4) ?? searchTerm.split(' ')[0]
+      const searched = await this.playwrightClient.searchTweets(keyword, 20)
+      candidates = searched.map(t => ({
+        tweetId: t.tweetId, text: t.text, authorHandle: t.authorHandle,
+        likeCount: 0, ageMinutes: 0, mediaUrls: [], viewCount: 0, viewsPerMinute: 0,
+      } as any))
+    }
+
+    if (!candidates.length) return 'no tweets found in feed or search — try again in a few minutes'
 
     // Filter by topic hint if given
-    let pool = candidates.filter(c => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
+    let pool = candidates.filter((c: any) => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
     if (topicHint) {
       const hint = topicHint.toLowerCase()
       const topicMatch = pool.filter(c => c.text.toLowerCase().includes(hint))
