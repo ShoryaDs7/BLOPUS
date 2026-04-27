@@ -48,8 +48,11 @@ export class AutonomousActivity {
         ? confirmedPostsPerDay
         : (bp?.avgPostsPerDay ? Math.max(1, Math.round(bp.avgPostsPerDay)) : rc.maxAutonomousPostsPerDay)
 
+      // Priority: Telegram override → derive from interview posts/day → archive-derived → runtime default
       const effectiveIntervalHours = overrides.minPostIntervalHours != null
         ? rc.minPostIntervalHours
+        : confirmedPostsPerDay && confirmedPostsPerDay > 0
+        ? Math.max(0.25, 24 / confirmedPostsPerDay)  // e.g. 4/day → 6h, 100/day → ~14min
         : (bp?.avgIntervalHours ? Math.max(0.5, Math.round(bp.avgIntervalHours * 10) / 10) : rc.minPostIntervalHours)
 
       if (this.memory.getAutonomousPostCount() >= effectiveDailyCap) {
