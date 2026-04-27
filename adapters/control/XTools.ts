@@ -18,6 +18,7 @@ import { PlaywrightDomainSearchProvider } from '../x/PlaywrightDomainSearchProvi
 import { ExampleRetriever } from '../../core/rag/ExampleRetriever'
 import { BrowserAgent } from './BrowserAgent'
 import { MCPBrowserDM } from '../../agent/MCPBrowserDM'
+import { TavilyClient } from '../search/TavilyClient'
 import fs from 'fs'
 import path from 'path'
 
@@ -866,7 +867,7 @@ Comment only. Nothing else.`
 
     // Fallback: home feed empty → search by topic hint or a profile topic
     if (!candidates.length) {
-      console.log('[XTools:quote_tweet_from_feed] Home feed empty — falling back to search')
+      console.log('[XTools:quote_tweet_from_feed] Home feed empty — falling back to X search')
       const pp = this.profile as any
       const searchTerm = topicHint
         || (pp?.quoteTweetBehavior?.topics?.[0])
@@ -878,9 +879,19 @@ Comment only. Nothing else.`
         tweetId: t.tweetId, text: t.text, authorHandle: t.authorHandle,
         likeCount: 0, ageMinutes: 0, mediaUrls: [], viewCount: 0, viewsPerMinute: 0,
       } as any))
+
+      // Final fallback: Tavily web search for tweet URLs
+      if (!candidates.length) {
+        console.log('[XTools:quote_tweet_from_feed] X search empty — trying Tavily')
+        const ids = await new TavilyClient().searchTweetIds(keyword, 10)
+        candidates = ids.map(id => ({
+          tweetId: id, text: '', authorHandle: '', likeCount: 0,
+          ageMinutes: 0, mediaUrls: [], viewCount: 0, viewsPerMinute: 0,
+        } as any))
+      }
     }
 
-    if (!candidates.length) return 'no tweets found in feed or search — try again in a few minutes'
+    if (!candidates.length) return 'no tweets found in feed, search, or web — try again in a few minutes'
 
     // Filter by topic hint if given
     let pool = candidates.filter((c: any) => c.authorHandle !== (process.env.OWNER_HANDLE ?? ''))
@@ -918,15 +929,23 @@ Comment only. Nothing else.`
     console.log(`[XTools:find_and_like] searching topic: "${topic}" → keyword: "${keyword}"`)
 
     // Use already-authenticated playwrightClient — more reliable than a fresh browser context
-    const results = await this.playwrightClient.searchTweets(keyword, cap * 5)
-    if (!results.length) return `no tweets found for topic: ${topic}`
+    let tweetIds: string[] = []
+    const searched = await this.playwrightClient.searchTweets(keyword, cap * 5)
+    tweetIds = searched.map(r => r.tweetId)
+
+    // Fallback: web search via Tavily if X search returns nothing
+    if (!tweetIds.length) {
+      console.log(`[XTools:find_and_like] X search empty — trying Tavily for: ${keyword}`)
+      tweetIds = await new TavilyClient().searchTweetIds(keyword, cap * 5)
+    }
+    if (!tweetIds.length) return `no tweets found for topic: ${topic}`
 
     // Shuffle for randomness — don't always like the same top tweets
-    const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
+    const shuffled = tweetIds.sort(() => Math.random() - 0.5).slice(0, cap)
     let liked = 0
     for (const r of shuffled) {
       try {
-        const n = await this.playwrightClient.likeTweets([r.tweetId])
+        const n = await this.playwrightClient.likeTweets([r])
         if (n > 0) liked++
         // Random delay 4–12s between likes — human scrolls, doesn't rapid-fire
         const delay = 4000 + Math.floor(Math.random() * 8000)
@@ -949,20 +968,28 @@ Comment only. Nothing else.`
     const keyword = topic.replace(/\([^)]*\)/g, '').split(/[\s/,]+/).find(w => w.length >= 4) ?? topic.split(' ')[0]
     console.log(`[XTools:find_and_retweet] searching topic: "${topic}" → keyword: "${keyword}"`)
 
-    const results = await this.playwrightClient.searchTweets(keyword, cap * 5)
-    if (!results.length) return `no tweets found for topic: ${topic}`
+    let tweetIds: string[] = []
+    const searched = await this.playwrightClient.searchTweets(keyword, cap * 5)
+    tweetIds = searched.map(r => r.tweetId)
 
-    const shuffled = results.sort(() => Math.random() - 0.5).slice(0, cap)
+    // Fallback: web search via Tavily if X search returns nothing
+    if (!tweetIds.length) {
+      console.log(`[XTools:find_and_retweet] X search empty — trying Tavily for: ${keyword}`)
+      tweetIds = await new TavilyClient().searchTweetIds(keyword, cap * 5)
+    }
+    if (!tweetIds.length) return `no tweets found for topic: ${topic}`
+
+    const shuffled = tweetIds.sort(() => Math.random() - 0.5).slice(0, cap)
     const log: string[] = []
-    for (const r of shuffled) {
+    for (const id of shuffled) {
       try {
-        await this.xAdapter.retweetTweet(r.tweetId)
-        log.push(`@${r.authorHandle}: "${r.text.slice(0, 60)}"`)
+        await this.xAdapter.retweetTweet(id)
+        log.push(id)
         await new Promise(res => setTimeout(res, 2000))
       } catch {}
     }
     return log.length
-      ? `retweeted ${log.length} tweets in "${topic}":\n${log.join('\n')}`
+      ? `retweeted ${log.length} tweets in "${topic}"`
       : `failed to retweet any tweets in "${topic}"`
   }
 

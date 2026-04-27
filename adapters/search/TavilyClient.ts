@@ -46,7 +46,7 @@ export class TavilyClient {
 
       const data = await res.json() as {
         answer?: string
-        results: Array<{ title: string; content: string }>
+        results: Array<{ title: string; content: string; url?: string }>
       }
 
       const results: string[] = []
@@ -55,6 +55,37 @@ export class TavilyClient {
         results.push(`${r.title}: ${r.content.slice(0, 120)}`)
       }
       return results
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Search for tweets on a topic via web search — returns tweet IDs found in x.com URLs.
+   * Fallback when X's own search/feed is dry. Requires TAVILY_API_KEY.
+   */
+  async searchTweetIds(topic: string, maxResults = 10): Promise<string[]> {
+    if (!this.apiKey) return []
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: this.apiKey,
+          query: `site:x.com ${topic}`,
+          search_depth: 'basic',
+          max_results: maxResults,
+          include_answer: false,
+        }),
+      })
+      if (!res.ok) return []
+      const data = await res.json() as { results: Array<{ url?: string }> }
+      const ids: string[] = []
+      for (const r of data.results ?? []) {
+        const m = (r.url ?? '').match(/x\.com\/[^/]+\/status\/(\d+)/)
+        if (m && !ids.includes(m[1])) ids.push(m[1])
+      }
+      return ids
     } catch {
       return []
     }
