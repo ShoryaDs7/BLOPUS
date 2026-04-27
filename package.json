@@ -9,6 +9,8 @@
     "dm-setup": "npx tsx scripts/dm-interview.ts",
     "validate-voice": "npx tsx scripts/validate-voice.ts",
     "smart-reply": "npx tsx scripts/smart-reply.ts",
+    "smart-qt": "npx tsx scripts/smart-qt.ts",
+    "smart-post": "npx tsx scripts/smart-post.ts",
 "blopus:bot": "tsx agent/run-blopus-bot.ts",
     "blopus:owner": "tsx agent/run-blopus-owner.ts",
     "start": "node dist/agent/BlopusAgent.js",
