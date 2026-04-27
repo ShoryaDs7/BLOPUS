@@ -828,13 +828,50 @@ export class XTools {
     const pick = pool[0]
     if (!pick) return 'no suitable tweets found'
 
-    // Generate comment using the same voice path as replies — identical injection, just different final instruction
-    const comment = await this.llmEngine.generateViralReply(
-      { text: pick.text, authorHandle: pick.authorHandle },
-      'chill' as any,
-      false,
-      'quoteTweet',
-    )
+    // Load voice_profile.json directly — same as smart-reply.ts
+    const creatorDir = path.dirname(path.resolve(this.configPath))
+    const vpPath = path.join(creatorDir, 'voice_profile.json')
+    if (!fs.existsSync(vpPath)) return 'voice_profile.json not found — run npm run setup'
+    const vp = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+
+    const goldenExamples: string[] = vp.goldenExamples ?? []
+    const topicExamples: { tweet: string; reply: string }[] = vp.topicExamples ?? []
+    const synthesized: string = vp.synthesized ?? ''
+    const caseStyle: string = vp.caseStyle ?? ''
+    const replyLength: string = vp.replyLength ?? ''
+    const emojiContext: string = vp.emojiContext ?? ''
+    const emojiUsage: string = vp.emojiUsage ?? ''
+    const emojiRule = emojiContext ? `emoji only in ${emojiContext}` : emojiUsage ? `emoji: ${emojiUsage}` : 'no emojis'
+
+    const examplesBlock = goldenExamples.map((e, i) => `${i + 1}. "${e}"`).join('\n')
+    const topicBlock = topicExamples.length
+      ? '\nFor these specific tweets you replied like this (most important — shows your stance per topic):\n' +
+        topicExamples.map(e => `Tweet: "${e.tweet}"\nYour reply: "${e.reply}"`).join('\n\n')
+      : ''
+
+    const prompt = `These are your real replies on X. Study them — this is your entire guide:
+
+${examplesBlock}
+${topicBlock}
+
+How you write: ${synthesized}
+
+Rules: ${caseStyle || 'sentence case'}. ${replyLength || 'short, 1-2 lines max'}. ${emojiRule}. No hashtags.
+
+Now write your quote tweet comment on this exactly like the examples above:
+"${pick.text}"
+
+Comment only. Nothing else.`
+
+    const client = new Anthropic()
+    const resp = await client.messages.create({
+      model: process.env.REPLY_MODEL ?? 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    let comment = resp.content[0]?.type === 'text' ? resp.content[0].text.trim() : ''
+    comment = comment.replace(/^["']|["']$/g, '').replace(/—/g, ' ').trim()
+    if (comment.length > 280) comment = comment.slice(0, 280).replace(/\s\S*$/, '')
     if (!comment) return 'failed to generate comment'
 
     await this.playwrightClient.quoteTweet(pick.tweetId, comment)
