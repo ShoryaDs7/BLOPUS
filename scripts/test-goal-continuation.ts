@@ -19,7 +19,7 @@ dotenv.config({ path: path.join(creatorsDir, creators[0], '.env') })
 import { GoalStore } from '../adapters/control/GoalStore'
 import { runGoal } from '../agent/GoalRunner'
 
-const RIEMANN_GOAL_DIR = path.join(process.cwd(), 'goals', 'goal_1777392038297')
+const RIEMANN_GOAL_DIR = path.join(process.cwd(), 'goals', 'goal_1777396609611')
 
 async function main() {
   // Grab the files Claude produced during the Riemann research
@@ -33,7 +33,7 @@ async function main() {
   // Create a new goal — continuing from exactly where the old one left off
   const goal = GoalStore.create({
     goal: 'Prove the Riemann Hypothesis. Each day make real mathematical progress — read what was done before, continue from it, produce actual working notes. Do not restate the problem. Do actual work.',
-    current_focus: 'Deepen the Connes positivity / Weil functional approach: analyze conditions for positivity of the Weil distribution as a quadratic form, and attempt to close the gap between the explicit formula and a full proof.',
+    current_focus: 'Pursue the Connes L^2(A_Q/Q*) adelic route — examine whether Frobenius action can be shown to have real spectrum via operator-theoretic methods, and attempt Lichtenbaum Weil-etale cohomology for Spec(Z).',
     timeout_minutes: 15,
     notify_chat_id: process.env.TELEGRAM_OWNER_CHAT_ID ?? '',
   })
@@ -48,10 +48,13 @@ async function main() {
   // Set state to reflect the prior work already done
   GoalStore.update(goal.id, {
     done: [
-      '2026-04-28: Produced a comprehensive technical survey of all major approaches to RH — spectral/Hilbert-Pólya, Berry-Keating H=xp, Connes NCG, Weil/Deligne function field analogy, zero-density estimates, De Bruijn-Newman constant, Li criterion.',
+      '2026-04-28: Produced a comprehensive technical survey of all major RH approaches — spectral/Hilbert-Pólya, Berry-Keating H=xp, Connes NCG, Weil/Deligne, zero-density estimates, De Bruijn-Newman, Li criterion.',
       '2026-04-28: Attempted spectral construction and scattering approach — see day2_spectral_construction.txt and day2_scattering_attempt.txt.',
-      '2026-04-28: Constructed a Lax-Phillips extended Hilbert space where Riemann-zero scattering resonances become eigenvalues, tested the explicit-formula contradiction route for off-critical zeros — see day3_lax_phillips_krein.txt.',
-      '2026-04-28: Deepened the Connes positivity / Weil functional approach, wrote the Weil distribution as a quadratic form — see day3_weil_quadratic_form.txt.',
+      '2026-04-28: Constructed Lax-Phillips extended Hilbert space, tested explicit-formula contradiction route — see day3_lax_phillips_krein.txt.',
+      '2026-04-28: Wrote Weil distribution as quadratic form, analyzed positivity conditions — see day3_weil_quadratic_form.txt.',
+      '2026-04-28: Proved Fredholm det of B cannot equal 1/zeta directly, closed GCD positivity route, identified Connes L^2(A_Q/Q*) as only viable adelic route — see day4_arakelov_deninger.txt.',
+      '2026-04-28: Deep GCD matrix spectral theory and Weil-etale cohomology for Spec(Z) — see day5_gcd_matrix_weil_etale.txt.',
+      '2026-04-28: GCD Fredholm adelic approach — Fredholm det regularization fails, self-referential Gram matrix found — see day6_fredholm_adelic.txt.',
     ],
     files: existingFiles.map(f => path.join(dir, f.name)),
   })
