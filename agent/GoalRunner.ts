@@ -32,29 +32,47 @@ function isLooping(done: string[]): boolean {
 function buildPrompt(goal: GoalState): string {
   const dir = GoalStore.goalDir(goal.id)
   const today = new Date().toISOString().split('T')[0]
+  const dayNumber = goal.done.length + 1
 
   const doneBlock = goal.done.length
-    ? goal.done.map((d, i) => `${i + 1}. ${d}`).join('\n')
+    ? goal.done.slice(-7).map((d, i) => `${i + 1}. ${d}`).join('\n')
     : 'Nothing done yet. This is day 1.'
 
   const blockerBlock = goal.blockers.length
     ? `Blockers: ${goal.blockers.join(', ')}`
     : 'No blockers.'
 
-  const filesBlock = goal.files.length
-    ? `Files so far: ${goal.files.join(', ')}`
-    : 'No files created yet.'
+  // Read all keypoints files — tiny, always include all of them
+  const keypointFiles = fs.readdirSync(dir)
+    .filter(f => f.startsWith('keypoints_day_'))
+    .sort()
+  const keypointsBlock = keypointFiles.length
+    ? keypointFiles.map(f => {
+        const content = fs.readFileSync(path.join(dir, f), 'utf-8').trim()
+        return `--- ${f} ---\n${content}`
+      }).join('\n\n')
+    : ''
+
+  // Only show last 2 work files — not all files
+  const workFiles = goal.files
+    .filter(f => !f.includes('keypoints_day_') && !f.includes('done_today') && !f.includes('state.json') && !f.includes('README'))
+    .slice(-2)
+  const filesBlock = workFiles.length
+    ? `Most recent work files (read these for context): ${workFiles.join(', ')}`
+    : 'No work files yet.'
 
   return `Goal: ${goal.goal}
 ${goal.deadline ? `Deadline: ${goal.deadline}` : ''}
+Today is Day ${dayNumber}.
 
 Current focus: ${goal.current_focus}
 
-What's been done:
+Recent sessions:
 ${doneBlock}
 
 ${blockerBlock}
 ${filesBlock}
+${keypointsBlock ? `\nKey points from all prior sessions (critical — read carefully):\n${keypointsBlock}` : ''}
 
 Working directory for this goal: ${dir}
 Today: ${today}
@@ -65,11 +83,21 @@ Line 2: what you expect tomorrow's focus to be (one sentence)
 Line 3: none
 Line 4: none
 
-Then do the actual work. When finished, overwrite ${dir}/done_today.txt with the real summary:
+Then do the actual work. When finished:
+
+1. Overwrite ${dir}/done_today.txt with the real summary:
 Line 1: what you actually did today (one sentence)
 Line 2: what to focus on tomorrow (one sentence)
 Line 3: any blockers (or write: none)
-Line 4: any new files created, comma separated (or write: none)`
+Line 4: any new files created, comma separated (or write: none)
+
+2. Write ${dir}/keypoints_day_${dayNumber}.md — bullets only, no prose, 5-10 lines max:
+## Permanently ruled out
+- [anything tried and definitively failed — so future sessions never retry it]
+## Must not forget
+- [critical decisions, facts, or findings that aren't obvious from the summary]
+## Best open thread
+- [the most promising direction to pursue next]`
 }
 
 export async function runGoal(goal: GoalState): Promise<void> {
