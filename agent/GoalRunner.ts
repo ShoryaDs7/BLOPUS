@@ -2,6 +2,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 import fs from 'fs'
 import path from 'path'
 import { GoalStore, GoalState } from '../adapters/control/GoalStore'
+import { buildSystemPrompt } from '../adapters/control/SessionBrain'
 
 import { execSync } from 'child_process'
 
@@ -128,7 +129,7 @@ export async function runGoal(goal: GoalState): Promise<void> {
     permissionMode: 'bypassPermissions',
     maxTurns: 80,
     model: process.env.SESSIONBRAIN_MODEL ?? 'claude-sonnet-4-6',
-    systemPrompt: buildPrompt(goal),
+    systemPrompt: buildSystemPrompt() + '\n\n---\n\n' + buildPrompt(goal),
     mcpServers: {
       xtools: {
         type: 'stdio' as const,

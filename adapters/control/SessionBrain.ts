@@ -145,7 +145,7 @@ Skills: when task matches a skill below — READ the full skill file first, foll
 ${skillIndex}`
 }
 
-function buildSystemPrompt(): string {
+export function buildSystemPrompt(): string {
   const cfg = loadCreatorConfig()
 
   const botHandle   = cfg?.osbot?.handle      ?? 'the bot account'
