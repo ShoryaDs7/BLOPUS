@@ -42,16 +42,22 @@ function buildPrompt(goal: GoalState): string {
     ? `Blockers: ${goal.blockers.join(', ')}`
     : 'No blockers.'
 
-  // Read all keypoints files — tiny, always include all of them
-  const keypointFiles = fs.readdirSync(dir)
-    .filter(f => f.startsWith('keypoints_day_'))
-    .sort()
-  const keypointsBlock = keypointFiles.length
-    ? keypointFiles.map(f => {
-        const content = fs.readFileSync(path.join(dir, f), 'utf-8').trim()
-        return `--- ${f} ---\n${content}`
-      }).join('\n\n')
-    : ''
+  // Read all keypoints — from current folder AND any prior goal folders (file handover case)
+  const priorDirs = [...new Set(goal.files.map(f => path.dirname(f)))].filter(d => d !== dir)
+  const allKeypointDirs = [dir, ...priorDirs]
+  const allKeypoints: string[] = []
+  for (const kdir of allKeypointDirs) {
+    try {
+      fs.readdirSync(kdir)
+        .filter(f => f.startsWith('keypoints_day_'))
+        .sort()
+        .forEach(f => {
+          const content = fs.readFileSync(path.join(kdir, f), 'utf-8').trim()
+          allKeypoints.push(`--- ${f} ---\n${content}`)
+        })
+    } catch {}
+  }
+  const keypointsBlock = allKeypoints.join('\n\n')
 
   // Only show last 2 work files — not all files
   const workFiles = goal.files
