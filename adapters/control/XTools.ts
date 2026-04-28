@@ -20,11 +20,22 @@ import { MCPBrowserDM } from '../../agent/MCPBrowserDM'
 import { TavilyClient } from '../search/TavilyClient'
 import fs from 'fs'
 import path from 'path'
+import { v4 as uuidv4 } from 'uuid'
+import type { TaskRunner } from '../../agent/TaskRunner'
+import { ScheduleStore } from './ScheduleStore'
 
 function sanitizeUnicode(s: string): string {
   return s.replace(/[\uD800-\uDFFF]/g, () => '')
 }
 import { writeRuntimeConfig, readRuntimeConfig } from './RuntimeConfig'
+import { execSync } from 'child_process'
+
+const BLOPUS_DIR = path.resolve(process.env.BLOPUS_DIR ?? '.')
+const NPX_CMD = (() => {
+  try { return execSync('where npx', { encoding: 'utf8' }).trim().split('\n')[0].trim() } catch {}
+  try { return execSync('which npx', { encoding: 'utf8' }).trim() } catch {}
+  return 'npx'
+})()
 import { PlaywrightWebScraper } from '../web/PlaywrightWebScraper'
 
 export interface XToolsOptions {
@@ -303,6 +314,52 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'do',
+    description: 'Run any multi-step task given as plain English. Use this for scheduled tasks that need multiple actions in sequence — e.g. "build website, send email, create PDF, deploy". Claude will work through every step and return a full summary.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        instruction: { type: 'string', description: 'Full plain English instruction of everything to do, in order.' },
+      },
+      required: ['instruction'],
+    },
+  },
+  {
+    name: 'schedule_task',
+    description: 'Schedule a one-time or recurring task. The task calls any other XTool at the scheduled time and sends the result to Telegram. Use for "post every day at 9am", "like tweets at 8pm daily", "do this at 10am tomorrow". Convert natural language time to a cron expression before calling.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        description: { type: 'string', description: 'Human-readable description of what this task does. E.g. "post tweet about AI every morning"' },
+        tool: { type: 'string', description: 'Name of the XTool to call when this task fires. E.g. "post_tweet", "find_and_like", "find_viral_and_act"' },
+        tool_input: { type: 'object', description: 'The input object to pass to the tool, exactly as you would call it directly.' },
+        cron: { type: 'string', description: 'Cron expression for when to run. Examples: "0 9 * * *" = every day 9am, "0 20 * * *" = every day 8pm, "0 9 28 4 *" = once on Apr 28 at 9am. Use 24h UTC unless owner specifies timezone.' },
+        one_time: { type: 'boolean', description: 'true = run once then delete. false = repeat on schedule. Default false.' },
+      },
+      required: ['description', 'tool', 'tool_input', 'cron'],
+    },
+  },
+  {
+    name: 'list_tasks',
+    description: 'List all scheduled tasks — shows what is scheduled, when, and whether one-time or recurring. Use for "what tasks are scheduled", "show my scheduled posts".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'cancel_task',
+    description: 'Cancel and delete a scheduled task by its ID. Use for "cancel that task", "remove the 9am post", "stop the daily summary".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        task_id: { type: 'string', description: 'The task ID to cancel (get from list_tasks)' },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
     name: 'scrape_website',
     description: 'Go to any website, fill in form fields, submit, click through all tabs/sections and return all extracted data. Use when asked to "scrape this site", "get my kundli", "fill this form", "check this website", etc.',
     input_schema: {
@@ -335,6 +392,11 @@ export class XTools {
   private llmEngine: LLMReplyEngine
   private mcpDm?: MCPBrowserDM
   private lastFollowAt = 0  // timestamp of last follow — enforce min gap
+  private taskRunner?: TaskRunner
+
+  setTaskRunner(runner: TaskRunner): void {
+    this.taskRunner = runner
+  }
 
 
   constructor(options: XToolsOptions) {
@@ -496,6 +558,142 @@ export class XTools {
           if (result === 'not_found') return `couldn't find @${handle} — check the handle`
           this.lastFollowAt = Date.now()
           return `followed @${handle}`
+        }
+
+        case 'do': {
+          const instruction = String(input.instruction ?? '').trim()
+          if (!instruction) return 'no instruction provided'
+
+          // Spawn a full agent session — same as SessionBrain but self-contained.
+          // Uses XToolsMcpServer so it has access to all X + scheduling tools.
+          const { query } = await import('@anthropic-ai/claude-agent-sdk')
+
+          const chunks: string[] = []
+          const opts: any = {
+            model: process.env.SESSIONBRAIN_MODEL ?? 'claude-sonnet-4-6',
+            maxTurns: 30,
+            permissionMode: 'bypassPermissions',
+            cwd: BLOPUS_DIR,
+            mcpServers: {
+              xtools: {
+                type: 'stdio' as const,
+                command: NPX_CMD,
+                args: ['tsx', path.join(BLOPUS_DIR, 'adapters/control/XToolsMcpServer.ts')],
+                env: { ...process.env },
+              },
+            },
+            allowedTools: [
+              'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
+              'WebSearch', 'WebFetch', 'Agent', 'TodoWrite',
+              'mcp__xtools__*',
+            ],
+            env: {
+              ...process.env,
+              ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_API_KEY,
+              USERPROFILE: path.join(BLOPUS_DIR, '.claude-api-home'),
+              HOME: path.join(BLOPUS_DIR, '.claude-api-home'),
+            },
+            systemPrompt: `You are OsBot's task executor. Complete every step in the instruction fully and in order. Use mcp__xtools__* tools for X actions. Report what you did after each step.`,
+          }
+
+          for await (const msg of query({ prompt: instruction, options: opts })) {
+            const m = msg as any
+            if (m.type === 'assistant' && m.message?.content) {
+              for (const block of m.message.content) {
+                if (block.type === 'text' && block.text?.trim()) chunks.push(block.text.trim())
+              }
+            }
+            if (m.type === 'result' && m.result?.trim()) chunks.push(m.result.trim())
+          }
+
+          return chunks.length ? chunks[chunks.length - 1] : 'task completed'
+        }
+
+        case 'schedule_task': {
+          if (!this.taskRunner) return '⚠️ Scheduler not ready — try again in a moment'
+          const { description, tool, tool_input, cron: cronExpr, one_time = false } = input
+          if (!tool || !cronExpr) return 'missing required fields: tool, cron'
+
+          // Check if a one-time task's time has already passed today.
+          // Cron "M H * * *" — if that H:M is in the past, node-cron silently queues for tomorrow.
+          // If missed by ≤30 min: run immediately. If missed by more: warn and ask.
+          if (one_time) {
+            const parts = String(cronExpr).trim().split(/\s+/)
+            if (parts.length === 5 && parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
+              const cronMin = parseInt(parts[0], 10)
+              const cronHour = parseInt(parts[1], 10)
+              if (!isNaN(cronMin) && !isNaN(cronHour)) {
+                const now = new Date()
+                const target = new Date(now)
+                target.setHours(cronHour, cronMin, 0, 0)
+                const missedMs = now.getTime() - target.getTime()
+                if (missedMs > 0) {
+                  // Time passed today
+                  if (missedMs <= 30 * 60 * 1000) {
+                    // Missed by ≤30 min — run immediately, don't schedule
+                    const task = {
+                      id: uuidv4().slice(0, 8),
+                      description: description ?? tool,
+                      tool, tool_input: tool_input ?? {},
+                      cron: cronExpr, one_time: true,
+                      created_at: new Date().toISOString(),
+                    }
+                    // Fire right now without waiting for cron
+                    setImmediate(async () => {
+                      try {
+                        const result = await this.execute(tool, tool_input ?? {})
+                        const token = process.env.TELEGRAM_BOT_TOKEN
+                        const chatId = process.env.TELEGRAM_OWNER_CHAT_ID
+                        if (token && chatId) {
+                          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chat_id: chatId, text: `✅ Ran immediately (${Math.round(missedMs/60000)}min late): ${task.description}\n\n${result.slice(0,300)}` }),
+                          }).catch(() => {})
+                        }
+                      } catch {}
+                    })
+                    return `⚡ Time already passed (${Math.round(missedMs/60000)} min ago) — running immediately now instead of waiting until tomorrow.`
+                  } else {
+                    // Missed by >30 min — warn, don't schedule for tomorrow silently
+                    const pad = (n: number) => String(n).padStart(2, '0')
+                    return `⚠️ ${pad(cronHour)}:${pad(cronMin)} already passed today (${Math.round(missedMs/60000)} min ago). Did you mean tomorrow? Reply "yes schedule for tomorrow" or give me a new time.`
+                  }
+                }
+              }
+            }
+          }
+
+          const task = {
+            id: uuidv4().slice(0, 8),
+            description: description ?? tool,
+            tool,
+            tool_input: tool_input ?? {},
+            cron: cronExpr,
+            one_time: !!one_time,
+            created_at: new Date().toISOString(),
+          }
+          this.taskRunner.add(task)
+          const freq = one_time ? 'one-time' : 'recurring'
+          const parts2 = String(cronExpr).trim().split(/\s+/)
+          const timeStr = parts2.length === 5 && !isNaN(parseInt(parts2[0])) && !isNaN(parseInt(parts2[1]))
+            ? `${String(parseInt(parts2[1])).padStart(2,'0')}:${String(parseInt(parts2[0])).padStart(2,'0')}`
+            : cronExpr
+          return `✅ Scheduled (${freq}) — ID: ${task.id}\nTask: ${task.description}\nFires at: ${timeStr}\nTool: ${tool}`
+        }
+
+        case 'list_tasks': {
+          const tasks = ScheduleStore.load()
+          if (!tasks.length) return 'No scheduled tasks.'
+          return tasks.map(t =>
+            `[${t.id}] ${t.description}\n  cron: ${t.cron} | ${t.one_time ? 'one-time' : 'recurring'} | tool: ${t.tool}\n  created: ${t.created_at.slice(0, 16)}`
+          ).join('\n\n')
+        }
+
+        case 'cancel_task': {
+          if (!this.taskRunner) return '⚠️ Scheduler not ready'
+          const removed = this.taskRunner.cancel(input.task_id)
+          return removed ? `✅ Task ${input.task_id} cancelled` : `Task ${input.task_id} not found`
         }
 
         case 'scrape_website': {

@@ -3273,6 +3273,53 @@ async function main() {
   )
   console.log(`  ✓ creators/${creatorName}/config.json`)
 
+  // ── Write runtime_config.json from interview answers ──────────
+  // Everything the user answered about rates goes here so the bot
+  // uses their actual numbers instead of hardcoded defaults.
+  const confirmedPpd: number = (voiceProfile as any)?.originalPostProfile?.confirmedPostsPerDay ?? 0
+  const likeCooldownMs: number  = (personalityProfile as any)?.likeBehavior?.cooldownMs ?? 0
+  const rtCooldownMs: number    = (personalityProfile as any)?.retweetBehavior?.cooldownMs ?? 0
+  const qtCooldownMs: number    = (personalityProfile as any)?.quoteTweetBehavior?.cooldownMs ?? 0
+
+  const runtimeCfg: Record<string, any> = {}
+
+  if (rpd > 0) {
+    runtimeCfg.maxRepliesPerDay  = rpd
+    // Spread across 16 active hours — e.g. 20/day → 48 min cooldown, 5/day → 3h+ cooldown
+    runtimeCfg.cooldownMinutes   = Math.max(1, Math.round(16 * 60 / rpd))
+  }
+  if (confirmedPpd > 0) {
+    runtimeCfg.maxAutonomousPostsPerDay = confirmedPpd
+    runtimeCfg.minPostIntervalHours     = Math.max(0.25, +(24 / confirmedPpd).toFixed(2))
+  }
+  if (likeCooldownMs > 0) {
+    // Store as daily count so Telegram's update_config understands it
+    runtimeCfg.likeCooldownMinutes = Math.round(likeCooldownMs / 60_000)
+  }
+  if (rtCooldownMs > 0) {
+    runtimeCfg.retweetCooldownMinutes = Math.round(rtCooldownMs / 60_000)
+  }
+  if (qtCooldownMs > 0) {
+    runtimeCfg.quoteTweetCooldownMinutes = Math.round(qtCooldownMs / 60_000)
+  }
+
+  if (Object.keys(runtimeCfg).length > 0) {
+    runtimeCfg.updatedAt = new Date().toISOString()
+    fs.writeFileSync(
+      path.join(creatorDir, 'runtime_config.json'),
+      JSON.stringify(runtimeCfg, null, 2),
+      'utf8'
+    )
+    const summary = [
+      rpd          > 0 ? `replies: ${rpd}/day (cooldown ${runtimeCfg.cooldownMinutes}min)` : '',
+      confirmedPpd > 0 ? `posts: ${confirmedPpd}/day (every ${runtimeCfg.minPostIntervalHours}h)` : '',
+      likeCooldownMs  > 0 ? `likes: every ${runtimeCfg.likeCooldownMinutes}min` : '',
+      rtCooldownMs    > 0 ? `retweets: every ${runtimeCfg.retweetCooldownMinutes}min` : '',
+      qtCooldownMs    > 0 ? `QTs: every ${runtimeCfg.quoteTweetCooldownMinutes}min` : '',
+    ].filter(Boolean).join(' | ')
+    console.log(`  ✓ creators/${creatorName}/runtime_config.json — ${summary}`)
+  }
+
   // ── Done ──────────────────────────────────────────────────────
 
   console.log('\n' + '═'.repeat(58))

@@ -13,6 +13,7 @@
     "smart-post": "npx tsx scripts/smart-post.ts",
 "blopus:bot": "tsx agent/run-blopus-bot.ts",
     "blopus:owner": "tsx agent/run-blopus-owner.ts",
+    "blopus:goals": "tsx agent/run-goals.ts",
     "start": "node dist/agent/BlopusAgent.js",
     "dev": "nodemon --exec tsx agent/BlopusAgent.ts",
     "build": "tsc",

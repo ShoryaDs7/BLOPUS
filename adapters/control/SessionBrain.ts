@@ -137,7 +137,7 @@ function buildInstructionHeader(): string {
 Past conversations: [PAST CONVERSATIONS] and [TODAY] sections above contain the real history. Answer questions about past work FROM THOSE SECTIONS FIRST — do not run git log or find commands to reconstruct what you already know.
 X actions: use mcp__xtools__ tools. reply_to_tweet(tweet_url, text), post_tweet(topic), quote_tweet(tweet_url, text), search_trending_and_reply(category). Browser MCP ok for profiles/timelines, not for tweet URLs you're replying to.
 ${domainsBlock}
-Scheduling: any recurring request → CronCreate immediately, no confirmation needed. Natural language → cron expression. CronList = show tasks. CronDelete = remove.
+Scheduling: any "do X at TIME" or "every day at TIME do X" request → call mcp__xtools__schedule_task immediately. Convert natural language time to a cron expression (UTC). one_time=true for one-off tasks ("post at 9am"), one_time=false for recurring ("every day 8pm"). mcp__xtools__list_tasks = show scheduled tasks. mcp__xtools__cancel_task(task_id) = remove a task.
 Browser: non-X sites only. navigate→screenshot→snapshot→click→repeat.
 Memory: @handle → Read ${projectDir}/creators/memory-store/persons/<handle>.json directly. Never glob first.
 Stuck? Tell owner what's blocking — never run random commands.

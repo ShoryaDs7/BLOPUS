@@ -8,6 +8,8 @@ __pycache__/
 
 # Personal data — NEVER commit
 creators/
+goals/
+tmp-scheduler-test/
 memory-store/
 browser-data/
 test_data/
