@@ -8,25 +8,29 @@ description: Create and manage a long-running autonomous goal that works on itse
 Use this skill when the user wants something done autonomously over multiple days, weeks, or a deadline.
 
 ## When to trigger
-User says any of: "over a month", "autonomously for X days", "run this for a week", "build this over the next 30 days", "research this daily", "work on this until done", "run this for me every day"
+User says any of: "over a month", "autonomously for X days", "run this for a week", "build this over the next 30 days", "research this daily", "work on this until done", "run this for me every day", "do this twice a day"
 
-## Before creating — keep asking until BOTH are clear
+## Before creating — keep asking until everything is clear
 
-Do NOT create the goal until you have clear, specific answers to both:
+**Step 1 — Deadline:**
+Ask: "When do you need this done by? Give me a specific date."
+- Vague answer → push back: "I need a specific date so I can pace the work correctly."
 
-**Q1 — Deadline:** "When do you need this done by? Give me a specific date or number of days."
-- Vague answers like "soon" or "whenever" → push back: "I need a specific date or number of days so the system can pace itself."
+**Step 2 — Recommend time per day and runs per day, then confirm:**
+Once you have the deadline, calculate days remaining. Based on task complexity, recommend:
+- Deep work (research, coding, math, writing): 45–60 min/day
+- Medium tasks (planning, analysis, outreach): 30 min/day  
+- Light tasks (monitoring, summaries, social): 15 min/day
 
-**Q2 — Daily time:** "How much time should I work on this each day? (e.g. 15 min, 1 hour, 3 hours)"
-- Vague answers like "as much as needed" → push back: "Give me a number — this controls how long each daily session runs."
+Say: "You have X days until [deadline]. For this kind of work I'd recommend [Y] min/day — that gives you [X×Y] total hours. Does that work, or do you want more/less time per day?"
 
-**Sanity check — do this before creating:**
-- Total available time = days_remaining × minutes_per_day
-- If total < 30 min for a complex task, or the math obviously doesn't work → tell the user:
-  "That's not enough time to make real progress. With X days and Y min/day you get Z total hours. Either extend the deadline or increase daily time — which would you prefer?"
-- Keep the conversation going until the user gives a realistic combination.
+Also ask: "How many sessions per day? Once a day is standard, but you can do twice if you want faster progress."
 
-**Only once both answers are clear and sane:** create the goal.
+**Step 3 — Sanity check:**
+- days_remaining × minutes_per_day < 30 min total → "That's not enough time. Either push the deadline or increase daily time — which would you prefer?"
+- Keep asking until the combination makes sense for the task.
+
+**Only once deadline, minutes_per_day, and runs_per_day are all confirmed:** create the goal.
 
 ## Creating the goal
 
@@ -45,7 +49,9 @@ Replace {timestamp} with Date.now(). Replace {TELEGRAM_OWNER_CHAT_ID} with the v
   "blockers": [],
   "files": [],
   "status": "active",
-  "timeout_minutes": {minutes_per_day the user specified},
+  "timeout_minutes": {minutes_per_day confirmed by user},
+  "runs_per_day": {1 or 2 as confirmed by user},
+  "last_run_timestamps": [],
   "notify_chat_id": "{TELEGRAM_OWNER_CHAT_ID}"
 }
 ```
@@ -53,20 +59,26 @@ Replace {timestamp} with Date.now(). Replace {TELEGRAM_OWNER_CHAT_ID} with the v
 Also create the folder: `{BLOPUS_DIR}/goals/goal_{timestamp}/` (write a blank README.md inside so the folder exists)
 
 ## After creating — confirm back to user
-Tell the user exactly what was set:
 "Goal created. Here's what I've locked in:
 - Task: [goal]
-- Deadline: [date]
-- Daily session: [X] minutes
-- First session starts today.
+- Deadline: [date] ([X] days from now)
+- Daily session: [Y] minutes × [Z] times/day
+- Total work budget: [X×Y×Z] minutes
 
-You'll get a message here after each session with what was done and what's next. To pause, redirect, or cancel — just tell me anytime."
+The bot will work on this automatically every time it's running and a session is due. You'll get a message after each session with what was done and what's next. To pause, redirect, or cancel — just tell me anytime."
+
+## If user sends files or a folder path
+If the user attaches files or mentions a folder path like "here are my notes: C:/Users/me/research/":
+- Copy or read all files from that path into the goal folder before creating the goal
+- Set `files` in state.json to list those paths
+- Set `current_focus` to reflect that prior work exists and Claude should continue from it
 
 ## Checking status
 User asks "how's my [goal] going?" or "update on [goal]" →
 Read `{BLOPUS_DIR}/goals/{id}/state.json` and report:
 - Current focus
 - Done list (last 3 entries)
+- Days remaining until deadline
 - Any blockers
 
 ## Redirecting
@@ -74,6 +86,7 @@ User says "change focus to X" → update current_focus in state.json
 User says "pause this goal" → set status to "paused" in state.json
 User says "cancel this goal" → set status to "cancelled" in state.json
 User says "resume goal" → set status to "active" in state.json
+User says "run this twice a day now" → update runs_per_day to 2 in state.json
 
 ## Listing all goals
-Read all `{BLOPUS_DIR}/goals/*/state.json` files and summarize active ones.
+Read all `{BLOPUS_DIR}/goals/*/state.json` files and summarize active ones with days remaining.

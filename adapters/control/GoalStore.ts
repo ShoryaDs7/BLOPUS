@@ -14,6 +14,8 @@ export interface GoalState {
   files: string[]
   status: 'active' | 'completed' | 'cancelled' | 'paused'
   timeout_minutes: number
+  runs_per_day: number        // how many sessions per day the user wants (default 1)
+  last_run_timestamps: string[] // ISO timestamps of every past run (last 14 kept)
   notify_chat_id: string
 }
 
@@ -77,6 +79,8 @@ export const GoalStore = {
       blockers: [],
       files: [],
       status: 'active',
+      runs_per_day: 1,
+      last_run_timestamps: [],
       ...params,
     }
     GoalStore.save(state)

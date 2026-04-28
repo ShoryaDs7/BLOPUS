@@ -162,33 +162,78 @@ export async function runGoal(goal: GoalState): Promise<void> {
   const discoveredFiles = allInFolder.filter(f => !knownFiles.has(f))
 
   const today = new Date().toISOString().split('T')[0]
+  const goalDone = doneToday.toLowerCase().startsWith('completed') || doneToday.toLowerCase().startsWith('goal completed')
+
   GoalStore.update(goal.id, {
     done: [...goal.done, `${today}: ${doneToday}`],
     current_focus: nextFocus,
     blockers: newBlockers,
     files: [...goal.files, ...discoveredFiles, ...newFiles.filter(f => !knownFiles.has(f))],
+    ...(goalDone ? { status: 'completed' } : {}),
   })
 
   const blockerLine = newBlockers.length ? `\n⚠️ Blocked: ${newBlockers.join(', ')}` : ''
-  await notify(goal.notify_chat_id,
-    `✅ Done: ${doneToday}\n\nTomorrow: ${nextFocus}${blockerLine}`)
+  if (goalDone) {
+    await notify(goal.notify_chat_id,
+      `🎉 Goal complete early!\n\n"${goal.goal.slice(0, 80)}"\n\n${doneToday}`)
+  } else {
+    await notify(goal.notify_chat_id,
+      `✅ Done: ${doneToday}\n\nTomorrow: ${nextFocus}${blockerLine}`)
+  }
+}
+
+function shouldRunNow(goal: GoalState): boolean {
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const runsPerDay = goal.runs_per_day ?? 1
+  const timestamps = goal.last_run_timestamps ?? []
+
+  // Count how many times it already ran today
+  const ranToday = timestamps.filter(t => t.startsWith(todayStr)).length
+  if (ranToday >= runsPerDay) return false
+
+  // Enforce minimum gap between runs = (24h / runs_per_day) * 0.8
+  if (timestamps.length > 0) {
+    const lastRun = new Date(timestamps[timestamps.length - 1])
+    const minGapMs = (24 / runsPerDay) * 60 * 60 * 1000 * 0.8
+    if (now.getTime() - lastRun.getTime() < minGapMs) return false
+  }
+
+  return true
 }
 
 export class GoalRunner {
   private timer: NodeJS.Timeout | null = null
 
   start(): void {
-    console.log('[GoalRunner] started — checking active goals every 24h')
+    console.log('[GoalRunner] started — checking goals every 30 min')
     this.tick()
-    this.timer = setInterval(() => this.tick(), 24 * 60 * 60 * 1000)
+    this.timer = setInterval(() => this.tick(), 30 * 60 * 1000)
   }
 
   private async tick(): Promise<void> {
     const goals = GoalStore.listActive()
-    if (!goals.length) return
-    console.log(`[GoalRunner] ${goals.length} active goal(s) — running`)
-    for (const goal of goals) {
-      await runGoal(goal)
+    const due = goals.filter(shouldRunNow)
+    if (!due.length) return
+    console.log(`[GoalRunner] ${due.length} goal(s) due — running`)
+    for (const goal of due) {
+      // Record run timestamp before starting
+      const ts = new Date().toISOString()
+      const timestamps = [...(goal.last_run_timestamps ?? []), ts].slice(-28)
+      GoalStore.update(goal.id, { last_run_timestamps: timestamps })
+
+      await runGoal(GoalStore.load(goal.id)!)
+
+      // Check if deadline passed — auto-complete
+      const fresh = GoalStore.load(goal.id)!
+      if (fresh.deadline) {
+        const today = new Date().toISOString().split('T')[0]
+        if (today >= fresh.deadline && fresh.status === 'active') {
+          GoalStore.update(goal.id, { status: 'completed' })
+          await notify(fresh.notify_chat_id,
+            `✅ Goal "${fresh.goal.slice(0, 60)}" reached its deadline. Marking complete.`)
+        }
+      }
     }
   }
 
