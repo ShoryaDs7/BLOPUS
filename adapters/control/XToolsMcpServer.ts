@@ -15,16 +15,23 @@ import { z } from 'zod'
 const XTOOLS_URL = 'http://127.0.0.1:7821/tool'
 
 async function call(name: string, input: Record<string, any>): Promise<string> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 55_000)
   try {
     const resp = await fetch(XTOOLS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, input }),
+      signal: controller.signal,
     })
     const data = await resp.json() as any
     return data.result ?? data.error ?? 'no response'
   } catch (e: any) {
-    return `❌ XToolsServer unreachable: ${e.message?.slice(0, 80)}`
+    const msg = e.name === 'AbortError' ? 'timed out after 55s' : e.message?.slice(0, 80)
+    console.error(`[XToolsMcpServer] ${name} failed: ${msg}`)
+    return `❌ XToolsServer error (${name}): ${msg}`
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
