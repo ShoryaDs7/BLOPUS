@@ -755,14 +755,19 @@ export class XTools {
   }
 
   private async postTweet(topic: string, angle: string): Promise<string> {
-    // Use same path as autonomous posts — generateAutonomousPost with originalPostProfile
     const trigger = angle ? `${topic} — ${angle}` : topic
-    const text = await this.llmEngine.generateAutonomousPost({
-      mentionsToday: 0, repliesToday: 0, hoursSinceLastMention: 99,
-      recentTopics: [topic], mood: 'chill' as any,
-      currentEvents: [trigger], targetPlatform: 'x', accountType: 'owner-own',
-      ownerHandle: process.env.OWNER_HANDLE ?? '',
-    })
+    let text: string | null = null
+    try {
+      text = await this.llmEngine.generateAutonomousPost({
+        mentionsToday: 0, repliesToday: 0, hoursSinceLastMention: 99,
+        recentTopics: [topic], mood: 'chill' as any,
+        currentEvents: [trigger], targetPlatform: 'x', accountType: 'owner-own',
+        ownerHandle: process.env.OWNER_HANDLE ?? '',
+      })
+    } catch (err: any) {
+      console.error('[XTools] post_tweet generateAutonomousPost error:', err?.message ?? err)
+      return `❌ post_tweet failed: ${err?.message?.slice(0, 100) ?? 'unknown error'}`
+    }
     if (!text) return '❌ Could not generate post — voice profile may be missing'
     await this.xAdapter.postTweet(text)
     return `posted tweet: "${text}"`
