@@ -49,10 +49,10 @@ process.on('unhandledRejection', async (reason) => {
 // Dynamic import so env vars above are set BEFORE BlopusAgent reads them.
 import('./BlopusAgent')
 
-// GoalRunner — starts automatically, checks every 30 min if any goal is due
-import('./GoalRunner').then(({ GoalRunner }) => {
-  const goalRunner = new GoalRunner()
-  goalRunner.start()
-  process.on('SIGINT',  () => { goalRunner.stop() })
-  process.on('SIGTERM', () => { goalRunner.stop() })
-})
+// GoalRunner — disabled for diagnostics (re-enable after confirming SessionBrain works)
+// import('./GoalRunner').then(({ GoalRunner }) => {
+//   const goalRunner = new GoalRunner()
+//   goalRunner.start()
+//   process.on('SIGINT',  () => { goalRunner.stop() })
+//   process.on('SIGTERM', () => { goalRunner.stop() })
+// })
