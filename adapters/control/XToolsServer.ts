@@ -6,10 +6,14 @@
 
 import http from 'http'
 import { XTools } from './XTools'
+import { TaskRunner } from '../../agent/TaskRunner'
 
 let server: http.Server | null = null
 
 export function startXToolsServer(xtools: XTools, port = 7821): void {
+  const taskRunner = new TaskRunner(xtools)
+  xtools.setTaskRunner(taskRunner)
+  taskRunner.start()
   server = http.createServer(async (req, res) => {
     if (req.method !== 'POST' || req.url !== '/tool') {
       res.writeHead(404)
