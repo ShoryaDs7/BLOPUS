@@ -202,7 +202,7 @@ server.tool('cancel_task',
   'Cancel a scheduled task by its ID.',
   { id: z.string() },
   async ({ id }) => ({
-    content: [{ type: 'text' as const, text: await call('cancel_task', { id }) }]
+    content: [{ type: 'text' as const, text: await call('cancel_task', { task_id: id }) }]
   })
 )
 
