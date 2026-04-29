@@ -152,7 +152,7 @@ export async function runGoal(goal: GoalState): Promise<void> {
   try {
     await Promise.race([
       (async () => {
-        for await (const msg of query({ prompt: 'Start working on the goal now.', options })) {
+        for await (const msg of query({ prompt: `Today's task: ${goal.current_focus}\n\nGoal: ${goal.goal}`, options })) {
           const m = msg as any
           if (m.type === 'assistant' && m.message?.content) {
             for (const block of m.message.content) {
