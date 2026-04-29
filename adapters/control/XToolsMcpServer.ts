@@ -182,36 +182,6 @@ server.tool('follow_user',
   })
 )
 
-server.tool('schedule_task',
-  'Schedule a one-time or recurring task. Fires any XTool at the given time and sends result to Telegram. cron = cron expression like "0 9 * * *" (daily 9am UTC). one_time = true means run once then delete.',
-  {
-    description: z.string(),
-    tool: z.string(),
-    tool_input: z.record(z.unknown()),
-    cron: z.string(),
-    one_time: z.boolean().optional(),
-  },
-  async ({ description, tool, tool_input, cron, one_time }) => ({
-    content: [{ type: 'text' as const, text: await call('schedule_task', { description, tool, tool_input, cron, one_time: one_time ?? false }) }]
-  })
-)
-
-server.tool('list_tasks',
-  'List all scheduled tasks — shows ID, description, cron schedule, tool, and one-time vs recurring.',
-  {},
-  async () => ({
-    content: [{ type: 'text' as const, text: await call('list_tasks', {}) }]
-  })
-)
-
-server.tool('cancel_task',
-  'Cancel and delete a scheduled task by its ID.',
-  { task_id: z.string() },
-  async ({ task_id }) => ({
-    content: [{ type: 'text' as const, text: await call('cancel_task', { task_id }) }]
-  })
-)
-
 const transport = new StdioServerTransport()
 server.connect(transport)
 console.error('[XToolsMcpServer] ready — proxying to XToolsServer :7821')
