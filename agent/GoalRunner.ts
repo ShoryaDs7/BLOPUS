@@ -142,12 +142,14 @@ export async function runGoal(goal: GoalState): Promise<void> {
     },
     allowedTools: [
       'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
-      'WebSearch', 'WebFetch', 'Agent', 'TodoWrite', 'ToolSearch',
+      'WebSearch', 'WebFetch', 'Agent', 'TodoWrite',
       'mcp__xtools__*',
     ],
     env: {
       ...process.env,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_API_KEY,
+      USERPROFILE: path.join(BLOPUS_DIR, '.claude-api-home'),
+      HOME: path.join(BLOPUS_DIR, '.claude-api-home'),
     },
   }
 
@@ -245,7 +247,7 @@ export class GoalRunner {
   start(): void {
     console.log('[GoalRunner] started — checking goals every 30 min')
     this.tick()
-    this.timer = setInterval(() => this.tick(), 1 * 60 * 1000)
+    this.timer = setInterval(() => this.tick(), 30 * 60 * 1000)
   }
 
   private async tick(): Promise<void> {
