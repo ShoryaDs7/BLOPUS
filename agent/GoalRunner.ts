@@ -1,5 +1,4 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import Anthropic from '@anthropic-ai/sdk'
 import fs from 'fs'
 import path from 'path'
 import { GoalStore, GoalState } from '../adapters/control/GoalStore'
@@ -110,21 +109,6 @@ Line 4: any new files created, comma separated (or write: none)
 - [the most promising direction to pursue next]`
 }
 
-async function resolveCommand(goal: GoalState): Promise<string> {
-  try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      system: buildSystemPrompt(),
-      messages: [{ role: 'user', content: `Convert this task into a direct command using your available tools. Name the exact tools and params. 1-3 sentences max, no explanation.\n\nTask: ${goal.current_focus}\nGoal context: ${goal.goal}` }],
-    })
-    return (msg.content[0] as any).text.trim()
-  } catch {
-    return goal.current_focus
-  }
-}
-
 export async function runGoal(goal: GoalState): Promise<void> {
   const dir = GoalStore.goalDir(goal.id)
   const doneTodayPath = path.join(dir, 'done_today.txt')
@@ -141,9 +125,6 @@ export async function runGoal(goal: GoalState): Promise<void> {
   await notify(goal.notify_chat_id, `🔄 Working on: "${goal.goal.slice(0, 60)}"`)
 
   const timeoutMs = (goal.timeout_minutes ?? 15) * 60 * 1000
-
-  const command = await resolveCommand(goal)
-  console.log(`[GoalRunner] resolved command: ${command.slice(0, 120)}`)
 
   const options: any = {
     cwd: BLOPUS_DIR,
@@ -173,7 +154,7 @@ export async function runGoal(goal: GoalState): Promise<void> {
   try {
     await Promise.race([
       (async () => {
-        for await (const msg of query({ prompt: `${command}\n\n${buildPrompt(goal)}`, options })) {
+        for await (const msg of query({ prompt: buildPrompt(goal), options })) {
           const m = msg as any
           if (m.type === 'assistant' && m.message?.content) {
             for (const block of m.message.content) {
