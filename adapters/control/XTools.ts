@@ -783,10 +783,13 @@ export class XTools {
 
     let candidates = await this.playwrightClient.getHomeTweets(50)
 
-    // Filter by topic if specified
+    // Filter by topic if specified — split into keywords, match any
     if (topic) {
-      const t = topic.toLowerCase()
-      const filtered = candidates.filter(c => c.text.toLowerCase().includes(t))
+      const keywords = topic.toLowerCase().replace(/[()]/g, '').split(/[\s,]+/).filter(w => w.length >= 3)
+      const filtered = candidates.filter(c => {
+        const text = c.text.toLowerCase()
+        return keywords.some(k => text.includes(k))
+      })
       if (filtered.length > 0) candidates = filtered
     }
 
