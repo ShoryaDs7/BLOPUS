@@ -84,12 +84,7 @@ ${keypointsBlock ? `\nKey points from all prior sessions (critical — read care
 Working directory for this goal: ${dir}
 Today: ${today}
 
-TOOLS — use these directly, never via Bash/Python/x-cli:
-- Post a tweet → mcp__xtools__post_tweet(topic)
-- Reply to viral tweets → mcp__xtools__find_viral_and_act(topic, count, action)
-- Search the web → WebSearch
-- Send email → use Bash with sendmail or the email skill
-Never use ToolSearch to look for tools you already have. Never use Python/tweepy/x-cli for X actions.
+Never call ToolSearch — all your tools are already listed in the system prompt above. Act immediately.
 
 FIRST — before any other work — write ${dir}/done_today.txt with your plan for today:
 Line 1: what you intend to do today (one sentence)
