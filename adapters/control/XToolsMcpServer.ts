@@ -182,6 +182,30 @@ server.tool('follow_user',
   })
 )
 
+server.tool('schedule_task',
+  'Schedule a recurring or one-time task. tool = XTool name (e.g. post_tweet), cron = cron expression (e.g. "0 9 * * *"), tool_input = JSON string of inputs, one_time = true for one-shot.',
+  { description: z.string().optional(), tool: z.string(), cron: z.string(), tool_input: z.string().optional(), one_time: z.boolean().optional() },
+  async ({ description, tool, cron, tool_input, one_time }) => ({
+    content: [{ type: 'text' as const, text: await call('schedule_task', { description: description ?? '', tool, cron, tool_input: tool_input ?? '{}', one_time: one_time ?? false }) }]
+  })
+)
+
+server.tool('list_tasks',
+  'List all scheduled tasks.',
+  {},
+  async () => ({
+    content: [{ type: 'text' as const, text: await call('list_tasks', {}) }]
+  })
+)
+
+server.tool('cancel_task',
+  'Cancel a scheduled task by its ID.',
+  { id: z.string() },
+  async ({ id }) => ({
+    content: [{ type: 'text' as const, text: await call('cancel_task', { id }) }]
+  })
+)
+
 const transport = new StdioServerTransport()
 server.connect(transport)
 console.error('[XToolsMcpServer] ready — proxying to XToolsServer :7821')

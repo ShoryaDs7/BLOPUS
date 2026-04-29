@@ -332,7 +332,7 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
       properties: {
         description: { type: 'string', description: 'Human-readable description of what this task does. E.g. "post tweet about AI every morning"' },
         tool: { type: 'string', description: 'Name of the XTool to call when this task fires. E.g. "post_tweet", "find_and_like", "find_viral_and_act"' },
-        tool_input: { type: 'object', description: 'The input object to pass to the tool, exactly as you would call it directly.' },
+        tool_input: { type: 'string', description: 'JSON string of the input to pass to the tool. E.g. \'{"topic":"AI","angle":"hot take"}\' for post_tweet.' },
         cron: { type: 'string', description: 'Cron expression for when to run. Examples: "0 9 * * *" = every day 9am, "0 20 * * *" = every day 8pm, "0 9 28 4 *" = once on Apr 28 at 9am. Use 24h UTC unless owner specifies timezone.' },
         one_time: { type: 'boolean', description: 'true = run once then delete. false = repeat on schedule. Default false.' },
       },
@@ -611,8 +611,10 @@ export class XTools {
 
         case 'schedule_task': {
           if (!this.taskRunner) return '⚠️ Scheduler not ready — try again in a moment'
-          const { description, tool, tool_input, cron: cronExpr, one_time = false } = input
+          const { description, tool, cron: cronExpr, one_time = false } = input
           if (!tool || !cronExpr) return 'missing required fields: tool, cron'
+          let tool_input: Record<string, any> = {}
+          try { tool_input = typeof input.tool_input === 'string' ? JSON.parse(input.tool_input) : (input.tool_input ?? {}) } catch { return '⚠️ tool_input must be valid JSON string' }
 
           // Check if a one-time task's time has already passed today.
           // Cron "M H * * *" — if that H:M is in the past, node-cron silently queues for tomorrow.
