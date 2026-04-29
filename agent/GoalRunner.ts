@@ -243,7 +243,7 @@ export class GoalRunner {
   start(): void {
     console.log('[GoalRunner] started — checking goals every 30 min')
     this.tick()
-    this.timer = setInterval(() => this.tick(), 30 * 60 * 1000)
+    this.timer = setInterval(() => this.tick(), 1 * 60 * 1000)
   }
 
   private async tick(): Promise<void> {
