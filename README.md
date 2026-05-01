@@ -79,6 +79,23 @@ Open Telegram. Search for your bot and start talking.
 
 One conversation. It controls everything.
 
+```mermaid
+flowchart TD
+    A([You on Telegram]) --> B[TelegramAdapter]
+    B --> C[SessionBrain]
+    C --> D[Claude Agent SDK]
+    D --> E{What does it need?}
+    E -->|Post / reply on X| F[XToolsMcpServer\nPlaywright + API]
+    E -->|Research / web| G[Tavily + Playwright\nWeb Scraper]
+    E -->|Build / deploy / files| H[29 Skills\nGitHub · Railway · Gmail · Drive]
+    E -->|Who is this person?| I[MemoryEngine\nPer-person history]
+    F --> J[SecurityShield\nscan output]
+    G --> J
+    H --> J
+    I --> J
+    J --> K([Result back to you])
+```
+
 ### Social Memory
 
 ```
@@ -145,11 +162,42 @@ Every future session reads everything before it.
 Nothing resets.  
 Nothing is forgotten.
 
+```mermaid
+flowchart TD
+    A([GoalRunner wakes\nevery 30 min]) --> B[Load goal state\nread all prior keypoints]
+    B --> C[SessionBrain\nfull tools + your voice]
+    C --> D{Acts across platforms}
+    D -->|Posts / replies| E[X in your voice]
+    D -->|Researches| F[Web search + scrape]
+    D -->|Builds / sends| G[Code · emails · deploys]
+    E --> H[Write keypoints\ndone_today.txt]
+    F --> H
+    G --> H
+    H --> I{Goal complete?}
+    I -->|No| J[Notify you on Telegram\nsleep 30 min]
+    J --> A
+    I -->|Yes| K([Goal completed\nYou are notified])
+```
+
 ---
 
 ## Memory
 
 Most AI has context. **BLOPUS has history.**
+
+```mermaid
+flowchart LR
+    A([New interaction]) --> B{Who is this?}
+    B --> C[Load person record\nfrom archive]
+    C --> D[Relationship type\nfriend · investor · colleague]
+    C --> E[Your tone with them\nhow warm · what you never say]
+    C --> F[Their patterns\ntopics · response style · history]
+    D --> G[BLOPUS responds\nin your exact voice\nwith full context]
+    E --> G
+    F --> G
+    G --> H[Update record\nwith new interaction]
+    H --> I([Memory grows\nnothing ever deleted])
+```
 
 ### Per-person memory
 
@@ -253,44 +301,6 @@ CREATOR=bob npm run blopus:owner
 | [`core/`](core/) | Intelligence: voice engine, memory, per-person profiles, RAG index |
 | [`adapters/`](adapters/) | Platform connectors: X (Playwright + API), Telegram, SessionBrain, MCP tools |
 | [`skills/`](skills/) | 29 markdown files, each one teaches BLOPUS a new capability |
-
-**How a request flows:**
-
-```mermaid
-flowchart TD
-    A([You on Telegram]) --> B[TelegramAdapter]
-    B --> C[SessionBrain]
-    C --> D[Claude Agent SDK]
-    D --> E{What does it need?}
-    E -->|Post / reply on X| F[XToolsMcpServer\nPlaywright + API]
-    E -->|Research / web| G[Tavily + Playwright\nWeb Scraper]
-    E -->|Build / deploy / files| H[29 Skills\nGitHub · Railway · Gmail · Drive]
-    E -->|Who is this person?| I[MemoryEngine\nPer-person history]
-    F --> J[SecurityShield\nscan output]
-    G --> J
-    H --> J
-    I --> J
-    J --> K([Result back to you])
-```
-
-**How the autonomous loop runs:**
-
-```mermaid
-flowchart TD
-    A([GoalRunner wakes\nevery 30 min]) --> B[Load goal state\nread all prior keypoints]
-    B --> C[SessionBrain\nfull tools + your voice]
-    C --> D{Acts across platforms}
-    D -->|Posts / replies| E[X in your voice]
-    D -->|Researches| F[Web search + scrape]
-    D -->|Builds / sends| G[Code · emails · deploys]
-    E --> H[Write keypoints\ndone_today.txt]
-    F --> H
-    G --> H
-    H --> I{Goal complete?}
-    I -->|No| J[Notify you on Telegram\nsleep 30 min]
-    J --> A
-    I -->|Yes| K([Goal completed\nYou are notified])
-```
 
 ---
 
