@@ -2762,32 +2762,16 @@ async function main() {
         voiceProfile = await runEngagementStyleInterview(ask)
         saveProfile()
       } else if (engModeRaw === '2') {
-        // RAG mode — same as growth RAG but skip the reply-hunting section
-        console.log('\n' + '─'.repeat(58))
-        console.log('  RAG VOICE INTERVIEW (engagement mode)\n')
-        console.log('  Building your voice profile from your tweet archive...')
-        console.log('  (reply examples skipped — not needed for engagement mode)\n')
-        console.log('─'.repeat(58))
+        console.log('\n  Building your voice profile from your tweet archive...')
         try {
-          const { execSync } = await import('child_process')
-          execSync('npx tsx scripts/setup-rag-interview.ts', {
-            stdio: 'inherit',
-            cwd: process.cwd(),
-            env: { ...process.env, RAG_SKIP_REPLIES: 'true' },
-          })
+          const { buildRagVoiceProfile } = await import('./buildRagVoiceProfile')
+          await buildRagVoiceProfile(creatorDir)
           const vpPath = path.join(creatorDir, 'voice_profile.json')
           if (fs.existsSync(vpPath)) {
             voiceProfile = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
-            if (voiceProfile?.bannedPhrases?.length && personalityProfile) {
-              personalityProfile.avoids = [
-                ...(personalityProfile.avoids ?? []),
-                ...voiceProfile.bannedPhrases.filter((p: string) => !(personalityProfile.avoids ?? []).includes(p)),
-              ]
-            }
           }
         } catch (err: any) {
-          console.log(`\n  RAG interview error: ${err.message?.slice(0, 100)}`)
-          console.log('  You can run it later with: npm run rag-interview\n')
+          console.log(`\n  RAG build error: ${err.message?.slice(0, 100)}`)
           if (!voiceProfile) voiceProfile = {} as any
         }
         saveProfile()
@@ -2824,33 +2808,16 @@ async function main() {
         originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
         saveProfile()
       } else if (replyEngineRaw === '2') {
-        // RAG mode — run the RAG auto-interview to build voice_profile.json from archive
-        console.log('\n' + '─'.repeat(58))
-        console.log('  RAG VOICE INTERVIEW\n')
-        console.log('  Building your voice profile from your tweet archive...')
-        console.log('  (runs setup-rag-interview.ts — takes ~5 min)\n')
-        console.log('─'.repeat(58))
+        console.log('\n  Building your voice profile from your tweet archive...')
         try {
-          const { execSync } = await import('child_process')
-          execSync('npx tsx scripts/setup-rag-interview.ts', {
-            stdio: 'inherit',
-            cwd: process.cwd(),
-            env: { ...process.env },
-          })
-          // After RAG interview saves voice_profile.json, load it back into voiceProfile
+          const { buildRagVoiceProfile } = await import('./buildRagVoiceProfile')
+          await buildRagVoiceProfile(creatorDir)
           const vpPath = path.join(creatorDir, 'voice_profile.json')
           if (fs.existsSync(vpPath)) {
             voiceProfile = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
-            if (voiceProfile?.bannedPhrases?.length && personalityProfile) {
-              personalityProfile.avoids = [
-                ...(personalityProfile.avoids ?? []),
-                ...voiceProfile.bannedPhrases.filter((p: string) => !(personalityProfile.avoids ?? []).includes(p)),
-              ]
-            }
           }
         } catch (err: any) {
-          console.log(`\n  RAG interview error: ${err.message?.slice(0, 100)}`)
-          console.log('  You can run it later with: npm run rag-interview\n')
+          console.log(`\n  RAG build error: ${err.message?.slice(0, 100)}`)
           if (!voiceProfile) voiceProfile = {} as any
         }
       }
