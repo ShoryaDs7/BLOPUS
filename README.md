@@ -1,4 +1,4 @@
-# 🐙 BLOPUS
+# BLOPUS
 
 <p align="center">
   <img src="assets/banner.png" alt="BLOPUS" width="100%"/>
@@ -257,15 +257,39 @@ CREATOR=bob npm run blopus:owner
 **How a request flows:**
 
 ```mermaid
-flowchart LR
-    A[You on Telegram] --> B[BLOPUS parses<br/>your intent] --> C[Core Engine<br/>29 Skills] --> D[Posts / Emails<br/>Codes / Deploys] --> E[Result back<br/>to you]
+flowchart TD
+    A([You on Telegram]) --> B[TelegramAdapter]
+    B --> C[SessionBrain]
+    C --> D[Claude Agent SDK]
+    D --> E{What does it need?}
+    E -->|Post / reply on X| F[XToolsMcpServer\nPlaywright + API]
+    E -->|Research / web| G[Tavily + Playwright\nWeb Scraper]
+    E -->|Build / deploy / files| H[29 Skills\nGitHub · Railway · Gmail · Drive]
+    E -->|Who is this person?| I[MemoryEngine\nPer-person history]
+    F --> J[SecurityShield\nscan output]
+    G --> J
+    H --> J
+    I --> J
+    J --> K([Result back to you])
 ```
 
 **How the autonomous loop runs:**
 
 ```mermaid
-flowchart LR
-    A[Every 30 min<br/>GoalRunner wakes] --> B[Continues from<br/>last session] --> C[Acts in<br/>your voice] --> D[Sends you<br/>an update] -- 30 min --> A
+flowchart TD
+    A([GoalRunner wakes\nevery 30 min]) --> B[Load goal state\nread all prior keypoints]
+    B --> C[SessionBrain\nfull tools + your voice]
+    C --> D{Acts across platforms}
+    D -->|Posts / replies| E[X in your voice]
+    D -->|Researches| F[Web search + scrape]
+    D -->|Builds / sends| G[Code · emails · deploys]
+    E --> H[Write keypoints\ndone_today.txt]
+    F --> H
+    G --> H
+    H --> I{Goal complete?}
+    I -->|No| J[Notify you on Telegram\nsleep 30 min]
+    J --> A
+    I -->|Yes| K([Goal completed\nYou are notified])
 ```
 
 ---
