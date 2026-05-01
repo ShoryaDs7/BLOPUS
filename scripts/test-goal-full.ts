@@ -12,7 +12,7 @@ import { GoalStore } from '../adapters/control/GoalStore'
 import { runGoal } from '../agent/GoalRunner'
 
 async function main() {
-  const email = process.env.OWNER_EMAIL ?? 'shawrya.ds7@gmail.com'
+  const email = process.env.OWNER_EMAIL ?? ''
 
   const goal = GoalStore.create({
     goal: `Research the most interesting AI agent breakthrough from the past week. Day 1: find it and post one tweet about it in the owner's voice (use post_tweet tool). Day 2: dig deeper — find implications and post a follow-up tweet. Day 3: send a summary email to ${email} with what was found across all 3 days, then post a final concluding tweet.`,
