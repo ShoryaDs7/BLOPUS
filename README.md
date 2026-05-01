@@ -162,6 +162,14 @@ Every future session reads everything before it.
 Nothing resets.  
 Nothing is forgotten.
 
+After every session:
+
+- what was permanently ruled out, never retried again
+- decisions and findings that must carry forward
+- the best open thread: where to push next
+
+Dead ends stay dead. Progress compounds.
+
 ```mermaid
 flowchart TD
     A([GoalRunner wakes\nevery 30 min]) --> B[Load goal state\nread all prior keypoints]
@@ -211,18 +219,6 @@ Every contact has a live record, seeded from your archive, updated on every inte
 - full interaction history going back years, nothing ever deleted
 
 BLOPUS doesn't just know how you talk to someone. It knows the other person too.
-
-### Goal memory
-
-Every AI agent forgets the moment a session ends. BLOPUS doesn't.
-
-After every GoalRunner session:
-
-- what was permanently ruled out, never retried again
-- decisions and findings that must carry forward
-- the best open thread: where to push next
-
-Day 30 still knows what it decided on day 1. Dead ends stay dead. Progress compounds. Nothing resets.
 
 ### Telegram session memory
 
