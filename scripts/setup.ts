@@ -863,6 +863,47 @@ async function runLikeInterview(computed: any, askFn: (q: string) => Promise<str
   }
 }
 
+// ─── RAG mode: 3 quick questions the archive can't answer ────
+async function runRagQuickQuestions(voiceProfile: any, askFn: (q: string) => Promise<string>): Promise<any> {
+  console.log('\n  ─ 3 quick questions the archive can\'t answer ─\n')
+
+  const banned = await askFn('  Words/phrases Blopus should NEVER use? (comma-separated, or Enter to skip): ')
+  if (banned.trim()) {
+    voiceProfile.bannedPhrases = banned.split(',').map((p: string) => p.trim()).filter(Boolean)
+    console.log(`  Got it — never: ${voiceProfile.bannedPhrases.join(', ')}\n`)
+  } else {
+    voiceProfile.bannedPhrases = []
+    console.log('  Skipped.\n')
+  }
+
+  const neverT = await askFn('  Topics to NEVER engage with? (comma-separated, or Enter to skip): ')
+  if (neverT.trim()) {
+    voiceProfile.neverTopics = neverT.split(',').map((p: string) => p.trim()).filter(Boolean)
+    console.log(`  Got it — never engage: ${voiceProfile.neverTopics.join(', ')}\n`)
+  } else {
+    voiceProfile.neverTopics = []
+    console.log('  Skipped.\n')
+  }
+
+  console.log('  How do you react to these? (one line each, or Enter to skip)\n')
+  const bp: Record<string, string> = voiceProfile.behaviorPatterns ?? {}
+  const patterns: [string, string][] = [
+    ['onFunny',         '  Funny/viral content: '],
+    ['onDisagreement',  '  When you disagree: '],
+    ['onControversial', '  On controversial topics: '],
+    ['onNewsWithTake',  '  News you have a take on: '],
+    ['onAgreement',     '  When you agree: '],
+  ]
+  for (const [key, prompt] of patterns) {
+    const ans = await askFn(prompt)
+    if (ans.trim()) bp[key] = ans.trim()
+  }
+  voiceProfile.behaviorPatterns = bp
+  console.log()
+
+  return voiceProfile
+}
+
 // ─── Engagement mode: minimal 4-question style interview ─────
 async function runEngagementStyleInterview(askFn: (q: string) => Promise<string>): Promise<any> {
   console.log('\n' + '═'.repeat(58))
@@ -2774,6 +2815,8 @@ async function main() {
           console.log(`\n  RAG build error: ${err.message?.slice(0, 100)}`)
           if (!voiceProfile) voiceProfile = {} as any
         }
+        if (!voiceProfile) voiceProfile = {} as any
+        voiceProfile = await runRagQuickQuestions(voiceProfile, ask)
         saveProfile()
       } else {
         console.log('  Skipped — using archive style as-is.\n')
@@ -2820,12 +2863,14 @@ async function main() {
           console.log(`\n  RAG build error: ${err.message?.slice(0, 100)}`)
           if (!voiceProfile) voiceProfile = {} as any
         }
+        if (!voiceProfile) voiceProfile = {} as any
+        voiceProfile = await runRagQuickQuestions(voiceProfile, ask)
       }
     } else {
       console.log('  Neither mode — skipping reply voice setup.\n')
     }
 
-    if (replyEngine !== 'voice') {
+    if (replyEngine !== 'voice' && replyEngineRaw !== '2') {
       if (!await askSkip('ORIGINAL POSTS — how Blopus writes your standalone tweets', ask)) {
         originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
         if (originalPostProfile?.topics?.length && personalityProfile) {

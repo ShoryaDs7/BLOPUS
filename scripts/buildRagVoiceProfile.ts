@@ -26,10 +26,16 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 interface RagPair { reply: string; tokens: string[]; type: string; len: number }
 
+const REPLY_FILTER_TERMS = ['lesbo', 'lesbi', 'faggot', 'retard', 'slut', 'whore', 'castrat']
+
 function pickDiverseReplies(pairs: RagPair[], count: number): string[] {
   const seen = new Set<string>()
   const unique = pairs.filter(p => { if (seen.has(p.reply)) return false; seen.add(p.reply); return true })
-  const candidates = unique.filter(p => p.len > 30 && p.tokens.length > 2)
+  const candidates = unique.filter(p =>
+    p.len > 30 &&
+    p.tokens.length > 2 &&
+    !REPLY_FILTER_TERMS.some(t => p.reply.toLowerCase().includes(t))
+  )
   const sorted = [...candidates].sort((a, b) => b.len - a.len)
 
   const picked: string[] = []
