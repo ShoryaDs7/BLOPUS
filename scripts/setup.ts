@@ -2743,9 +2743,57 @@ async function main() {
     // ── Voice / style setup — varies by reply strategy ───────────
     let replyEngineRaw = ''
     if (replyStrategy === 'engagement') {
-      // Engagement mode: just 4 style questions — no full voice interview
-      voiceProfile = await runEngagementStyleInterview(ask)
-      saveProfile()
+      section(11, 'How should Blopus sound like you?')
+      console.log(`
+  1 · Voice mode  — 4 quick style questions, you type your answers
+                    Good if your archive is old or you want full control
+
+  2 · RAG mode    — reads your tweet archive and fills in your style automatically
+                    You just confirm what it found — no typing needed
+
+  3 · Skip        — skip this entirely, Blopus uses archive as-is
+`)
+      let engModeRaw = ''
+      while (!['1', '2', '3'].includes(engModeRaw)) {
+        engModeRaw = await ask('  Enter 1, 2 or 3: ')
+      }
+
+      if (engModeRaw === '1') {
+        voiceProfile = await runEngagementStyleInterview(ask)
+        saveProfile()
+      } else if (engModeRaw === '2') {
+        // RAG mode — same as growth RAG but skip the reply-hunting section
+        console.log('\n' + '─'.repeat(58))
+        console.log('  RAG VOICE INTERVIEW (engagement mode)\n')
+        console.log('  Building your voice profile from your tweet archive...')
+        console.log('  (reply examples skipped — not needed for engagement mode)\n')
+        console.log('─'.repeat(58))
+        try {
+          const { execSync } = await import('child_process')
+          execSync('npx tsx scripts/setup-rag-interview.ts', {
+            stdio: 'inherit',
+            cwd: process.cwd(),
+            env: { ...process.env, RAG_SKIP_REPLIES: 'true' },
+          })
+          const vpPath = path.join(creatorDir, 'voice_profile.json')
+          if (fs.existsSync(vpPath)) {
+            voiceProfile = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+            if (voiceProfile?.bannedPhrases?.length && personalityProfile) {
+              personalityProfile.avoids = [
+                ...(personalityProfile.avoids ?? []),
+                ...voiceProfile.bannedPhrases.filter((p: string) => !(personalityProfile.avoids ?? []).includes(p)),
+              ]
+            }
+          }
+        } catch (err: any) {
+          console.log(`\n  RAG interview error: ${err.message?.slice(0, 100)}`)
+          console.log('  You can run it later with: npm run rag-interview\n')
+          if (!voiceProfile) voiceProfile = {} as any
+        }
+        saveProfile()
+      } else {
+        console.log('  Skipped — using archive style as-is.\n')
+      }
     } else if (replyStrategy === 'growth') {
       section(11, 'How should Blopus sound like you?')
       console.log(`
@@ -2776,22 +2824,35 @@ async function main() {
         originalPostProfile = await runOriginalPostInterview(personalityProfile, ask, setupClient)
         saveProfile()
       } else if (replyEngineRaw === '2') {
-        // RAG mode — just capture banned phrases + never topics (archive handles the rest)
+        // RAG mode — run the RAG auto-interview to build voice_profile.json from archive
         console.log('\n' + '─'.repeat(58))
-        console.log('  QUICK SETTINGS (RAG mode)\n')
-        console.log('  Any words or phrases Blopus should NEVER say?')
-        console.log('  e.g. "lol, bro, ngl, tbh" — or press Enter to skip')
-        const bannedRaw = await ask('  > ')
-        const bannedPhrases = bannedRaw.trim()
-          ? bannedRaw.split(',').map((p: string) => p.trim()).filter(Boolean)
-          : []
-        if (bannedPhrases.length) console.log(`  Got it — never say: ${bannedPhrases.join(', ')}\n`)
-        if (!voiceProfile) voiceProfile = {} as any
-        voiceProfile.bannedPhrases = bannedPhrases
-        if (bannedPhrases.length && personalityProfile) {
-          personalityProfile.avoids = [...(personalityProfile.avoids ?? []), ...bannedPhrases]
-        }
+        console.log('  RAG VOICE INTERVIEW\n')
+        console.log('  Building your voice profile from your tweet archive...')
+        console.log('  (runs setup-rag-interview.ts — takes ~5 min)\n')
         console.log('─'.repeat(58))
+        try {
+          const { execSync } = await import('child_process')
+          execSync('npx tsx scripts/setup-rag-interview.ts', {
+            stdio: 'inherit',
+            cwd: process.cwd(),
+            env: { ...process.env },
+          })
+          // After RAG interview saves voice_profile.json, load it back into voiceProfile
+          const vpPath = path.join(creatorDir, 'voice_profile.json')
+          if (fs.existsSync(vpPath)) {
+            voiceProfile = JSON.parse(fs.readFileSync(vpPath, 'utf8'))
+            if (voiceProfile?.bannedPhrases?.length && personalityProfile) {
+              personalityProfile.avoids = [
+                ...(personalityProfile.avoids ?? []),
+                ...voiceProfile.bannedPhrases.filter((p: string) => !(personalityProfile.avoids ?? []).includes(p)),
+              ]
+            }
+          }
+        } catch (err: any) {
+          console.log(`\n  RAG interview error: ${err.message?.slice(0, 100)}`)
+          console.log('  You can run it later with: npm run rag-interview\n')
+          if (!voiceProfile) voiceProfile = {} as any
+        }
       }
     } else {
       console.log('  Neither mode — skipping reply voice setup.\n')

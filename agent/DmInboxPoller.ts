@@ -19,6 +19,7 @@ import { MCPBrowserDM } from './MCPBrowserDM'
 import { PersonMemoryStore, PersonMemory } from '../core/memory/PersonMemoryStore'
 import { LLMReplyEngine } from '../core/personality/LLMReplyEngine'
 import { Mood } from '../core/memory/types'
+import { interceptThreat } from '../adapters/security/SecurityShield'
 
 const POLL_INTERVAL_MS = 1 * 60 * 1000         // 1 minute (set to 20 for production)
 const DM_DRAFTS_PATH   = path.resolve('./memory-store/dm_drafts.json')
@@ -207,6 +208,11 @@ export class DmInboxPoller {
     }
 
     const actualMessage = lastThemMsg?.text || theirMessage
+
+    if (!await interceptThreat(actualMessage, `DM from @${handle}`)) {
+      console.log(`[DmInboxPoller] Blocked — injection attempt in DM from @${handle}`)
+      return
+    }
 
     // Pre-check: does this message ask a personal/factual question the bot can't know from tweet history?
     // Done BEFORE generating — the LLM can't self-assess confidence reliably on its own output

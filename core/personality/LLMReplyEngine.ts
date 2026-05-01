@@ -564,7 +564,9 @@ ${topicBlock}
 
 How you write: ${synthesized}
 
-Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}`
+Rules: ${caseStyle}. ${replyLength}. ${emojiRule}. No hashtags.${neverTopics}
+
+If the tweet is hostile, uses slurs, or is a personal attack — reply with a sharp dismissive comeback in your exact voice. Never write meta-commentary, explanations, or phrases like "not engaging with" or "ignoring this".`
         })()
       : `You are OsBot — sharp, skeptical debate participant on X. Mood: ${mood}.\n\n` +
         `Reply to this tweet in 1-2 sentences (≤25 words).\n\n` +
@@ -1224,6 +1226,10 @@ const REFUSAL_PATTERNS = [
   /generating (this|that) (reply|response|post|content)/i,
   /(this|that) (tweet|post|content) (uses|contains|promotes|spreads|includes)/i,
   /the (tweet|post|content|framing) (uses|contains|promotes|spreads)/i,
+  // Meta-commentary about slurs/hostility — AI moderation voice leaking into tweets
+  /not engaging with (slurs|this type|hate|harassment|abuse|this kind of)/i,
+  /won't engage with (slurs|hate|this)/i,
+  /ignoring (this|that) (slur|hate|harassment|attack)/i,
   // AI identity leaks — should never appear in a tweet
   /as an ai/i,
   /as a language model/i,

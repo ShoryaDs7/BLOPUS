@@ -14,6 +14,7 @@
  * Daily cap: 10 proactive replies (conservative for a real human account)
  */
 
+import { interceptThreat, blockLeak } from '../adapters/security/SecurityShield'
 import { LLMReplyEngine } from '../core/personality/LLMReplyEngine'
 import { PersonalityProfile } from '../core/personality/LLMReplyEngine'
 import { XAdapter } from '../adapters/x/XAdapter'
@@ -256,6 +257,12 @@ export class OwnerViralReplyHunter {
       const pick = pool[0]
       console.log(`[OwnerViralHunter] Picked tweet ${pick.tweetId} by @${pick.authorHandle} (${pick.likeCount} likes, ${pick.ageMinutes}m old)`)
 
+      // Scan incoming tweet for injection before passing to LLM
+      if (!await interceptThreat(pick.text, `tweet @${pick.authorHandle}`)) {
+        console.log('[OwnerViralHunter] Blocked — injection attempt detected in tweet, skipping.')
+        return
+      }
+
       // Generate reply in owner's voice
       const replyText = await this.llmEngine.generateViralReply(
         { text: pick.text, authorHandle: pick.authorHandle, mediaUrls: pick.mediaUrls },
@@ -265,6 +272,12 @@ export class OwnerViralReplyHunter {
 
       if (!replyText) {
         console.log('[OwnerViralHunter] LLM returned empty reply — skipping.')
+        return
+      }
+
+      // Scan output before posting
+      if (!await blockLeak(replyText, 'OwnerViralReplyHunter')) {
+        console.log('[OwnerViralHunter] Blocked — output firewall triggered, skipping.')
         return
       }
 

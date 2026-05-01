@@ -206,6 +206,14 @@ server.tool('cancel_task',
   })
 )
 
+server.tool('get_post_analytics',
+  'Get views, likes, replies, reposts for one or more tweets. Chain with get_user_tweets to analyze recent posts without needing URLs from the user.',
+  { tweet_urls: z.array(z.string()) },
+  async ({ tweet_urls }) => ({
+    content: [{ type: 'text' as const, text: await call('get_post_analytics', { tweet_urls }) }]
+  })
+)
+
 const transport = new StdioServerTransport()
 server.connect(transport)
 console.error('[XToolsMcpServer] ready — proxying to XToolsServer :7821')

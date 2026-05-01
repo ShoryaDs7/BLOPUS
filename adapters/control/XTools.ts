@@ -9,6 +9,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { blockLeak, interceptThreat } from '../security/SecurityShield'
 import { XAdapter } from '../x/XAdapter'
 import { PlaywrightXClient } from '../x/PlaywrightXClient'
 import { LLMReplyEngine } from '../../core/personality/LLMReplyEngine'
@@ -360,6 +361,21 @@ export const X_TOOL_DEFINITIONS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_post_analytics',
+    description: 'Get engagement stats (views, likes, replies, reposts) for one or more tweets. Use for "how did my last tweet do?", "which post performed best?", "show analytics for recent posts". Chain with get_user_tweets to analyze recent posts without needing URLs from the user.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        tweet_urls: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'One or more full tweet URLs to check. Get these from get_user_tweets if you don\'t have them.',
+        },
+      },
+      required: ['tweet_urls'],
+    },
+  },
+  {
     name: 'scrape_website',
     description: 'Go to any website, fill in form fields, submit, click through all tabs/sections and return all extracted data. Use when asked to "scrape this site", "get my kundli", "fill this form", "check this website", etc.',
     input_schema: {
@@ -453,6 +469,7 @@ export class XTools {
             }
             if (!replyText) return '❌ Could not generate reply — tweet not found or voice generation failed'
           }
+          if (!await blockLeak(replyText, 'reply_to_tweet')) return '❌ Blocked by output firewall — potential credential leak detected'
           await this.playwrightClient.postReply(m[1], replyText)
           return `✅ Replied to ${input.tweet_url}: "${replyText.slice(0, 80)}"`
         }
@@ -698,6 +715,17 @@ export class XTools {
           return removed ? `✅ Task ${input.task_id} cancelled` : `Task ${input.task_id} not found`
         }
 
+        case 'get_post_analytics': {
+          const urls = (input.tweet_urls as string[]) ?? []
+          if (!urls.length) return 'no tweet URLs provided — use get_user_tweets first to get URLs'
+          const results: string[] = []
+          for (const url of urls.slice(0, 10)) {
+            const stats = await this.getPostAnalytics(url)
+            results.push(stats)
+          }
+          return results.join('\n\n')
+        }
+
         case 'scrape_website': {
           const url = input.url as string
           const fields = (input.fields as Array<{ label: string; value: string }>) ?? []
@@ -771,6 +799,7 @@ export class XTools {
       return `❌ post_tweet failed: ${err?.message?.slice(0, 100) ?? 'unknown error'}`
     }
     if (!text) return '❌ Could not generate post — voice profile may be missing'
+    if (!await blockLeak(text, 'post_tweet')) return '❌ Blocked by output firewall — potential credential leak detected'
     await this.xAdapter.postTweet(text)
     return `posted tweet: "${text}"`
   }
@@ -830,6 +859,10 @@ export class XTools {
         let qtText = ''
 
         if (action === 'reply' || action === 'both') {
+          if (!await interceptThreat(tweet.text, `tweet @${tweet.authorHandle}`)) {
+            log.push(`✗ @${tweet.authorHandle}: blocked — injection attempt in tweet`)
+            continue
+          }
           replyText = await this.llmEngine.generateReply({
             mentionText: tweet.text,
             authorHandle: tweet.authorHandle,
@@ -840,6 +873,10 @@ export class XTools {
             traits: { aggression: 0.3, warmth: 0.6, humor: 0.7, formality: 0.1, verbosity: 0.4 } as any,
           })
           // Retry once on failure — X sometimes rejects the first attempt
+          if (!await blockLeak(replyText, 'findViralAndAct reply')) {
+            log.push(`✗ @${tweet.authorHandle}: blocked by output firewall`)
+            continue
+          }
           let posted = false
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
@@ -1265,6 +1302,48 @@ Comment only. Nothing else.`
     return log.length
       ? `retweeted ${log.length} tweets in "${topic}"`
       : `failed to retweet any tweets in "${topic}"`
+  }
+
+  private async getPostAnalytics(tweetUrl: string): Promise<string> {
+    const m = tweetUrl.match(/\/status\/(\d+)/)
+    if (!m) return `${tweetUrl} — invalid URL`
+
+    const { page, close } = await this.playwrightClient.createPage()
+    try {
+      await page.goto(tweetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      await page.waitForSelector('article[data-testid="tweet"]', { timeout: 12000 }).catch(() => {})
+      await page.waitForTimeout(1500)
+
+      // Pull raw text of the whole tweet article — parse numbers from aria-labels
+      const tweetText = await page.locator('[data-testid="tweetText"]').first().innerText().catch(() => '')
+
+      // Aria-labels on action buttons contain counts: "1,234 Likes", "56 Replies", "89 Reposts"
+      function extractCount(label: string): string {
+        const n = label.match(/^([\d,]+(?:\.\d+)?[KMB]?)/i)
+        return n ? n[1] : '0'
+      }
+
+      const likeLabel    = await page.locator('[data-testid="like"]').first().getAttribute('aria-label').catch(() => '')
+      const replyLabel   = await page.locator('[data-testid="reply"]').first().getAttribute('aria-label').catch(() => '')
+      const retweetLabel = await page.locator('[data-testid="retweet"]').first().getAttribute('aria-label').catch(() => '')
+
+      const likes    = extractCount(likeLabel ?? '')
+      const replies  = extractCount(replyLabel ?? '')
+      const reposts  = extractCount(retweetLabel ?? '')
+
+      // Views — shown as plain text near the analytics link at the bottom of the tweet
+      let views = '—'
+      const analyticsLink = await page.locator('a[href$="/analytics"]').first().innerText().catch(() => '')
+      if (analyticsLink) {
+        const v = analyticsLink.match(/([\d,.]+\s*[KMB]?)\s*Views?/i)
+        views = v ? v[1].trim() : analyticsLink.trim()
+      }
+
+      const preview = tweetText ? `"${tweetText.slice(0, 80)}${tweetText.length > 80 ? '…' : ''}"` : tweetUrl
+      return `${preview}\n  👁 ${views} views  ❤️ ${likes} likes  💬 ${replies} replies  🔁 ${reposts} reposts\n  ${tweetUrl}`
+    } finally {
+      await close()
+    }
   }
 
   private updateConfig(updates: Record<string, any>): string {

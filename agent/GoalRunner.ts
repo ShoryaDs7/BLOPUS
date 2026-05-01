@@ -68,8 +68,12 @@ function buildPrompt(goal: GoalState): string {
     ? `Most recent work files (read these for context): ${workFiles.join(', ')}`
     : 'No work files yet.'
 
+  const conditionBlock = goal.completion_condition
+    ? `\nCompletion condition: "${goal.completion_condition}" — check this at the START of every session. If it is met, write "Completed — [condition] is met" as line 1 of done_today.txt and stop working.`
+    : ''
+
   return `Goal: ${goal.goal}
-${goal.deadline ? `Deadline: ${goal.deadline}` : ''}
+${goal.deadline ? `Deadline: ${goal.deadline}` : ''}${conditionBlock}
 Today is Day ${dayNumber}.
 
 Current focus: ${goal.current_focus}
@@ -97,7 +101,7 @@ Then do the actual work. When finished:
 1. Overwrite ${dir}/done_today.txt with the real summary:
 Line 1: what you actually did today (one sentence)
 Line 2: what to focus on tomorrow (one sentence)
-Line 3: any blockers (or write: none)
+Line 3: ONLY write a blocker if you genuinely cannot proceed without the owner's input — missing credentials, a decision only they can make, access you cannot get yourself. If you can try a different approach, just try it — write "none" here and keep going. Do NOT write a blocker just because one thing failed.
 Line 4: any new files created, comma separated (or write: none)
 
 2. Write ${dir}/keypoints_day_${dayNumber}.md — bullets only, no prose, 5-10 lines max:
@@ -107,6 +111,55 @@ Line 4: any new files created, comma separated (or write: none)
 - [critical decisions, facts, or findings that aren't obvious from the summary]
 ## Best open thread
 - [the most promising direction to pursue next]`
+}
+
+/** Reads done_today.txt and applies the result to GoalStore. Exported for testing. */
+export async function applyGoalResult(goal: GoalState): Promise<'completed' | 'paused' | 'active'> {
+  const dir = GoalStore.goalDir(goal.id)
+  const doneTodayPath = path.join(dir, 'done_today.txt')
+
+  let doneToday = 'Session ran but no summary written.'
+  let nextFocus = goal.current_focus
+  let newBlockers: string[] = []
+  let newFiles: string[] = []
+
+  if (fs.existsSync(doneTodayPath)) {
+    const lines = fs.readFileSync(doneTodayPath, 'utf-8')
+      .split('\n').map(l => l.trim()).filter(Boolean)
+    doneToday   = lines[0] ?? doneToday
+    nextFocus   = lines[1] ?? nextFocus
+    newBlockers = lines[2] && lines[2].toLowerCase() !== 'none' ? [lines[2]] : []
+    newFiles    = lines[3] && lines[3].toLowerCase() !== 'none'
+      ? lines[3].split(',').map(f => f.trim()).filter(Boolean)
+      : []
+  }
+
+  const allInFolder = fs.existsSync(dir)
+    ? fs.readdirSync(dir).filter(f => f !== 'state.json' && f !== 'done_today.txt').map(f => path.join(dir, f))
+    : []
+  const knownFiles = new Set(goal.files)
+  const discoveredFiles = allInFolder.filter(f => !knownFiles.has(f))
+  const updatedFiles = [...goal.files, ...discoveredFiles, ...newFiles.filter(f => !knownFiles.has(f))]
+  const today = new Date().toISOString().split('T')[0]
+  const d = doneToday.toLowerCase()
+  const goalDone = d.startsWith('completed') || d.startsWith('goal completed') ||
+    d.startsWith('done —') || d.startsWith('done:') || d.startsWith('finished') ||
+    d.startsWith('task complete') || d.startsWith('goal complete') || d.startsWith('all done') ||
+    d.includes('goal is complete') || d.includes('task is complete') || d.includes('work is complete')
+
+  if (goalDone) {
+    GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: [], files: updatedFiles, status: 'completed' })
+    await notify(goal.notify_chat_id, `🎉 Goal complete!\n\n"${goal.goal.slice(0, 80)}"\n\n${doneToday}`)
+    return 'completed'
+  } else if (newBlockers.length > 0) {
+    GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: newBlockers, files: updatedFiles })
+    await notify(goal.notify_chat_id, `⚠️ "${goal.goal.slice(0, 60)}"\n\nDone: ${doneToday}\nNext: ${nextFocus}\n\nFlagged: ${newBlockers.join(', ')}\n\nStill running tomorrow — reply if you want to redirect.`)
+    return 'active'
+  } else {
+    GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: [], files: updatedFiles })
+    await notify(goal.notify_chat_id, `✅ Done: ${doneToday}\n\nNext: ${nextFocus}`)
+    return 'active'
+  }
 }
 
 export async function runGoal(goal: GoalState): Promise<void> {
@@ -177,48 +230,7 @@ export async function runGoal(goal: GoalState): Promise<void> {
     return
   }
 
-  let doneToday = 'Session ran but no summary written.'
-  let nextFocus = goal.current_focus
-  let newBlockers: string[] = []
-  let newFiles: string[] = []
-
-  if (fs.existsSync(doneTodayPath)) {
-    const lines = fs.readFileSync(doneTodayPath, 'utf-8')
-      .split('\n').map(l => l.trim()).filter(Boolean)
-    doneToday  = lines[0] ?? doneToday
-    nextFocus  = lines[1] ?? nextFocus
-    newBlockers = lines[2] && lines[2].toLowerCase() !== 'none' ? [lines[2]] : []
-    newFiles    = lines[3] && lines[3].toLowerCase() !== 'none'
-      ? lines[3].split(',').map(f => f.trim()).filter(Boolean)
-      : []
-  }
-
-  // Auto-scan folder — register all files Claude created regardless of what it reported
-  const allInFolder = fs.readdirSync(dir)
-    .filter(f => f !== 'state.json' && f !== 'done_today.txt')
-    .map(f => path.join(dir, f))
-  const knownFiles = new Set(goal.files)
-  const discoveredFiles = allInFolder.filter(f => !knownFiles.has(f))
-
-  const today = new Date().toISOString().split('T')[0]
-  const goalDone = doneToday.toLowerCase().startsWith('completed') || doneToday.toLowerCase().startsWith('goal completed')
-
-  GoalStore.update(goal.id, {
-    done: [...goal.done, `${today}: ${doneToday}`],
-    current_focus: nextFocus,
-    blockers: newBlockers,
-    files: [...goal.files, ...discoveredFiles, ...newFiles.filter(f => !knownFiles.has(f))],
-    ...(goalDone ? { status: 'completed' } : {}),
-  })
-
-  const blockerLine = newBlockers.length ? `\n⚠️ Blocked: ${newBlockers.join(', ')}` : ''
-  if (goalDone) {
-    await notify(goal.notify_chat_id,
-      `🎉 Goal complete early!\n\n"${goal.goal.slice(0, 80)}"\n\n${doneToday}`)
-  } else {
-    await notify(goal.notify_chat_id,
-      `✅ Done: ${doneToday}\n\nTomorrow: ${nextFocus}${blockerLine}`)
-  }
+  await applyGoalResult(goal)
 }
 
 function shouldRunNow(goal: GoalState): boolean {

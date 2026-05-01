@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { XAdapter } from '../adapters/x/XAdapter'
 import { LLMReplyEngine } from '../core/personality/LLMReplyEngine'
 import { Mood } from '../core/memory/types'
+import { interceptThreat, blockLeak } from '../adapters/security/SecurityShield'
 
 const MAX_DEFENSES_PER_DAY = 5
 const CHECK_INTERVAL_MINUTES = 20
@@ -62,6 +63,8 @@ export class OwnerDefender {
           if (reply.authorHandle.toLowerCase() === this.ownerHandle.toLowerCase()) continue
           if (reply.authorHandle.toLowerCase() === this.botHandle.toLowerCase()) continue
 
+          if (!await interceptThreat(reply.text, `reply @${reply.authorHandle}`)) continue
+
           const isHostile = await this.isHostile(reply.text, this.ownerHandle)
           if (!isHostile) continue
 
@@ -74,6 +77,7 @@ export class OwnerDefender {
           if (!defense) continue
 
           const defenseText = `@${reply.authorHandle} ${defense}`
+          if (!await blockLeak(defenseText, 'OwnerDefender')) continue
           await this.xAdapter.postReply({ text: defenseText, inReplyToTweetId: reply.tweetId })
 
           this.defendedTweetIds.add(reply.tweetId)

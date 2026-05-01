@@ -6,6 +6,7 @@ import { Mood } from '../../core/memory/types'
 import { SessionBrain } from '../control/SessionBrain'
 import { PersonMemoryStore } from '../../core/memory/PersonMemoryStore'
 import type { DmInboxPoller } from '../../agent/DmInboxPoller'
+import { flagIntruder } from '../security/SecurityShield'
 
 const VALID_MOODS: Mood[] = ['chill', 'heated', 'snarky', 'defensive', 'distracted']
 
@@ -160,7 +161,8 @@ export class TelegramAdapter {
         return
       }
 
-      // Non-owner: ignore silently — this is a private instance
+      // Non-owner: alert owner and ignore silently
+      await flagIntruder(chatId, text)
     })
   }
 

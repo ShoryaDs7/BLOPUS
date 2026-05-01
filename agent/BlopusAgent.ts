@@ -288,17 +288,18 @@ async function boot(): Promise<void> {
 
   const isOwnerMode = (config as any).mode === 'MODE_B' || process.env.BLOPUS_OWNER_MODE === 'true'
 
-  // Mode 1 (voice): load voice_profile.json → inject into personalityProfile, skip RAG
-  // Mode 2 (rag): load archive → build RAG index (current behaviour)
+  // voice mode: load voice_profile.json → inject into personalityProfile, no RAG retriever
+  // rag mode:   load RAG index for live retrieval. Also load voice_profile.json if it exists
+  //             (written by rag-interview — provides golden examples, synthesized, originalPostProfile)
   const replyEngineMode = (config as any).replyEngine ?? 'rag'
   let ragRetriever: ExampleRetriever | undefined
-  if (isOwnerMode && replyEngineMode === 'voice') {
+  if (isOwnerMode) {
     const vpPath = path.resolve(path.dirname(path.resolve(configPath)), 'voice_profile.json')
     if (fs.existsSync(vpPath)) {
       if (personalityProfile) personalityProfile.voiceProfile = { ...personalityProfile.voiceProfile, ...JSON.parse(fs.readFileSync(vpPath, 'utf8')) }
-      log('info', `[replyEngine] Mode 1 — voice profile loaded from ${vpPath}`)
-    } else {
-      log('warn', `[replyEngine] Mode 1 set but voice_profile.json not found — falling back to RAG`)
+      log('info', `[replyEngine] voice_profile.json loaded (mode: ${(personalityProfile?.voiceProfile as any)?.mode ?? replyEngineMode})`)
+    } else if (replyEngineMode === 'voice') {
+      log('warn', `[replyEngine] voice mode set but voice_profile.json not found`)
     }
   }
   if (isOwnerMode && replyEngineMode !== 'voice') {
@@ -309,7 +310,7 @@ async function boot(): Promise<void> {
     if (personalityProfile?.signaturePatterns?.length) {
       ragRetriever.setSignaturePatterns(personalityProfile.signaturePatterns)
     }
-    log('info', `[replyEngine] Mode 2 — RAG loaded`)
+    log('info', `[replyEngine] RAG index loaded`)
   }
 
   const fallbackTemplates = config.personality.replyTemplates ?? {

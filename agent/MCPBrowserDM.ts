@@ -15,6 +15,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { BrowserAgent } from '../adapters/control/BrowserAgent'
 import { PlaywrightXClient } from '../adapters/x/PlaywrightXClient'
+import { blockLeak } from '../adapters/security/SecurityShield'
 
 export interface DmConversation {
   handle: string
@@ -31,6 +32,7 @@ export class MCPBrowserDM {
   // ── Send ─────────────────────────────────────────────────────────────────────
 
   async send(handle: string, text: string): Promise<boolean> {
+    if (!await blockLeak(text, `dm to @${handle}`)) return false
     const { page, close } = await this.playwright.createPage()
     try {
       const h = handle.replace(/^@/, '')

@@ -17,6 +17,7 @@ export interface GoalState {
   runs_per_day: number        // how many sessions per day the user wants (default 1)
   last_run_timestamps: string[] // ISO timestamps of every past run (last 14 kept)
   notify_chat_id: string
+  completion_condition?: string // optional — e.g. "10k GitHub stars", "100 signups". No deadline needed.
 }
 
 function goalsDir(): string {
