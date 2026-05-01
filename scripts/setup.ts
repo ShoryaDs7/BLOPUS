@@ -2765,7 +2765,7 @@ async function main() {
         console.log('\n  Building your voice profile from your tweet archive...')
         try {
           const { buildRagVoiceProfile } = await import('./buildRagVoiceProfile')
-          await buildRagVoiceProfile(creatorDir)
+          await buildRagVoiceProfile(creatorDir, 'engagement')
           const vpPath = path.join(creatorDir, 'voice_profile.json')
           if (fs.existsSync(vpPath)) {
             voiceProfile = JSON.parse(fs.readFileSync(vpPath, 'utf8'))

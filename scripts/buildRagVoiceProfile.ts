@@ -45,7 +45,7 @@ function pickDiverseReplies(pairs: RagPair[], count: number): string[] {
   return picked
 }
 
-export async function buildRagVoiceProfile(creatorDir: string): Promise<void> {
+export async function buildRagVoiceProfile(creatorDir: string, mode: 'growth' | 'engagement' = 'growth'): Promise<void> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not found')
   const client = new Anthropic({ apiKey })
@@ -59,9 +59,9 @@ export async function buildRagVoiceProfile(creatorDir: string): Promise<void> {
   const ws = pp.writingStats ?? {}
   const bp = pp.behaviorProfile ?? {}
 
-  // Reply golden examples: real archive replies (personality) + diverse rag_index picks
-  const ragPicks = pickDiverseReplies(ragPairs, 6)
-  const baseExamples: string[] = pp.replyExamples ?? []
+  // Reply golden examples: only for growth mode
+  const ragPicks = mode === 'growth' ? pickDiverseReplies(ragPairs, 6) : []
+  const baseExamples: string[] = mode === 'growth' ? (pp.replyExamples ?? []) : []
   const goldenExamples = [
     ...baseExamples,
     ...ragPicks.filter(r => !baseExamples.includes(r)),
@@ -70,14 +70,16 @@ export async function buildRagVoiceProfile(creatorDir: string): Promise<void> {
   // Post golden examples: sampleOriginals from archive
   const postGoldenExamples: string[] = (bp.sampleOriginals ?? []).slice(0, 10)
 
-  // Synthesize reply style
-  process.stdout.write('  Synthesizing reply style...')
-  const replyRes = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 150,
-    messages: [{
-      role: 'user',
-      content: `You are setting up an AI bot to write replies on X AS this exact person.
+  // Synthesize reply style (growth only)
+  let synthesized = pp.replyStyle ?? ''
+  if (mode === 'growth' && goldenExamples.length) {
+    process.stdout.write('  Synthesizing reply style...')
+    const replyRes = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
+      messages: [{
+        role: 'user',
+        content: `You are setting up an AI bot to write replies on X AS this exact person.
 
 Their real replies:
 ${goldenExamples.map((r, i) => `${i + 1}. "${r}"`).join('\n')}
@@ -89,10 +91,11 @@ Archive data:
 - Avoids: ${pp.avoids?.join(', ') || 'none'}
 
 Write 2 sentences describing HOW this person writes replies — style, tone, energy, length. No topics. Injected directly into every reply prompt.`,
-    }],
-  })
-  const synthesized = replyRes.content[0]?.type === 'text' ? replyRes.content[0].text.trim() : pp.replyStyle ?? ''
-  console.log(' done')
+      }],
+    })
+    synthesized = replyRes.content[0]?.type === 'text' ? replyRes.content[0].text.trim() : pp.replyStyle ?? ''
+    console.log(' done')
+  }
 
   // Synthesize post style
   process.stdout.write('  Synthesizing post style...')
