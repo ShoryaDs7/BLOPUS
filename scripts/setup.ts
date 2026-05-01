@@ -2800,9 +2800,11 @@ async function main() {
       }
 
       if (engModeRaw === '1') {
+        replyEngine = 'voice'
         voiceProfile = await runEngagementStyleInterview(ask)
         saveProfile()
       } else if (engModeRaw === '2') {
+        replyEngine = 'rag'
         console.log('\n  Building your voice profile from your tweet archive...')
         try {
           const { buildRagVoiceProfile } = await import('./buildRagVoiceProfile')
