@@ -35,6 +35,23 @@ const INJECTION_PATTERNS: RegExp[] = [
   /jailbreak\s+(?:(?:this|the|your|a)\s+)?(?:bot|ai|assistant|model|system|prompt)/i,
   /prompt\s+injection/i,
   /system\s+prompt\s*:/i,
+  // Subtle style-guide injections — feeding examples back as instructions
+  /here['']?s\s+(a\s+)?(detailed\s+)?(guide|manual|instructions?)\s+(to|for|on)\s+how/i,
+  /your\s+writing\s+style\s+is/i,
+  /the\s+examples\s+show\s+a\s+(consistent\s+)?pattern/i,
+  /this\s+is\s+how\s+you\s+(write|respond|reply|talk)/i,
+  /based\s+on\s+your\s+(examples?|replies|posts|writing)/i,
+]
+
+// ─── Character break patterns — scan OUTPUT before posting ───────────────────
+const CHARACTER_BREAK_PATTERNS: { name: string; pattern: RegExp }[] = [
+  { name: 'AI refusal',         pattern: /I['']m\s+not\s+going\s+to\s+(roleplay|write|mimic|pretend)/i },
+  { name: 'AI identity leak',   pattern: /as\s+an\s+AI\b/i },
+  { name: 'AI identity leak',   pattern: /I['']m\s+an\s+AI\b/i },
+  { name: 'Claude identity',    pattern: /\bClaude\b.*\b(cannot|will not|won't|refuse)/i },
+  { name: 'persona refusal',    pattern: /not\s+going\s+to\s+(roleplay|adopt|mimic)\s+(this|that|a)\s+persona/i },
+  { name: 'I cannot comply',    pattern: /I\s+cannot\s+(comply|do\s+that|help\s+with\s+that|assist\s+with)/i },
+  { name: 'against guidelines', pattern: /against\s+my\s+(guidelines|values|principles|training)/i },
 ]
 
 // ─── Credential leak patterns ─────────────────────────────────────────────────
@@ -66,6 +83,11 @@ export function scanOutput(content: string): ScanResult {
   for (const { name, pattern } of CREDENTIAL_PATTERNS) {
     if (pattern.test(content)) {
       return { safe: false, threat: name }
+    }
+  }
+  for (const { name, pattern } of CHARACTER_BREAK_PATTERNS) {
+    if (pattern.test(content)) {
+      return { safe: false, threat: `character break detected: ${name}` }
     }
   }
   return { safe: true, threat: null }
