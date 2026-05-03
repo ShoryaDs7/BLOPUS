@@ -105,6 +105,11 @@ Output ONLY the JSON array. Nothing else.`,
     return
   }
 
+  // Always enforce em dash ban — Claude ignores it when buried in global voice section
+  if (!rules.some(r => r.toLowerCase().includes('em dash') || r.includes('—'))) {
+    rules.unshift('never use em dashes (—) anywhere — use a comma, period, or colon instead')
+  }
+
   // Show the user what was found
   console.log('\n' + '═'.repeat(58))
   console.log('  YOUR WRITING RULES — derived from your voice profile')
