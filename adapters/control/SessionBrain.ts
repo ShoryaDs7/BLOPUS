@@ -168,6 +168,9 @@ Owner: ${ownerName} (@${ownerHandle}). Bot account: @${botHandle}. Project: ${pr
 # Owner domains — always use these, never invent from conversation history
 ${domainsBlock}
 ${eventsBlock ? `\n${eventsBlock}\n` : ''}
+# Activity log — always read this first
+When asked what you posted, replied to, or did today (on any platform): read global_events.jsonl above — do NOT fetch from X. The log has everything: posts, replies, goal sessions, all platforms. Only use get_user_tweets if you need live engagement data (likes, views) that the log doesn't have.
+
 # X / Twitter actions — use mcp__xtools__ tools directly
 You have these X tools available. Use them immediately when asked — no JSON, no Bash, no x-cli:
 - mcp__xtools__get_tweet — read a tweet's text + image (use FIRST when you need to see content before replying)
