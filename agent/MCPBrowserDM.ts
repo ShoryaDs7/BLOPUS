@@ -200,7 +200,7 @@ export class MCPBrowserDM {
       if (domConvos.length > 0) {
         return domConvos.map(c => ({
           ...c,
-          isUnread: unreadNames.has(c.handle.toLowerCase()),
+          isUnread: unreadNames.has(c.handle.toLowerCase()) || [...unreadNames].some(n => c.handle.toLowerCase().includes(n) || n.includes(c.handle.toLowerCase())),
         }))
       }
 
@@ -214,7 +214,7 @@ export class MCPBrowserDM {
   }
 
   /** Read inbox + open a specific thread — all in one browser session, no extra page load */
-  async readInboxAndThread(handle: string, userId?: string): Promise<{ convos: DmConversation[], thread: Array<{by: 'me'|'them', text: string}> }> {
+  async readInboxAndThread(handle: string, userId?: string): Promise<{ convos: DmConversation[], thread: Array<{by: 'me'|'them', text: string}>, resolvedHandle: string }> {
     const { page, close } = await this.playwright.createPage()
     try {
       await page.goto('https://x.com/messages', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -243,18 +243,21 @@ export class MCPBrowserDM {
       }
 
       let thread: Array<{by: 'me'|'them', text: string}> = []
+      let resolvedHandle = handle
       if (clicked) {
         await page.waitForTimeout(3000)
-        thread = await this.readThreadVision(page, handle)
-        console.log(`[MCPBrowserDM] readInboxAndThread: got ${thread.length} messages from @${handle}'s thread`)
+        const result = await this.readThreadVision(page, handle)
+        thread = result.messages
+        resolvedHandle = result.resolvedHandle
+        console.log(`[MCPBrowserDM] readInboxAndThread: got ${thread.length} messages from @${resolvedHandle}'s thread`)
       } else {
         console.log(`[MCPBrowserDM] readInboxAndThread: could not open thread for @${handle}`)
       }
 
-      return { convos, thread }
+      return { convos, thread, resolvedHandle }
     } catch (err) {
       console.log(`[MCPBrowserDM] readInboxAndThread error: ${err}`)
-      return { convos: [], thread: [] }
+      return { convos: [], thread: [], resolvedHandle: handle }
     } finally {
       await close()
     }
@@ -281,7 +284,9 @@ export class MCPBrowserDM {
 
               const lines = (item.innerText ?? '').split('\\n').map(s => s.trim()).filter(Boolean);
               const displayName = lines[0] ?? userId;
-              const lastMessage = lines.slice(1).find(l => l.length > 0 && !/^\\d+[smhd]$|^now$/i.test(l)) ?? '';
+              const handleLine = lines.find(l => l.startsWith('@'));
+              const resolvedHandle = handleLine ? handleLine.slice(1) : displayName;
+              const lastMessage = lines.slice(1).find(l => l.length > 0 && !/^\\d+[smhd]$|^now$/i.test(l) && !l.startsWith('@')) ?? '';
 
               // Use aria-label for unread detection — semantic, works on any theme/color
               const ariaLabel = (item.getAttribute('aria-label') ?? '').toLowerCase();
@@ -291,7 +296,7 @@ export class MCPBrowserDM {
                 || !!item.querySelector('[data-testid*="unread"]')
                 || !!item.querySelector('[aria-label*="nread"]');
 
-              results.push({ userId, displayName, lastMessage, isUnread });
+              results.push({ userId, displayName: resolvedHandle, lastMessage, isUnread });
             }
             return JSON.stringify(results);
           })()
@@ -404,46 +409,68 @@ export class MCPBrowserDM {
     }
   }
 
-  private async readThreadVision(page: import('playwright').Page, handle: string): Promise<Array<{by: 'me'|'them', text: string}>> {
+  private async readThreadVision(page: import('playwright').Page, handle: string): Promise<{ messages: Array<{by: 'me'|'them', text: string}>, resolvedHandle: string }> {
     try {
-      // Take screenshot directly — do NOT use BrowserAgent.execute() because its system prompt
-      // auto-navigates away whenever it sees a handle in the task text.
       const buf = await page.screenshot({ fullPage: false })
       const client = new Anthropic()
       const resp = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 800,
+        max_tokens: 900,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/png', data: buf.toString('base64') } },
             { type: 'text', text:
-              `This is a screenshot of x.com DM messages. The chat thread is open on the right side of the screen.\n\n` +
-              `Inside the chat thread panel:\n` +
-              `- Bubbles aligned to the RIGHT side of the chat panel = sent by ME (outgoing, usually blue)\n` +
-              `- Bubbles aligned to the LEFT side of the chat panel = sent by the other person (incoming, usually grey/white)\n\n` +
-              `List every message visible in order from oldest to newest.\n` +
-              `Output one line per message:\n` +
+              `This is a screenshot of x.com DM messages. The chat thread is open on the right side.\n\n` +
+              `First, find the @username of the person you are chatting with. It appears in the thread header at the top right, under their display name, starting with @. Output it as:\n` +
+              `HANDLE: @username\n\n` +
+              `Then list every message visible in the chat, oldest to newest:\n` +
+              `- Bubbles aligned to the RIGHT = sent by ME (outgoing, usually blue)\n` +
+              `- Bubbles aligned to the LEFT = sent by the other person (incoming)\n` +
               `ME: <text>\n` +
               `THEM: <text>\n\n` +
-              `Only these lines. If no chat is open or no messages visible output: EMPTY`
+              `If no @username visible output: HANDLE: unknown\n` +
+              `If no chat open output: EMPTY`
             },
           ],
         }],
       })
       const result = resp.content[0].type === 'text' ? resp.content[0].text : ''
-      if (result.toUpperCase().includes('EMPTY')) return []
-      return result.split('\n')
+      if (result.toUpperCase().includes('EMPTY')) return { messages: [], resolvedHandle: handle }
+
+      const handleLine = result.split('\n').find(l => l.startsWith('HANDLE:'))
+      const resolvedHandle = handleLine
+        ? handleLine.slice(7).trim().replace(/^@/, '')
+        : handle
+
+      const messages = result.split('\n')
         .map(l => l.trim())
         .filter(l => l.startsWith('ME:') || l.startsWith('THEM:'))
         .map(l => l.startsWith('ME:')
           ? { by: 'me' as const, text: l.slice(3).trim() }
           : { by: 'them' as const, text: l.slice(5).trim() }
         )
+
+      return { messages, resolvedHandle }
     } catch (err) {
       console.log(`[MCPBrowserDM] readThreadVision error: ${err}`)
-      return []
+      return { messages: [], resolvedHandle: handle }
     }
+  }
+
+  /** Resolve a numeric Twitter userId → @handle by navigating to x.com/i/user/<id> */
+  async resolveUserId(userId: string): Promise<string | null> {
+    const { page, close } = await this.playwright.createPage()
+    try {
+      await page.goto(`https://x.com/i/user/${userId}`, { waitUntil: 'domcontentloaded', timeout: 15000 })
+      await page.waitForTimeout(2000)
+      const url = page.url() // redirects to x.com/<handle>
+      const match = url.match(/x\.com\/([^/?]+)/)
+      if (match && match[1] && !['i', 'home', 'messages'].includes(match[1])) {
+        return match[1].toLowerCase()
+      }
+      return null
+    } catch { return null } finally { await close() }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

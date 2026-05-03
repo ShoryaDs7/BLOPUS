@@ -518,7 +518,8 @@ No preamble. Just the line.`
   } catch {}
 
   // Load or create the person's memory file
-  const handle = c.handle ?? `user_${c.userId}`
+  // Strip @ prefix so DM data merges into existing X/comment file for the same person
+  const handle = (c.handle ?? `user_${c.userId}`).replace(/^@/, '')
   const mem: PersonMemory = store.load(handle) ?? ({
     handle,
     userId: c.userId,
@@ -545,14 +546,41 @@ No preamble. Just the line.`
   mem.userId = c.userId
   mem.dmReplyPermission = ((c as any).dmReplyPermission ?? 'review') as any
   if (overallTone) mem.overallTone = overallTone
+  // Synthesize behavioral patterns from golden examples via Haiku
+  let patternSynthesis = ''
+  if (goldenExamples.length) {
+    try {
+      const synthRes = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        messages: [{
+          role: 'user',
+          content: `These are real message exchanges between the owner and ${c.name} (${c.relationship}):
+
+${goldenExamples.join('\n\n')}
+
+In 3-5 short bullet points, describe HOW the owner writes to this person: reply length, word choice, energy level, what they never say, specific habits.
+Not what they talked about — only the mechanics and feel.
+Output bullet points only. No intro. Under 100 words total.`,
+        }],
+      })
+      patternSynthesis = synthRes.content[0].type === 'text' ? synthRes.content[0].text.trim() : ''
+    } catch {}
+  }
+
+  // Save raw golden pairs as structured array
+  const goldenPairsStructured = goldenExamples.map(pair => {
+    const lines = pair.split('\n')
+    const them = lines[0]?.replace(/^\[.*?\]:\s*"?/, '').replace(/"?$/, '').trim() ?? ''
+    const you  = lines[1]?.replace(/^\[You\]:\s*"?/, '').replace(/"?$/, '').trim() ?? ''
+    return { them, you }
+  }).filter(p => p.them && p.you)
+  if (goldenPairsStructured.length) mem.goldenExamples = goldenPairsStructured
+
   if (computedVoice) {
-    // Enhance with golden examples as toneDescriptor supplement
-    const goldenNote = goldenExamples.length
-      ? ` | golden examples collected: ${goldenExamples.length}`
-      : ''
     mem.dmVoiceProfile = {
       ...computedVoice,
-      toneDescriptor: computedVoice.toneDescriptor + goldenNote,
+      ...(patternSynthesis ? { patternSynthesis } : {}),
     }
   }
 
@@ -631,6 +659,20 @@ async function main() {
   console.log('  BLOPUS — DM Interview')
   console.log('  Builds your DM voice profile per contact from archive history')
   console.log('═'.repeat(66))
+
+  // ── Enable/disable DM system ───────────────────────────────
+  console.log('\n  Do you want BLOPUS to handle DMs at all?')
+  console.log('  You can still set auto/review/skip per contact during the interview.')
+  const dmEnableAnswer = await ask('  Enable DM system? (yes/no): ')
+  const dmEnabled = /^y/i.test(dmEnableAnswer.trim())
+  config.dmEnabled = dmEnabled
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8')
+  if (!dmEnabled) {
+    console.log('\n  DM system disabled. Run npm run dm-setup again to enable.\n')
+    rl.close()
+    return
+  }
+  console.log('  ✓ DM system enabled\n')
 
   if (!fs.existsSync(DM_ARCHIVE_PATH)) {
     console.error(`\n  DM archive not found at:\n  ${DM_ARCHIVE_PATH}`)

@@ -1,5 +1,5 @@
 /**
- * DmInboxPoller — polls x.com/messages every 20min, reads new DMs,
+ * DmInboxPoller — polls X DM inbox via API every 1min, reads new DMs,
  * replies autonomously using PersonMemory (voice profile, relationship, history).
  *
  * Two modes:
@@ -15,13 +15,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import fs from 'fs'
 import path from 'path'
-import { MCPBrowserDM } from './MCPBrowserDM'
+import { ApiDM } from './ApiDM'
 import { PersonMemoryStore, PersonMemory } from '../core/memory/PersonMemoryStore'
 import { LLMReplyEngine } from '../core/personality/LLMReplyEngine'
 import { Mood } from '../core/memory/types'
 import { interceptThreat } from '../adapters/security/SecurityShield'
 
-const POLL_INTERVAL_MS = 1 * 60 * 1000         // 1 minute (set to 20 for production)
+const POLL_INTERVAL_MS = 1 * 60 * 1000          // 1 minute — set to 20 * 60 * 1000 in production
 const DM_DRAFTS_PATH   = path.resolve('./memory-store/dm_drafts.json')
 
 export interface DmDraft {
@@ -42,7 +42,7 @@ export class DmInboxPoller {
   private client           = new Anthropic()
 
   constructor(
-    private mcpDm: MCPBrowserDM,
+    private mcpDm: ApiDM,
     private personStore: PersonMemoryStore,
     private llmEngine: LLMReplyEngine,
     private myHandle: string,
@@ -174,8 +174,9 @@ export class DmInboxPoller {
 
     // For each unread DM: open inbox+thread in ONE browser session, then handle
     for (const { handle, lastMessage, userId } of newDms) {
-      const { thread } = await this.mcpDm.readInboxAndThread(handle, userId)
-      await this.handleNewDm(handle, lastMessage, userId, thread)
+      const { thread, resolvedHandle } = await this.mcpDm.readInboxAndThread(handle, userId)
+      // Use @handle extracted from thread header — reliable, survives display name changes
+      await this.handleNewDm(resolvedHandle || handle, lastMessage, userId, thread)
     }
   }
 
@@ -183,14 +184,40 @@ export class DmInboxPoller {
     // Try loading by handle first — fast path
     let mem = this.personStore.load(handle)
 
-    // If not found by handle but we have their userId, check if they renamed
+    // If not found by handle, try userId lookup — use stored handle (not OCR-read name, which may be misspelled)
     if (!mem && userId) {
       const byId = this.personStore.findByUserId(userId)
       if (byId) {
-        console.log(`[DmInboxPoller] @${handle} matched by userId ${userId} — was @${byId.handle}. Renaming.`)
-        this.personStore.handleRename(byId.handle, handle)
+        console.log(`[DmInboxPoller] @${handle} matched by userId ${userId} → using stored handle @${byId.handle}`)
+        handle = byId.handle   // trust the stored handle, not the OCR/DOM-read name
         mem = this.personStore.load(handle)
       }
+    }
+
+    // Last resort: userId doesn't match any file — resolve real @handle via profile URL (reliable: reads URL redirect)
+    if (!mem && userId) {
+      const resolvedHandle = await this.mcpDm.resolveUserId(userId)
+      if (resolvedHandle) {
+        console.log(`[DmInboxPoller] Resolved userId ${userId} → @${resolvedHandle} via profile URL`)
+        mem = this.personStore.load(resolvedHandle)
+        if (mem) {
+          handle = resolvedHandle   // update handle so draft.handle matches the real person file
+          mem.userId = userId
+          this.personStore.save(mem)
+        }
+      }
+    }
+
+    // If found by handle, write back the real userId so future lookups survive display name changes
+    if (mem && userId && mem.userId !== userId) {
+      mem.userId = userId
+      this.personStore.save(mem)
+    }
+
+    // Only handle people who went through dm-setup interview — everyone else is ignored
+    if (!mem?.dmReplyPermission || mem.dmReplyPermission === 'blocked') {
+      console.log(`[DmInboxPoller] @${handle} — no interview profile, skipping`)
+      return
     }
 
     const notYetApproved  = this.requireApproval && !this.approvedHandles.has(handle.toLowerCase())
@@ -349,7 +376,11 @@ export class DmInboxPoller {
         `DM voice profile: ${voice.formalityLevel}, ${voice.typicalReplyLength} replies.`,
         voice.toneDescriptor ? `Tone: ${voice.toneDescriptor}.` : '',
         voice.endearments?.length ? `You sometimes call them: ${voice.endearments.join(', ')}.` : '',
+        voice.patternSynthesis ? `How you write to them:\n${voice.patternSynthesis}` : '',
       ].filter(Boolean).join(' ') : '',
+      mem?.goldenExamples?.length
+        ? `Real examples of your replies to @${handle}:\n${mem.goldenExamples.slice(0, 2).map(e => `[them]: "${e.them}"\n[you]: "${e.you}"`).join('\n\n')}`
+        : '',
       pastConvoMsgs.length
         ? `Your past conversation history with @${handle} (oldest first):\n${pastConvoMsgs.join('\n')}`
         : '',

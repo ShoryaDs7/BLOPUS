@@ -656,7 +656,7 @@ If the tweet is hostile, uses slurs, or is a personal attack — reply with a sh
         console.log(`[LLMReplyEngine] Dropping reply — cut off mid-sentence: "${raw.slice(0, 80)}"`)
         return ''
       }
-      if (isRefusal(raw)) { console.log(`[LLMReplyEngine] LLM refused — skipping reply`); return '' }
+      if (isRefusal(raw)) { console.log(`[LLMReplyEngine] LLM refused — skipping reply. Reply was: "${raw.slice(0, 200)}"`); return '' }
       console.log(`[LLMReplyEngine] Generated reply: "${raw.slice(0, 80)}"`)
       return raw.slice(0, 280)
     } catch {

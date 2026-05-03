@@ -27,6 +27,7 @@ import { OwnerDefender } from './OwnerDefender'
 import { PackDiscovery } from './PackDiscovery'
 import { PackChatter } from './PackChatter'
 import { MCPBrowserDM } from './MCPBrowserDM'
+import { ApiDM } from './ApiDM'
 import { DmInboxPoller } from './DmInboxPoller'
 import { PlaywrightTopicSearchProvider } from '../adapters/x/PlaywrightTopicSearchProvider'
 import { PlaywrightHomeTimelineProvider } from '../adapters/x/PlaywrightHomeTimelineProvider'
@@ -450,17 +451,19 @@ async function boot(): Promise<void> {
     config.owner.handle,
   )
 
-  // Vision-based DM — uses Claude to read page, no hardcoded selectors, never breaks on X UI changes
+  // Playwright DM (kept for PackChatter bot-to-bot DMs only)
   const mcpDm = xAdapter.playwright ? new MCPBrowserDM(xAdapter.playwright) : null
+
+  // API-based DM — replaces Playwright for inbox polling and sending. Within ToS, no suspension risk.
+  const apiDm = config.dmEnabled === true ? new ApiDM(config.blopus.userId) : null
 
   // OsBots autonomously chat with known pack members — memory-aware, no human trigger
   const packChatter = new PackChatter(xAdapter, llmEngine, config.blopus.handle, personMemory, mcpDm ?? undefined)
 
-  // DM replies — disabled until voice profiles are wired (run npm run dm-setup first)
-  // eslint-disable-next-line no-constant-condition
+  // DM replies — enabled when user runs npm run dm-setup and enables DM system
   const isOwnerAccount = config.blopus.handle.toLowerCase() === config.owner.handle.toLowerCase()
-  const dmPoller = (false && mcpDm) ? new DmInboxPoller(
-    mcpDm,
+  const dmPoller = (config.dmEnabled === true && apiDm) ? new DmInboxPoller(
+    apiDm,
     personMemory,
     llmEngine,
     config.blopus.handle,
@@ -478,10 +481,7 @@ async function boot(): Promise<void> {
         if (mem.dominantTopics?.length) memLines.push(`Topics: ${mem.dominantTopics.slice(0, 3).join(', ')}`)
         if (typeof mem.score === 'number') memLines.push(`Rep score: ${mem.score}`)
         if (mem.notableEvents?.length) {
-          const renames = mem.notableEvents.filter(e => e.includes('renamed'))
-          if (renames.length) memLines.push(renames[renames.length - 1])
-          const first = mem.notableEvents.find(e => e.includes('first interaction'))
-          if (first) memLines.push(first)
+          mem.notableEvents.slice(-3).forEach(e => memLines.push(e))
         }
       } else {
         memLines.push('Never interacted before — genuinely new contact')
@@ -705,8 +705,8 @@ async function boot(): Promise<void> {
       const threadsMentions = threadsAdapter ? await threadsAdapter.fetchOwnMentions() : []
       mentions = [...xMentions, ...threadsMentions]
     } catch (err: unknown) {
-      const e = err as { statusCode?: number }
-      rateLimiter.recordError(e?.statusCode ?? 500)
+      const e = err as { statusCode?: number; code?: number }
+      rateLimiter.recordError(e?.statusCode ?? e?.code ?? 500)
       log('error', `Failed to fetch mentions: ${err}`)
       return
     }

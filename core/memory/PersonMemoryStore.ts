@@ -111,6 +111,10 @@ export interface PersonMemory {
   // This is how the owner actually talks to THIS person in private, not how they tweet
   dmVoiceProfile: DmVoiceProfile | null
 
+  // Golden examples — real [them → you] pairs collected during dm-interview
+  // Injected into DM reply prompts as behavioral reference (not exact scripts)
+  goldenExamples?: Array<{ them: string; you: string }>
+
   // Owner note — set manually via Telegram when no DM history exists
   // e.g. "this is my investor, always formal, no jokes"
   ownerNote: string | null
@@ -130,6 +134,7 @@ export interface DmVoiceProfile {
   endearments: string[]                                  // "bro", "babe", "man", etc. owner uses with them
   recurringTopics: string[]                              // what you actually talk about in DMs (not public)
   toneDescriptor: string                                 // "warm and playful", "brief and professional" etc.
+  patternSynthesis?: string                              // Haiku-synthesized behavioral bullets from golden examples
   derivedFrom: 'dm_history' | 'owner_told_telegram' | 'comment_history'
   builtAt: string
 }

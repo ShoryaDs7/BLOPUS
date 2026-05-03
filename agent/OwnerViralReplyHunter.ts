@@ -279,7 +279,7 @@ export class OwnerViralReplyHunter {
 
       // Scan output before posting
       if (!await blockLeak(replyText, 'OwnerViralReplyHunter')) {
-        console.log('[OwnerViralHunter] Blocked — output firewall triggered, skipping.')
+        console.log(`[OwnerViralHunter] Blocked — output firewall triggered, skipping.\n  Tweet: "${pick.text?.slice(0, 150)}"\n  By: @${pick.authorHandle}`)
         return
       }
 
