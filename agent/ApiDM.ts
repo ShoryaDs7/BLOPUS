@@ -60,6 +60,7 @@ export class ApiDM {
         expansions:        'sender_id',
         'user.fields':     'username',
       })
+      console.log(`[ApiDM] raw events count: ${resp.data?.data?.length ?? 0}`)
 
       const events: any[] = resp.data?.data ?? []
       const users: any[]  = resp.data?.includes?.users ?? []
@@ -91,8 +92,11 @@ export class ApiDM {
 
       console.log(`[ApiDM] readInbox: ${convos.length} conversations, ${convos.filter(c => c.isUnread).length} unread`)
       return convos
-    } catch (err) {
-      console.log(`[ApiDM] readInbox() error: ${err}`)
+    } catch (err: any) {
+      console.log(`[ApiDM] readInbox() error ${err?.code ?? err?.status ?? ''}: ${err}`)
+      if (err?.code === 403 || err?.status === 403) {
+        console.log(`[ApiDM] 403 — app missing "Read and write and Direct message" permission. Go to developer.twitter.com → your app → Settings → change permission, then regenerate access token.`)
+      }
       return []
     }
   }
