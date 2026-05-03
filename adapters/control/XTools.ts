@@ -38,6 +38,7 @@ const NPX_CMD = (() => {
   return 'npx'
 })()
 import { PlaywrightWebScraper } from '../web/PlaywrightWebScraper'
+import { appendEvent } from '../../core/memory/GlobalEventLog'
 
 export interface XToolsOptions {
   xAdapter: XAdapter
@@ -471,6 +472,7 @@ export class XTools {
           }
           if (!await blockLeak(replyText, 'reply_to_tweet')) return '❌ Blocked by output firewall — potential credential leak detected'
           await this.playwrightClient.postReply(m[1], replyText)
+          appendEvent({ platform: 'x', type: 'reply', text: replyText })
           return `✅ Replied to ${input.tweet_url}: "${replyText.slice(0, 80)}"`
         }
 
@@ -801,6 +803,7 @@ export class XTools {
     if (!text) return '❌ Could not generate post — voice profile may be missing'
     if (!await blockLeak(text, 'post_tweet')) return '❌ Blocked by output firewall — potential credential leak detected'
     await this.xAdapter.postTweet(text)
+    appendEvent({ platform: 'x', type: 'post', text, topic })
     return `posted tweet: "${text}"`
   }
 
@@ -1112,6 +1115,7 @@ export class XTools {
     if (!m) return `invalid tweet URL — paste the full URL like https://x.com/user/status/123456`
     const tweetId = m[1]
     await this.playwrightClient.quoteTweet(tweetId, text)
+    appendEvent({ platform: 'x', type: 'quote', text })
     return `quote tweeted ${tweetUrl} with: "${text}"`
   }
 
