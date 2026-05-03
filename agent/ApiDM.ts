@@ -60,10 +60,9 @@ export class ApiDM {
         expansions:        'sender_id',
         'user.fields':     'username',
       })
-      console.log(`[ApiDM] raw response keys: ${Object.keys(resp ?? {}).join(', ')}`)
-      console.log(`[ApiDM] raw response sample: ${JSON.stringify(resp).slice(0, 300)}`)
-
-      const events: any[] = resp.data?.data ?? []
+      // twitter-api-v2 returns a paginator — real data is at ._realData, accessed via .data
+      const events: any[] = (resp as any)._realData?.data ?? resp.data?.data ?? []
+      console.log(`[ApiDM] events from API: ${events.length}`)
       const users: any[]  = resp.data?.includes?.users ?? []
       const userMap = new Map<string, string>(users.map((u: any) => [u.id, u.username]))
 
