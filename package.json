@@ -7,6 +7,7 @@
     "setup": "npx tsx scripts/setup.ts",
     "bot-setup": "npx tsx scripts/setup-bot.ts",
     "dm-setup": "npx tsx scripts/dm-interview.ts",
+    "setup:pro-voice": "npx tsx scripts/setup-professional-voice.ts",
     "rag-interview": "npx tsx scripts/setup-rag-interview.ts",
     "rag-build": "npx tsx scripts/buildRagVoiceProfile.ts",
     "validate-voice": "npx tsx scripts/validate-voice.ts",

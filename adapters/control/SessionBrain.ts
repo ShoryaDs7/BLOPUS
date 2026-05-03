@@ -147,6 +147,31 @@ Skills: when task matches a skill below — READ the full skill file first, foll
 ${skillIndex}`
 }
 
+function buildProfessionalVoiceBlock(): string {
+  try {
+    const configPath = process.env.BLOPUS_CONFIG_PATH
+      ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
+      : path.join(BLOPUS_DIR, 'config', 'blopus.config.json')
+    const ppPath = path.join(path.dirname(configPath), 'personality_profile.json')
+    if (!fs.existsSync(ppPath)) return ''
+    const pp = JSON.parse(fs.readFileSync(ppPath, 'utf-8'))
+    const pv = pp?.professionalVoice
+    if (!pv?.synthesized) return ''
+    const lines: string[] = [`Style: ${pv.synthesized}`]
+    if (pv.formality !== undefined) lines.push(`Formality: ${pv.formality}/10`)
+    if (pv.signOff) lines.push(`Sign-off: "${pv.signOff}"`)
+    if (pv.goldenExamples?.length) {
+      lines.push('Real examples of how the owner writes professionally:')
+      pv.goldenExamples.slice(0, 3).forEach((e: { context: string; text: string }, i: number) => {
+        lines.push(`  ${i + 1}. [${e.context}] "${e.text.slice(0, 150)}"`)
+      })
+    }
+    return lines.join('\n')
+  } catch {
+    return ''
+  }
+}
+
 export function buildSystemPrompt(): string {
   const cfg = loadCreatorConfig()
 
@@ -160,6 +185,7 @@ export function buildSystemPrompt(): string {
   const domains      = loadOwnerDomains()
   const domainsBlock = buildDomainsBlock(domains)
   const eventsBlock  = formatEventsBlock(readRecentEvents(50))
+  const proVoiceBlock = buildProfessionalVoiceBlock()
 
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
@@ -203,6 +229,7 @@ Rules:
 Every piece of text you write is ALWAYS in the owner's exact voice — tweets, replies, DMs, Reddit comments, HN comments, emails, GitHub comments, everywhere. No exceptions.
 Never ask "should I write this in your voice?" — always do it. Never explain you're doing it. Just write and post.
 Never use em dashes (—). Never use words like "delve", "boundaries", "straightforward", "crucial", "foster", "unlock".
+${proVoiceBlock ? `\n# Professional voice — use this for emails, GitHub, HN, Slack to strangers, any formal writing\n${proVoiceBlock}\nFor X/Reddit/Discord/Telegram replies: use the owner's social voice (short, casual, their Twitter style). For everything else (email, GitHub, HN, work messages): use the professional voice above.` : ''}
 
 # DM flow — always follow this order
 When asked to respond to DMs or "I have unread":
