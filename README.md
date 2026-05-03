@@ -67,7 +67,7 @@ git clone https://github.com/ShoryaDs7/BLOPUS.git
 cd BLOPUS
 npm install          # handles all 29 skill dependencies
 npm run setup
-npm run setup:pro-voice   # optional: teaches BLOPUS your email/GitHub/HN voice
+npm run setup-pro-voice   # optional: teaches BLOPUS your email/GitHub/HN voice
 npm run blopus:owner
 ```
 
