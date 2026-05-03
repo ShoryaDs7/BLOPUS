@@ -12,7 +12,7 @@ export interface GoalState {
   done: string[]
   blockers: string[]
   files: string[]
-  status: 'active' | 'completed' | 'cancelled' | 'paused'
+  status: 'active' | 'completed' | 'cancelled' | 'paused' | 'blocked'
   timeout_minutes: number
   runs_per_day: number        // how many sessions per day the user wants (default 1)
   last_run_timestamps: string[] // ISO timestamps of every past run (last 14 kept)

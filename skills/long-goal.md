@@ -124,8 +124,12 @@ Read `{BLOPUS_DIR}/goals/{id}/state.json` and report:
 User says "change focus to X" → update current_focus in state.json
 User says "pause this goal" → set status to "paused" in state.json
 User says "cancel this goal" → set status to "cancelled" in state.json
-User says "resume goal" → set status to "active" in state.json
+User says "resume goal" or "done" or "fixed it" or "unblocked" or "continue" → set status to "active" in state.json, clear blockers array to []
 User says "run this twice a day now" → update runs_per_day to 2 in state.json
+
+When a goal has status "blocked" and user says any resume trigger above:
+- Set status to "active", set blockers to []
+- Reply: "Goal resumed. It'll run on its next scheduled session."
 
 ## Listing all goals
 Read all `{BLOPUS_DIR}/goals/*/state.json` files and summarize active ones with days remaining or completion condition.
