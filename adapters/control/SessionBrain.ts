@@ -158,46 +158,15 @@ function buildVoiceBlock(): string {
     const vp = pp?.voiceProfile ?? {}
     const ws = pp?.writingStats  ?? {}
     const lines: string[] = []
-
-    // ── Social voice (X, Reddit, Discord, DMs) ───────────────
-    const socialLines: string[] = []
-    const socialExamples = (vp.goldenExamples ?? []).slice(0, 4)
-    if (socialExamples.length) {
-      socialLines.push(`These are real examples of how the owner actually writes. Match this exactly:`)
-      socialExamples.forEach((e: string, i: number) => socialLines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
+    const examples = (vp.goldenExamples ?? []).slice(0, 5)
+    if (examples.length) {
+      lines.push(`Real examples of how the owner writes — match this style everywhere:`)
+      examples.forEach((e: string, i: number) => lines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
     }
-    if (ws.caseStyle)             socialLines.push(`Case: ${ws.caseStyle}`)
-    if (ws.emojiUsage)            socialLines.push(`Emoji: ${ws.emojiUsage}`)
-    if (ws.medianReplyLength)     socialLines.push(`Typical length: ${ws.medianReplyLength} chars`)
-    if (vp.bannedPhrases?.length) socialLines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
-    if (vp.neverTopics?.length)   socialLines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
-    if (vp.synthesized)           socialLines.push(`General style note: ${vp.synthesized}`)
-    if (socialLines.length) {
-      lines.push('## When writing for X, Reddit, Discord, Telegram:')
-      lines.push(...socialLines)
-    }
-
-    // ── Formal voice (email, GitHub, HN, work messages) ─────
-    const formalLines: string[] = []
-    const formalExamples = (vp.formalContextExamples ?? []).slice(0, 3)
-    if (formalExamples.length) {
-      formalLines.push(`These are real examples of how the owner actually writes. Match this exactly — even if it seems informal:`)
-      formalExamples.forEach((e: { context: string; text: string }, i: number) => {
-        formalLines.push(`  ${i + 1}. [${e.context}] "${e.text.slice(0, 150)}"`)
-      })
-    }
-    if (vp.formality !== undefined)  formalLines.push(`Formality: ${vp.formality}/10`)
-    if (vp.signOff)                  formalLines.push(`Sign-off: "${vp.signOff}"`)
-    if (vp.formalSynthesized)        formalLines.push(`General style note: ${vp.formalSynthesized}`)
-    if (formalLines.length) {
-      lines.push('\n## When writing emails, GitHub comments, HN posts, work messages:')
-      lines.push(...formalLines)
-    } else if (socialLines.length) {
-      lines.push('\n## When writing emails, GitHub comments, HN posts, work messages:')
-      lines.push('Same personality as above — adapt formality to context. Full sentences, no greentext, no Twitter shorthand.')
-      if (vp.bannedPhrases?.length) lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
-    }
-
+    if (ws.caseStyle)             lines.push(`Case: ${ws.caseStyle}`)
+    if (ws.emojiUsage)            lines.push(`Emoji: ${ws.emojiUsage}`)
+    if (vp.bannedPhrases?.length) lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
+    if (vp.neverTopics?.length)   lines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
     return lines.join('\n')
   } catch {
     return ''
