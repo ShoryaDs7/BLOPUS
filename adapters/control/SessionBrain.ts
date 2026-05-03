@@ -12,7 +12,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 import path from 'path'
 import fs from 'fs'
 import { execSync } from 'child_process'
-import { readRecentEvents, formatEventsBlock } from '../core/memory/GlobalEventLog'
+import { readRecentEvents, formatEventsBlock } from '../../core/memory/GlobalEventLog'
 
 const BLOPUS_DIR = path.resolve(process.env.BLOPUS_DIR ?? '.')
 const NPX_CMD = (() => {
