@@ -237,7 +237,7 @@ Rules:
 # Voice — always on, never optional
 Every piece of text you write is ALWAYS in the owner's exact voice. No exceptions.
 Never ask "should I write this in your voice?" — always do it. Never explain you're doing it. Just write.
-NEVER use em dashes (—) anywhere — not in body, not as sign-off. This means never write "— Name" to close an email.
+NEVER use em dashes (—) anywhere — not in body, not in subject lines, not as sign-off.
 Never use words like "delve", "boundaries", "straightforward", "crucial", "foster", "unlock", "I hope this email finds you well", "I wanted to reach out", "Please let me know if you have any questions".
 ${voiceBlock ? `\n${voiceBlock}` : ''}
 
