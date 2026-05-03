@@ -158,9 +158,9 @@ export async function applyGoalResult(goal: GoalState): Promise<'completed' | 'p
     await notify(goal.notify_chat_id, `🎉 Goal complete!\n\n"${goal.goal.slice(0, 80)}"\n\n${doneToday}`)
     return 'completed'
   } else if (newBlockers.length > 0) {
-    GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: newBlockers, files: updatedFiles, status: 'blocked' })
-    await notify(goal.notify_chat_id, `⚠️ Goal blocked — paused.\n\n"${goal.goal.slice(0, 60)}"\n\nDone: ${doneToday}\nBlocker: ${newBlockers.join(', ')}\n\nI'll wait. Reply "resume" when ready.`)
-    return 'paused'
+    GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: newBlockers, files: updatedFiles })
+    await notify(goal.notify_chat_id, `⚠️ "${goal.goal.slice(0, 60)}"\n\nDone: ${doneToday}\nNext: ${nextFocus}\n\nFlagged: ${newBlockers.join(', ')}\n\nStill running tomorrow — reply if you want to redirect.`)
+    return 'active'
   } else {
     GoalStore.update(goal.id, { done: [...goal.done, `${today}: ${doneToday}`], current_focus: nextFocus, blockers: [], files: updatedFiles })
     await notify(goal.notify_chat_id, `✅ Done: ${doneToday}\n\nNext: ${nextFocus}`)
