@@ -60,22 +60,33 @@ export async function extractFormalRules(
       max_tokens: 600,
       messages: [{
         role: 'user',
-        content: `You are extracting writing style RULES from a person's social media voice profile.
-These rules will be used to guide an AI agent when writing emails, GitHub comments, HN posts, Slack messages, resumes — anything outside social media.
+        content: `You are extracting writing style rules from a person's voice profile.
+These rules will be used when an AI writes emails, GitHub comments, HN posts, Slack messages, resumes on their behalf.
 
-Here is everything we know about how this person writes:
+Here is what we know about how this person writes:
 ${JSON.stringify(context, null, 2)}
 
-Extract 6-10 rules that describe HOW this person writes — not what they write about.
-Rules must be:
-- About mechanics: sentence length, directness, openers, sign-offs, punctuation, capitalization, hedging, bullet usage
-- Platform-agnostic: should work for email, GitHub comment, Slack message, resume bullet, forum post
-- Specific and actionable for an LLM to follow ("start with the point, no warmup sentence" not "be direct")
-- Derived from the patterns above — do NOT invent rules the data doesn't support
-- NOT about content or topics
+Extract 5-7 rules about mechanics that transfer to ANY written context.
 
-Output format: a JSON array of strings, each rule one line, no numbering, no markdown.
-Example shape: ["short sentences, one idea each", "no warmup openers — get to the point immediately", ...]
+ONLY extract rules about:
+- sentence length (short/medium/long)
+- apostrophe usage (dont vs don't, isnt vs isn't)
+- capitalisation style (sentence case, all lowercase, etc.)
+- directness (do they get to the point immediately or build up)
+- hedging (do they use "maybe", "I think", "perhaps" or are they confident and declarative)
+- sign-off style (just name, first name only, no closing phrase)
+- reply length (how many sentences typically)
+
+DO NOT extract anything about:
+- emojis — irrelevant in formal writing
+- deflating one-liners, punchlines, roasts — Twitter tactics, not writing mechanics
+- CAPS for emphasis — Twitter tactic
+- using metrics to make a point — content, not mechanics
+- line breaks between short sentences — Twitter formatting
+- "deflating social narratives" — Twitter tactic
+- anything that only makes sense in a tweet or reply
+
+Output: a JSON array of strings. Each rule one short line. Actionable.
 Output ONLY the JSON array. Nothing else.`,
       }],
     })
