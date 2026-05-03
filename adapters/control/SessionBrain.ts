@@ -160,13 +160,21 @@ function buildVoiceBlock(): string {
     const lines: string[] = []
     const examples = (vp.goldenExamples ?? []).slice(0, 5)
     if (examples.length) {
-      lines.push(`Real examples of how the owner writes — match this style everywhere:`)
+      lines.push(`Real examples of how the owner writes — match this style:`)
       examples.forEach((e: string, i: number) => lines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
     }
     if (ws.caseStyle)             lines.push(`Case: ${ws.caseStyle}`)
     if (ws.emojiUsage)            lines.push(`Emoji: ${ws.emojiUsage}`)
     if (vp.bannedPhrases?.length) lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
     if (vp.neverTopics?.length)   lines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
+
+    // Formal rules — derived from voice profile patterns, apply to emails/GitHub/HN/any non-social writing
+    const formalRules: string[] = vp.formalRules ?? []
+    if (formalRules.length) {
+      lines.push(`\nFor emails, GitHub comments, HN posts, resumes, any writing outside social media — follow these rules exactly:`)
+      formalRules.forEach((r: string) => lines.push(`  - ${r}`))
+    }
+
     return lines.join('\n')
   } catch {
     return ''
@@ -232,8 +240,6 @@ Never ask "should I write this in your voice?" — always do it. Never explain y
 NEVER use em dashes (—) anywhere — not in body, not as sign-off. This means never write "— Name" to close an email.
 Never use words like "delve", "boundaries", "straightforward", "crucial", "foster", "unlock", "I hope this email finds you well", "I wanted to reach out", "Please let me know if you have any questions".
 ${voiceBlock ? `\n${voiceBlock}` : ''}
-# Emails — never write like a corporate template
-When writing any email: write short and direct, same voice as the owner's posts. No formal opener. No "Quick update —". No bullet-point milestone list unless the owner specifically asked for it. Sign off with just the owner's name on its own line — nothing before it, no dash, no "Best", no "Regards". Write like you're texting someone you know, not pitching a VC.
 
 # DM flow — always follow this order
 When asked to respond to DMs or "I have unread":

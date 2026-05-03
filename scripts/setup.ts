@@ -9,6 +9,7 @@ import fs from 'fs'
 import path from 'path'
 import Anthropic from '@anthropic-ai/sdk'
 import { config as dotenvConfig } from 'dotenv'
+import { extractFormalRules } from './extract-formal-rules'
 
 dotenvConfig({ path: path.join(process.cwd(), '.env') })
 // Pre-load creator .env for returning users — makes mode/archive/keys all auto-detect
@@ -2985,6 +2986,12 @@ async function main() {
       if (voiceProfile) {
         fs.writeFileSync(path.join(creatorDir, 'voice_profile.json'), JSON.stringify(voiceProfile, null, 2), 'utf8')
         console.log('  ✓ Voice profile saved to voice_profile.json')
+      }
+
+      // Auto-extract formal writing rules from the voice profile just built
+      const profilePath2 = path.join(creatorDir, 'personality_profile.json')
+      if (fs.existsSync(profilePath2) && apiKey) {
+        await extractFormalRules(profilePath2, apiKey, ask)
       }
     }
   }
