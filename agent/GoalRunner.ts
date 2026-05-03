@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { GoalStore, GoalState } from '../adapters/control/GoalStore'
 import { buildSystemPrompt } from '../adapters/control/SessionBrain'
+import { appendEvent, readRecentEvents, formatEventsBlock } from '../core/memory/GlobalEventLog'
 
 import { execSync } from 'child_process'
 
@@ -72,9 +73,13 @@ function buildPrompt(goal: GoalState): string {
     ? `\nCompletion condition: "${goal.completion_condition}" — check this at the START of every session. If it is met, write "Completed — [condition] is met" as line 1 of done_today.txt and stop working.`
     : ''
 
+  const recentEvents = readRecentEvents(20)
+  const eventsBlock  = formatEventsBlock(recentEvents)
+
   return `Goal: ${goal.goal}
 ${goal.deadline ? `Deadline: ${goal.deadline}` : ''}${conditionBlock}
 Today is Day ${dayNumber}.
+${eventsBlock ? `\n${eventsBlock}\n` : ''}
 
 Current focus: ${goal.current_focus}
 
@@ -141,6 +146,7 @@ export async function applyGoalResult(goal: GoalState): Promise<'completed' | 'p
   const discoveredFiles = allInFolder.filter(f => !knownFiles.has(f))
   const updatedFiles = [...goal.files, ...discoveredFiles, ...newFiles.filter(f => !knownFiles.has(f))]
   const today = new Date().toISOString().split('T')[0]
+  appendEvent({ platform: 'goal', type: 'goal_session', text: doneToday.slice(0, 120), topic: goal.goal.slice(0, 60) })
   const d = doneToday.toLowerCase()
   const goalDone = d.startsWith('completed') || d.startsWith('goal completed') ||
     d.startsWith('done —') || d.startsWith('done:') || d.startsWith('finished') ||

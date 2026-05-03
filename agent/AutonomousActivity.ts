@@ -11,6 +11,7 @@ import { PersonalityProfile } from '../core/personality/LLMReplyEngine'
 import { UserContext } from '../adapters/control/UserContext'
 import { OwnerPostIndex } from '../core/memory/OwnerPostIndex'
 import { logBotPost } from '../core/memory/BotPostsLog'
+import { appendEvent } from '../core/memory/GlobalEventLog'
 
 export class AutonomousActivity {
   private tavily = new TavilyClient()
@@ -188,6 +189,7 @@ export class AutonomousActivity {
             summary: `posted on x: "${xText.slice(0, 80)}"`,
           })
           logBotPost({ platform: 'x', type: 'original_post', tweetId, text: xText, topic })
+          appendEvent({ platform: 'x', type: 'post', text: xText, topic })
           this.memory.updateTopicPerformance(this.xAccountKey, extractTopics([xText]))
           console.log(`[AutonomousActivity] Posted on X ${tweetId}: "${xText.slice(0, 60)}..."`)
         }
@@ -234,6 +236,7 @@ export class AutonomousActivity {
         summary: `quote tweeted @${pick.authorHandle} on "${topic}": "${comment.slice(0, 60)}"`,
       })
       logBotPost({ platform: 'x', type: 'quote_tweet', tweetId: pick.tweetId, text: comment, topic, replyToHandle: pick.authorHandle, replyToText: pick.text?.slice(0, 120) })
+      appendEvent({ platform: 'x', type: 'quote', text: comment, topic, replyTo: pick.authorHandle })
       console.log(`[AutonomousActivity] Quote tweeted @${pick.authorHandle} (topic: ${topic}): "${comment.slice(0, 60)}..."`)
     } catch (err) {
       console.log(`[AutonomousActivity] QT failed: ${err}`)

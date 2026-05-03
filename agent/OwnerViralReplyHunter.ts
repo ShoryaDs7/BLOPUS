@@ -24,6 +24,7 @@ import { Mood } from '../core/memory/types'
 import { readFocusOverride } from '../adapters/control/FocusOverride'
 import { readRuntimeConfig, readRuntimeConfigOverrides } from '../adapters/control/RuntimeConfig'
 import { logBotPost } from '../core/memory/BotPostsLog'
+import { appendEvent } from '../core/memory/GlobalEventLog'
 import fs from 'fs'
 import path from 'path'
 
@@ -284,6 +285,7 @@ export class OwnerViralReplyHunter {
 
       await this.xAdapter.postAutonomousReply(pick.tweetId, replyText)
       logBotPost({ platform: 'x', type: 'reply', tweetId: pick.tweetId, text: replyText, replyToHandle: pick.authorHandle, replyToText: pick.text?.slice(0, 120) })
+      appendEvent({ platform: 'x', type: 'reply', text: replyText, replyTo: pick.authorHandle })
       this.repliedTweetIds.add(pick.tweetId)
       this.lastRepliedTweetId = pick.tweetId
       this.saveRepliedIds()

@@ -12,6 +12,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 import path from 'path'
 import fs from 'fs'
 import { execSync } from 'child_process'
+import { readRecentEvents, formatEventsBlock } from '../core/memory/GlobalEventLog'
 
 const BLOPUS_DIR = path.resolve(process.env.BLOPUS_DIR ?? '.')
 const NPX_CMD = (() => {
@@ -158,6 +159,7 @@ export function buildSystemPrompt(): string {
 
   const domains      = loadOwnerDomains()
   const domainsBlock = buildDomainsBlock(domains)
+  const eventsBlock  = formatEventsBlock(readRecentEvents(50))
 
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
@@ -165,7 +167,7 @@ Owner: ${ownerName} (@${ownerHandle}). Bot account: @${botHandle}. Project: ${pr
 
 # Owner domains — always use these, never invent from conversation history
 ${domainsBlock}
-
+${eventsBlock ? `\n${eventsBlock}\n` : ''}
 # X / Twitter actions — use mcp__xtools__ tools directly
 You have these X tools available. Use them immediately when asked — no JSON, no Bash, no x-cli:
 - mcp__xtools__get_tweet — read a tweet's text + image (use FIRST when you need to see content before replying)
