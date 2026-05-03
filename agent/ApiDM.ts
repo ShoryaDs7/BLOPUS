@@ -60,7 +60,8 @@ export class ApiDM {
         expansions:        'sender_id',
         'user.fields':     'username',
       })
-      console.log(`[ApiDM] raw events count: ${resp.data?.data?.length ?? 0}`)
+      console.log(`[ApiDM] raw response keys: ${Object.keys(resp ?? {}).join(', ')}`)
+      console.log(`[ApiDM] raw response sample: ${JSON.stringify(resp).slice(0, 300)}`)
 
       const events: any[] = resp.data?.data ?? []
       const users: any[]  = resp.data?.includes?.users ?? []
