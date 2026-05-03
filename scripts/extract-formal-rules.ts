@@ -68,20 +68,23 @@ ${JSON.stringify(context, null, 2)}
 
 Extract 5-7 rules about mechanics that transfer to ANY written context.
 
-Extract ONLY these 3-4 mechanical attributes — nothing else:
+Extract 5-7 mechanical rules about how this person writes. These will be used for emails, GitHub comments, HN posts — formal contexts. They sit on top of normal professional writing (polite, warm where appropriate) as personal style mechanics.
+
+Extract rules about:
 - apostrophe usage: do they write dont/isnt/wont or don't/isn't/won't
-- capitalisation: sentence case, all lowercase, mixed — be specific with the pattern
-- sign-off style: just first name alone, first name + closing phrase, nothing, etc.
-- typical length: how many sentences per message
+- capitalisation pattern: sentence case, lowercase, mixed
+- typical reply/message length in sentences
+- sign-off style: just first name, first name + closing, nothing, etc.
+- whether they open with the main point or build up to it
+- how they structure multiple points (bullets vs prose vs short stacked sentences)
 
-DO NOT include ANYTHING about:
-- tone, attitude, bluntness, directness, confidence
-- how they structure arguments or open messages
-- punchlines, bursts, declarations
-- emojis, CAPS, Twitter formatting
-- anything a polite professional email would not naturally follow
+DO NOT include:
+- emojis
+- Twitter-specific tactics (deflating punchlines, roasting with metrics, CAPS for emphasis)
+- tone or attitude rules (blunt, confident, hedging)
+- anything that would make a professional email sound rude or cold
 
-These rules sit ON TOP of normal professional writing — they are personal formatting quirks only, not replacements for politeness or appropriate context.
+These are formatting mechanics, not personality. The writing should still feel warm and appropriate for the context.
 
 Output: a JSON array of strings. Each rule one short line. Actionable.
 Output ONLY the JSON array. Nothing else.`,
@@ -106,8 +109,8 @@ Output ONLY the JSON array. Nothing else.`,
   }
 
   // Always enforce em dash ban — Claude ignores it when buried in global voice section
-  if (!rules.some(r => r.toLowerCase().includes('em dash') || r.includes('—'))) {
-    rules.unshift('never use em dashes (—) anywhere — use a comma, period, or colon instead')
+  if (!rules.some(r => r.toLowerCase().includes('em dash'))) {
+    rules.unshift('never type the em dash character. use a comma, period, or colon instead. this applies to body text, subject lines, and sign-offs')
   }
 
   // Show the user what was found
