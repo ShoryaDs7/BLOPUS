@@ -147,34 +147,6 @@ Skills: when task matches a skill below — READ the full skill file first, foll
 ${skillIndex}`
 }
 
-function buildVoiceBlock(): string {
-  try {
-    const configPath = process.env.BLOPUS_CONFIG_PATH
-      ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
-      : path.join(BLOPUS_DIR, 'config', 'blopus.config.json')
-    const ppPath = path.join(path.dirname(configPath), 'personality_profile.json')
-    if (!fs.existsSync(ppPath)) return ''
-    const pp = JSON.parse(fs.readFileSync(ppPath, 'utf-8'))
-    const vp = pp?.voiceProfile ?? {}
-    const ws = pp?.writingStats  ?? {}
-    const lines: string[] = []
-    if (vp.synthesized)              lines.push(`Style: ${vp.synthesized}`)
-    if (ws.caseStyle)                lines.push(`Case: ${ws.caseStyle}`)
-    if (ws.emojiUsage)               lines.push(`Emoji: ${ws.emojiUsage}`)
-    if (ws.medianReplyLength)        lines.push(`Typical length: ${ws.medianReplyLength} chars`)
-    if (vp.bannedPhrases?.length)    lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
-    if (vp.neverTopics?.length)      lines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
-    const examples = (vp.goldenExamples ?? []).slice(0, 5)
-    if (examples.length) {
-      lines.push(`Real examples of how the owner writes (match this exactly):`)
-      examples.forEach((e: string, i: number) => lines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
-    }
-    return lines.length ? lines.join('\n') : ''
-  } catch {
-    return ''
-  }
-}
-
 export function buildSystemPrompt(): string {
   const cfg = loadCreatorConfig()
 
@@ -188,7 +160,6 @@ export function buildSystemPrompt(): string {
   const domains      = loadOwnerDomains()
   const domainsBlock = buildDomainsBlock(domains)
   const eventsBlock  = formatEventsBlock(readRecentEvents(50))
-  const voiceBlock   = buildVoiceBlock()
 
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
@@ -232,7 +203,6 @@ Rules:
 Every piece of text you write is ALWAYS in the owner's exact voice — tweets, replies, DMs, Reddit comments, HN comments, emails, GitHub comments, everywhere. No exceptions.
 Never ask "should I write this in your voice?" — always do it. Never explain you're doing it. Just write and post.
 Never use em dashes (—). Never use words like "delve", "boundaries", "straightforward", "crucial", "foster", "unlock".
-${voiceBlock}
 
 # DM flow — always follow this order
 When asked to respond to DMs or "I have unread":
