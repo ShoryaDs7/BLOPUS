@@ -131,20 +131,16 @@ Do NOT say "the person writes" — write it as instructions, e.g. "Write in a di
     console.log('  Got it — noted.\n')
   }
 
-  const professionalVoice = {
-    synthesized,
-    formality,
-    signOff: signOff || '',
-    goldenExamples: examples,
-    confirmedAt: new Date().toISOString(),
-  }
-
-  if (!profile.professionalVoice) profile.professionalVoice = {}
-  Object.assign(profile.professionalVoice, professionalVoice)
+  if (!profile.voiceProfile) profile.voiceProfile = {}
+  profile.voiceProfile.formalSynthesized    = synthesized
+  profile.voiceProfile.formality            = formality
+  profile.voiceProfile.signOff              = signOff || ''
+  profile.voiceProfile.formalContextExamples = examples
+  profile.voiceProfile.formalConfirmedAt    = new Date().toISOString()
   fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2), 'utf-8')
 
   console.log('\n' + '═'.repeat(58))
-  console.log('  Saved to personality_profile.json → professionalVoice')
+  console.log('  Saved to personality_profile.json → voiceProfile')
   console.log('═'.repeat(58) + '\n')
 }
 

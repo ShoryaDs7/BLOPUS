@@ -147,7 +147,7 @@ Skills: when task matches a skill below — READ the full skill file first, foll
 ${skillIndex}`
 }
 
-function buildProfessionalVoiceBlock(): string {
+function buildVoiceBlock(): string {
   try {
     const configPath = process.env.BLOPUS_CONFIG_PATH
       ? path.resolve(process.env.BLOPUS_CONFIG_PATH)
@@ -155,17 +155,49 @@ function buildProfessionalVoiceBlock(): string {
     const ppPath = path.join(path.dirname(configPath), 'personality_profile.json')
     if (!fs.existsSync(ppPath)) return ''
     const pp = JSON.parse(fs.readFileSync(ppPath, 'utf-8'))
-    const pv = pp?.professionalVoice
-    if (!pv?.synthesized) return ''
-    const lines: string[] = [`Style: ${pv.synthesized}`]
-    if (pv.formality !== undefined) lines.push(`Formality: ${pv.formality}/10`)
-    if (pv.signOff) lines.push(`Sign-off: "${pv.signOff}"`)
-    if (pv.goldenExamples?.length) {
-      lines.push('Real examples of how the owner writes professionally:')
-      pv.goldenExamples.slice(0, 3).forEach((e: { context: string; text: string }, i: number) => {
-        lines.push(`  ${i + 1}. [${e.context}] "${e.text.slice(0, 150)}"`)
+    const vp = pp?.voiceProfile ?? {}
+    const ws = pp?.writingStats  ?? {}
+    const lines: string[] = []
+
+    // ── Social voice (X, Reddit, Discord, DMs) ───────────────
+    const socialLines: string[] = []
+    if (vp.synthesized)           socialLines.push(`Style: ${vp.synthesized}`)
+    if (ws.caseStyle)             socialLines.push(`Case: ${ws.caseStyle}`)
+    if (ws.emojiUsage)            socialLines.push(`Emoji: ${ws.emojiUsage}`)
+    if (ws.medianReplyLength)     socialLines.push(`Typical length: ${ws.medianReplyLength} chars`)
+    if (vp.bannedPhrases?.length) socialLines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
+    if (vp.neverTopics?.length)   socialLines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
+    const socialExamples = (vp.goldenExamples ?? []).slice(0, 4)
+    if (socialExamples.length) {
+      socialLines.push(`Real examples (match exactly):`)
+      socialExamples.forEach((e: string, i: number) => socialLines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
+    }
+    if (socialLines.length) {
+      lines.push('## When writing for X, Reddit, Discord, Telegram, DMs:')
+      lines.push(...socialLines)
+    }
+
+    // ── Formal voice (email, GitHub, HN, work messages) ─────
+    const formalLines: string[] = []
+    if (vp.formalSynthesized)        formalLines.push(`Style: ${vp.formalSynthesized}`)
+    if (vp.formality !== undefined)  formalLines.push(`Formality: ${vp.formality}/10`)
+    if (vp.signOff)                  formalLines.push(`Sign-off: "${vp.signOff}"`)
+    const formalExamples = (vp.formalContextExamples ?? []).slice(0, 3)
+    if (formalExamples.length) {
+      formalLines.push(`Real examples (match exactly):`)
+      formalExamples.forEach((e: { context: string; text: string }, i: number) => {
+        formalLines.push(`  ${i + 1}. [${e.context}] "${e.text.slice(0, 150)}"`)
       })
     }
+    if (formalLines.length) {
+      lines.push('\n## When writing emails, GitHub comments, HN posts, work messages:')
+      lines.push(...formalLines)
+    } else if (socialLines.length) {
+      lines.push('\n## When writing emails, GitHub comments, HN posts, work messages:')
+      lines.push('Same personality as above — adapt formality to context. Full sentences, no greentext, no Twitter shorthand.')
+      if (vp.bannedPhrases?.length) lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
+    }
+
     return lines.join('\n')
   } catch {
     return ''
@@ -185,7 +217,7 @@ export function buildSystemPrompt(): string {
   const domains      = loadOwnerDomains()
   const domainsBlock = buildDomainsBlock(domains)
   const eventsBlock  = formatEventsBlock(readRecentEvents(50))
-  const proVoiceBlock = buildProfessionalVoiceBlock()
+  const voiceBlock   = buildVoiceBlock()
 
   return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
 
@@ -226,10 +258,10 @@ Rules:
 - NEVER use Bash or x-cli for X actions.
 
 # Voice — always on, never optional
-Every piece of text you write is ALWAYS in the owner's exact voice — tweets, replies, DMs, Reddit comments, HN comments, emails, GitHub comments, everywhere. No exceptions.
-Never ask "should I write this in your voice?" — always do it. Never explain you're doing it. Just write and post.
+Every piece of text you write is ALWAYS in the owner's exact voice. No exceptions.
+Never ask "should I write this in your voice?" — always do it. Never explain you're doing it. Just write.
 Never use em dashes (—). Never use words like "delve", "boundaries", "straightforward", "crucial", "foster", "unlock".
-${proVoiceBlock ? `\n# Professional voice — use this for emails, GitHub, HN, Slack to strangers, any formal writing\n${proVoiceBlock}\nFor X/Reddit/Discord/Telegram replies: use the owner's social voice (short, casual, their Twitter style). For everything else (email, GitHub, HN, work messages): use the professional voice above.` : ''}
+${voiceBlock ? `\n${voiceBlock}` : ''}
 
 # DM flow — always follow this order
 When asked to respond to DMs or "I have unread":
