@@ -106,7 +106,43 @@ export async function interceptThreat(content: string, source: string): Promise<
   return true
 }
 
-/** Scan generated text for credential leaks before posting to X, email, etc. */
+/** Haiku checks if the text sounds like the owner's own thought or Claude explaining/refusing */
+async function isOwnerVoice(content: string): Promise<boolean> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return true // no key = skip check, don't block
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 10,
+        messages: [{
+          role: 'user',
+          content: `Read this text and answer with one word only — OWNER or AI.
+
+OWNER = this is something a real person would post as their own thought, opinion, or reaction.
+AI = this sounds like an AI model explaining why it can't reply, refusing a request, adding a disclaimer, or commenting on its own behavior.
+
+Text: "${content.slice(0, 400)}"
+
+Answer (OWNER or AI):`,
+        }],
+      }),
+    })
+    const data = await res.json() as any
+    const answer = data?.content?.[0]?.text?.trim().toUpperCase() ?? 'OWNER'
+    return !answer.startsWith('AI')
+  } catch {
+    return true // on error, don't block
+  }
+}
+
+/** Scan generated text for credential leaks + AI voice before posting to X, email, etc. */
 export async function blockLeak(content: string, action: string): Promise<boolean> {
   const result = scanOutput(content)
   if (!result.safe) {
@@ -116,6 +152,16 @@ export async function blockLeak(content: string, action: string): Promise<boolea
     )
     return false
   }
+
+  const ownerVoice = await isOwnerVoice(content)
+  if (!ownerVoice) {
+    console.warn(`[SecurityShield] BLOCKED AI voice leak for ${action}: "${content.slice(0, 80)}"`)
+    await notifyOwner(
+      `🛡️ AI voice blocked before posting\n\nAction: ${action}\nContent: "${content.slice(0, 200)}"`,
+    )
+    return false
+  }
+
   return true
 }
 
