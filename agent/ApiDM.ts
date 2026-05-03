@@ -31,6 +31,7 @@ export class ApiDM {
       appKey: apiKey, appSecret: apiSecret,
       accessToken, accessSecret: accessTokenSecret,
     })
+    console.log(`[ApiDM] using access token: ...${accessToken.slice(-6)}`)
   }
 
   // ── Send ─────────────────────────────────────────────────────────────────────
