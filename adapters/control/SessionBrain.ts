@@ -173,7 +173,7 @@ function buildVoiceBlock(): string {
       socialExamples.forEach((e: string, i: number) => socialLines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
     }
     if (socialLines.length) {
-      lines.push('## When writing for X, Reddit, Discord, Telegram, DMs:')
+      lines.push('## When writing for X, Reddit, Discord, Telegram:')
       lines.push(...socialLines)
     }
 
