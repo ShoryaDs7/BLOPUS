@@ -699,6 +699,9 @@ async function boot(): Promise<void> {
       return
     }
 
+    // DM polling runs independently — not blocked by mentions fetch failure
+    if (dmPoller) await dmPoller.maybePoll()
+
     let mentions
     try {
       const xMentions = await xAdapter.fetchOwnMentions(memory.getLastSinceId())
@@ -734,8 +737,6 @@ async function boot(): Promise<void> {
       await packChatter.maybeChat(config.pack.knownOsBots, moodEngine.getCurrentMood())
     }
 
-    // DM inbox polling — both accounts (OsBot auto-replies, owner drafts to Telegram)
-    if (dmPoller) await dmPoller.maybePoll()
 
     if (mentions.length === 0) {
       log('debug', 'No new mentions.')
