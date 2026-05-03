@@ -68,22 +68,20 @@ ${JSON.stringify(context, null, 2)}
 
 Extract 5-7 rules about mechanics that transfer to ANY written context.
 
-Extract ONLY these mechanical rules — nothing else:
+Extract ONLY these 3-4 mechanical attributes — nothing else:
 - apostrophe usage: do they write dont/isnt/wont or don't/isn't/won't
-- capitalisation: sentence case, all lowercase, mixed — be specific
-- typical reply length in sentences
-- sign-off: just first name, first name + closing phrase, nothing, etc.
-- whether they open with the point immediately or build up to it
+- capitalisation: sentence case, all lowercase, mixed — be specific with the pattern
+- sign-off style: just first name alone, first name + closing phrase, nothing, etc.
+- typical length: how many sentences per message
 
-DO NOT include anything about:
-- confidence, bluntness, hedging, tone, attitude
-- emojis
-- punchlines, one-liners, deflating statements
-- CAPS for emphasis
-- Twitter-specific formatting or tactics
-- how they argue or respond to others
+DO NOT include ANYTHING about:
+- tone, attitude, bluntness, directness, confidence
+- how they structure arguments or open messages
+- punchlines, bursts, declarations
+- emojis, CAPS, Twitter formatting
+- anything a polite professional email would not naturally follow
 
-Only pure formatting and structure mechanics that apply identically in email, GitHub comment, and a formal letter.
+These rules sit ON TOP of normal professional writing — they are personal formatting quirks only, not replacements for politeness or appropriate context.
 
 Output: a JSON array of strings. Each rule one short line. Actionable.
 Output ONLY the JSON array. Nothing else.`,

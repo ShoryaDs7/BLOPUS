@@ -168,10 +168,11 @@ function buildVoiceBlock(): string {
     if (vp.bannedPhrases?.length) lines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
     if (vp.neverTopics?.length)   lines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
 
-    // Formal rules — derived from voice profile patterns, apply to emails/GitHub/HN/any non-social writing
+    // Formal rules — personal mechanics only, sit on top of normal professional writing
     const formalRules: string[] = vp.formalRules ?? []
     if (formalRules.length) {
-      lines.push(`\nFor emails, GitHub comments, HN posts, resumes, any writing outside social media — follow these rules exactly:`)
+      lines.push(`\nFor emails, GitHub comments, HN posts, any writing outside social media:`)
+      lines.push(`Write professionally and appropriately for the context. Then apply these personal style mechanics on top:`)
       formalRules.forEach((r: string) => lines.push(`  - ${r}`))
     }
 
