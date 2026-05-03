@@ -68,23 +68,22 @@ ${JSON.stringify(context, null, 2)}
 
 Extract 5-7 rules about mechanics that transfer to ANY written context.
 
-ONLY extract rules about:
-- sentence length (short/medium/long)
-- apostrophe usage (dont vs don't, isnt vs isn't)
-- capitalisation style (sentence case, all lowercase, etc.)
-- directness (do they get to the point immediately or build up)
-- hedging (do they use "maybe", "I think", "perhaps" or are they confident and declarative)
-- sign-off style (just name, first name only, no closing phrase)
-- reply length (how many sentences typically)
+Extract ONLY these mechanical rules — nothing else:
+- apostrophe usage: do they write dont/isnt/wont or don't/isn't/won't
+- capitalisation: sentence case, all lowercase, mixed — be specific
+- typical reply length in sentences
+- sign-off: just first name, first name + closing phrase, nothing, etc.
+- whether they open with the point immediately or build up to it
 
-DO NOT extract anything about:
-- emojis — irrelevant in formal writing
-- deflating one-liners, punchlines, roasts — Twitter tactics, not writing mechanics
-- CAPS for emphasis — Twitter tactic
-- using metrics to make a point — content, not mechanics
-- line breaks between short sentences — Twitter formatting
-- "deflating social narratives" — Twitter tactic
-- anything that only makes sense in a tweet or reply
+DO NOT include anything about:
+- confidence, bluntness, hedging, tone, attitude
+- emojis
+- punchlines, one-liners, deflating statements
+- CAPS for emphasis
+- Twitter-specific formatting or tactics
+- how they argue or respond to others
+
+Only pure formatting and structure mechanics that apply identically in email, GitHub comment, and a formal letter.
 
 Output: a JSON array of strings. Each rule one short line. Actionable.
 Output ONLY the JSON array. Nothing else.`,
