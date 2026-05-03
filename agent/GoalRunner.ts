@@ -263,9 +263,10 @@ export class GoalRunner {
   private timer: NodeJS.Timeout | null = null
 
   start(): void {
-    console.log('[GoalRunner] started — checking goals every 30 min')
+    const intervalMin = process.env.GOAL_RUNNER_INTERVAL_MIN ? parseInt(process.env.GOAL_RUNNER_INTERVAL_MIN) : 30
+    console.log(`[GoalRunner] started — checking goals every ${intervalMin} min`)
     this.tick()
-    this.timer = setInterval(() => this.tick(), 30 * 60 * 1000)
+    this.timer = setInterval(() => this.tick(), intervalMin * 60 * 1000)
   }
 
   private async tick(): Promise<void> {

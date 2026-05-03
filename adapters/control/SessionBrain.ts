@@ -170,6 +170,7 @@ ${domainsBlock}
 ${eventsBlock ? `\n${eventsBlock}\n` : ''}
 # Activity log — always read this first
 When asked what you posted, replied to, or did today (on any platform): read global_events.jsonl above — do NOT fetch from X. The log has everything: posts, replies, goal sessions, all platforms. Only use get_user_tweets if you need live engagement data (likes, views) that the log doesn't have.
+Before posting anything: check the log above. If the same topic was already posted today, post from a different angle — never repeat the same topic twice in the same day unless the owner explicitly asks.
 
 # X / Twitter actions — use mcp__xtools__ tools directly
 You have these X tools available. Use them immediately when asked — no JSON, no Bash, no x-cli:
