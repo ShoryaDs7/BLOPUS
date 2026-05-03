@@ -45,7 +45,8 @@ This is not automation.
 
 ## What it is
 
-- **It sounds like you:** trained on 2000+ of your real replies, patterns, tone, writing style. Every output grounded in how you actually think.
+- **It sounds like you:** trained on 2000+ of your real replies, patterns, tone, writing style. Every output grounded in how you actually think. Tweets in your Twitter voice. Emails and GitHub comments in your professional voice. It knows the difference.
+
 - **It knows everyone you know. And how you are with each of them.** Before responding to anyone, it reads your full history with them. Your tone with them specifically. What you never say to them. Their patterns too.
 - **It never forgets:** goals run for days or weeks. Every 30 minutes it wakes, reads everything it decided before, and continues. Day 30 still knows what it ruled out on Day 1.
 - **It operates your real accounts:** posts, replies, quote-tweets, defends hostile replies on X. In your voice. While you're offline.
@@ -66,6 +67,7 @@ git clone https://github.com/ShoryaDs7/BLOPUS.git
 cd BLOPUS
 npm install          # handles all 29 skill dependencies
 npm run setup
+npm run setup:pro-voice   # optional: teaches BLOPUS your email/GitHub/HN voice
 npm run blopus:owner
 ```
 
@@ -261,7 +263,11 @@ Your conversation context is always live within a session. Critical decisions, o
 
 ### Global memory
 
-Tracks every action taken, never acts on the same thing twice. Logs topic performance over time: what gets engagement, what gets ignored, when to stop pushing a topic.
+Every action BLOPUS takes — every post, reply, quote-tweet, email sent, goal session run — is logged in a single cross-platform audit trail. Every post is marked: written by BLOPUS or written by you.
+
+BLOPUS reads this log before every action. It never posts the same topic twice in a day. It never repeats itself across platforms. It knows exactly what it has done and what you have done.
+
+Tracks topic performance over time: what gets engagement, what gets ignored, when to stop pushing a topic.
 
 ---
 
