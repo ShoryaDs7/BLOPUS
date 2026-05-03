@@ -161,17 +161,17 @@ function buildVoiceBlock(): string {
 
     // ── Social voice (X, Reddit, Discord, DMs) ───────────────
     const socialLines: string[] = []
-    if (vp.synthesized)           socialLines.push(`Style: ${vp.synthesized}`)
+    const socialExamples = (vp.goldenExamples ?? []).slice(0, 4)
+    if (socialExamples.length) {
+      socialLines.push(`These are real examples of how the owner actually writes. Match this exactly:`)
+      socialExamples.forEach((e: string, i: number) => socialLines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
+    }
     if (ws.caseStyle)             socialLines.push(`Case: ${ws.caseStyle}`)
     if (ws.emojiUsage)            socialLines.push(`Emoji: ${ws.emojiUsage}`)
     if (ws.medianReplyLength)     socialLines.push(`Typical length: ${ws.medianReplyLength} chars`)
     if (vp.bannedPhrases?.length) socialLines.push(`Never say: ${vp.bannedPhrases.join(', ')}`)
     if (vp.neverTopics?.length)   socialLines.push(`Never write about: ${vp.neverTopics.join(', ')}`)
-    const socialExamples = (vp.goldenExamples ?? []).slice(0, 4)
-    if (socialExamples.length) {
-      socialLines.push(`Real examples (match exactly):`)
-      socialExamples.forEach((e: string, i: number) => socialLines.push(`  ${i + 1}. "${e.slice(0, 120)}"`))
-    }
+    if (vp.synthesized)           socialLines.push(`General style note: ${vp.synthesized}`)
     if (socialLines.length) {
       lines.push('## When writing for X, Reddit, Discord, Telegram:')
       lines.push(...socialLines)
@@ -179,16 +179,16 @@ function buildVoiceBlock(): string {
 
     // ── Formal voice (email, GitHub, HN, work messages) ─────
     const formalLines: string[] = []
-    if (vp.formalSynthesized)        formalLines.push(`Style: ${vp.formalSynthesized}`)
-    if (vp.formality !== undefined)  formalLines.push(`Formality: ${vp.formality}/10`)
-    if (vp.signOff)                  formalLines.push(`Sign-off: "${vp.signOff}"`)
     const formalExamples = (vp.formalContextExamples ?? []).slice(0, 3)
     if (formalExamples.length) {
-      formalLines.push(`Real examples (match exactly):`)
+      formalLines.push(`These are real examples of how the owner actually writes. Match this exactly — even if it seems informal:`)
       formalExamples.forEach((e: { context: string; text: string }, i: number) => {
         formalLines.push(`  ${i + 1}. [${e.context}] "${e.text.slice(0, 150)}"`)
       })
     }
+    if (vp.formality !== undefined)  formalLines.push(`Formality: ${vp.formality}/10`)
+    if (vp.signOff)                  formalLines.push(`Sign-off: "${vp.signOff}"`)
+    if (vp.formalSynthesized)        formalLines.push(`General style note: ${vp.formalSynthesized}`)
     if (formalLines.length) {
       lines.push('\n## When writing emails, GitHub comments, HN posts, work messages:')
       lines.push(...formalLines)
