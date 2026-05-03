@@ -81,8 +81,9 @@ Extract rules about:
 DO NOT include:
 - emojis
 - Twitter-specific tactics (deflating punchlines, roasting with metrics, CAPS for emphasis)
-- tone or attitude rules (blunt, confident, hedging)
-- anything that would make a professional email sound rude or cold
+- tone or attitude rules (blunt, confident, hedging, declarative, punchy, qualifier phrases)
+- sign-off style — irrelevant, context decides this
+- anything about how they argue, respond to others, or express opinion
 
 These are formatting mechanics, not personality. The writing should still feel warm and appropriate for the context.
 
