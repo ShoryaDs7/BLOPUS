@@ -192,7 +192,6 @@
       animation: fadeUp 0.2s ease;
       word-break: break-word;
       overflow-wrap: break-word;
-      white-space: pre-wrap;
     }
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(5px); }
@@ -220,6 +219,10 @@
       border-bottom-right-radius: 4px;
       color: rgba(160, 210, 240, 0.9);
     }
+
+    .msg ul { margin: 4px 0 4px 16px; padding: 0; }
+    .msg li  { margin: 2px 0; }
+    .msg strong { color: rgba(150, 220, 255, 0.95); }
 
     .dots {
       display: inline-block;
@@ -402,8 +405,15 @@
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  function renderMarkdown(s) {
+    return s
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')  // escape first
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')                  // **bold**
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')                              // *italic*
+      .replace(/^[-•] (.+)$/gm, '<li>$1</li>')                          // - bullets
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')                        // wrap ul
+      .replace(/\n{2,}/g, '<br><br>')                                    // paragraph breaks
+      .replace(/\n/g, '<br>')                                            // single breaks
   }
 
   function addMsg(from, text) {
@@ -422,7 +432,7 @@
 
     const el = document.createElement('div')
     el.className = `msg ${from}`
-    el.innerHTML = `${escHtml(text)}<div class="msg-time">${timeStr()}</div>`
+    el.innerHTML = `${renderMarkdown(text)}<div class="msg-time">${timeStr()}</div>`
     messages.appendChild(el)
     messages.scrollTop = messages.scrollHeight
   }
