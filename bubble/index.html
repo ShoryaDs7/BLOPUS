@@ -43,16 +43,34 @@
       width: 320px;
     }
 
+    #notif.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
     #notif {
-      padding: 5px 18px 0;
-      font-size: 12px;
-      color: rgba(140, 210, 255, 0.75);
-      white-space: nowrap;
+      margin: 6px 0 0 12px;
+      padding: 8px 13px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: rgba(190, 230, 255, 0.92);
+      background: rgba(0, 40, 90, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(0, 180, 255, 0.22);
+      border-radius: 14px;
+      border-top-left-radius: 4px;
+      max-width: 290px;
       overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       text-overflow: ellipsis;
-      max-width: 300px;
-      display: none;
       animation: fadeUp 0.25s ease;
+      cursor: pointer;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
     }
 
     @keyframes gradShift {
@@ -342,7 +360,7 @@
 
   function expand() {
     expanded = true
-    notif.style.display     = 'none'
+    notif.classList.remove('show')
     divider.style.display   = 'block'
     chatArea.style.display  = 'flex'
     pill.style.borderRadius = '20px'
@@ -360,7 +378,7 @@
     chevron.classList.remove('open')
     if (preview.textContent) {
       notif.textContent = preview.textContent
-      notif.style.display = 'block'
+      notif.classList.add('show')
     }
     window.blopus.resize(COLLAPSED_H)
   }
@@ -379,7 +397,7 @@
 
     if (!expanded) {
       notif.textContent = from === 'blopus' ? text : `you: ${text}`
-      notif.style.display = 'block'
+      notif.classList.add('show')
     }
 
     if (from === 'blopus' && !expanded) {
@@ -408,6 +426,8 @@
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   })
+
+  notif.addEventListener('click', () => { if (!expanded) expand() })
 
   // ── Safety reset — press Escape twice quickly ─────────────────────────────
   let escCount = 0
