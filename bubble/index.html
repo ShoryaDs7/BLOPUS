@@ -288,15 +288,20 @@
   const sendBtn  = document.getElementById('send-btn')
 
   // ── Manual drag ───────────────────────────────────────────────────────────
-  let dragging = false
+  let dragging   = false
   let dragOrigin = null
-  let hasMoved = false
+  let hasMoved   = false
+  let lastTarget = null
 
-  header.addEventListener('mousedown', e => {
+  // Drag from anywhere on the pill except interactive elements
+  pill.addEventListener('mousedown', e => {
     if (e.button !== 0) return
-    dragging    = true
-    hasMoved    = false
-    dragOrigin  = { x: e.screenX, y: e.screenY }
+    const tag = e.target.tagName.toLowerCase()
+    if (tag === 'input' || tag === 'button') return
+    dragging   = true
+    hasMoved   = false
+    lastTarget = e.target
+    dragOrigin = { x: e.screenX, y: e.screenY }
     e.preventDefault()
   })
 
@@ -312,8 +317,8 @@
   document.addEventListener('mouseup', e => {
     if (!dragging) return
     dragging = false
-    // If mouse barely moved, treat as a click (toggle)
-    if (!hasMoved) toggle()
+    // Only toggle if click was on header and barely moved
+    if (!hasMoved && lastTarget && (lastTarget === header || header.contains(lastTarget))) toggle()
   })
 
   // ── Toggle expand / collapse ──────────────────────────────────────────────
