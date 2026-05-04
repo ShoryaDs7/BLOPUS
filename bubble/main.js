@@ -20,6 +20,7 @@ function startBrainServer() {
 }
 
 const COLLAPSED_H = 110
+const EXPANDED_H  = 560
 const WIDTH       = 320
 const MARGIN      = 24
 

@@ -184,12 +184,15 @@
     }
 
     .msg {
-      max-width: 88%;
-      padding: 8px 13px;
+      max-width: 92%;
+      padding: 9px 13px;
       border-radius: 16px;
       font-size: 13px;
-      line-height: 1.45;
+      line-height: 1.6;
       animation: fadeUp 0.2s ease;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
     }
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(5px); }
@@ -316,7 +319,7 @@
 
 <script>
   const COLLAPSED_H = 110
-  const EXPANDED_H  = 480
+  const EXPANDED_H  = 560
 
   let expanded = false
 

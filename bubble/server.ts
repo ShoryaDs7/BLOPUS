@@ -22,6 +22,7 @@ async function main() {
   // Dynamic import so SessionBrain sees BLOPUS_DIR + env already set
   const { SessionBrain } = await import('../adapters/control/SessionBrain')
   const brain = new SessionBrain()
+  brain.setNotify(async (text) => {}) // swallow Telegram-style intermediate emits
   const CHAT_ID = 'bubble'
 
   const server = http.createServer(async (req, res) => {
