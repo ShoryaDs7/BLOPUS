@@ -17,6 +17,7 @@
     /* ── Pill shell ─────────────────────────────────────────────────────── */
     #pill {
       width: 320px;
+      height: 52px;
       background: linear-gradient(135deg,
         rgba(0, 8, 35, 0.97) 0%,
         rgba(0, 40, 90, 0.93) 25%,
@@ -381,10 +382,10 @@
     divider.style.display   = 'block'
     chatArea.style.display  = 'flex'
     pill.style.borderRadius = '20px'
+    pill.style.height       = EXPANDED_H + 'px'
     chevron.classList.add('open')
     window.blopus.resize(EXPANDED_H)
-    messages.scrollTop = messages.scrollHeight
-    setTimeout(() => input.focus(), 80)
+    setTimeout(() => { messages.scrollTop = messages.scrollHeight; input.focus() }, 50)
   }
 
   function collapse() {
@@ -392,6 +393,7 @@
     divider.style.display   = 'none'
     chatArea.style.display  = 'none'
     pill.style.borderRadius = '28px'
+    pill.style.height       = '52px'
     chevron.classList.remove('open')
     if (preview.textContent) {
       notif.textContent = preview.textContent
