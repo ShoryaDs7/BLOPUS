@@ -7,14 +7,23 @@ const COLLAPSED_H = 52
 const WIDTH       = 320
 const MARGIN      = 24
 
+// Track anchor separately — never read from getBounds() for resize
+// because getBounds() returns stale values during rapid resizes
+let anchorX      = 0
+let anchorBottom = 0
+let currentH     = COLLAPSED_H
+
 function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
+
+  anchorX      = width - WIDTH - MARGIN
+  anchorBottom = height - MARGIN   // fixed bottom edge
 
   win = new BrowserWindow({
     width:       WIDTH,
     height:      COLLAPSED_H,
-    x:           width - WIDTH - MARGIN,
-    y:           height - COLLAPSED_H - MARGIN,
+    x:           anchorX,
+    y:           anchorBottom - COLLAPSED_H,
     frame:       false,
     transparent: true,
     alwaysOnTop: true,
@@ -31,18 +40,19 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 }
 
-// Resize while keeping bottom-right anchor fixed
+// Resize — always anchored to tracked bottom, never reads getBounds()
 ipcMain.on('resize', (_, { height }) => {
   if (!win) return
-  const b = win.getBounds()
-  const bottom = b.y + b.height
-  win.setBounds({ x: b.x, y: bottom - height, width: WIDTH, height })
+  currentH = height
+  win.setBounds({ x: anchorX, y: anchorBottom - height, width: WIDTH, height })
 })
 
-// Manual drag — move window by delta
+// Drag — move window and update anchor
 ipcMain.on('move', (_, { dx, dy }) => {
   if (!win) return
-  const [x, y] = win.getPosition()
+  anchorX      += dx
+  anchorBottom += dy
+  const [x, y]  = win.getPosition()
   win.setPosition(x + dx, y + dy)
 })
 
