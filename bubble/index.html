@@ -62,11 +62,7 @@
       border-radius: 14px;
       border-top-left-radius: 4px;
       max-width: 290px;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      text-overflow: ellipsis;
+      overflow: visible;
       animation: fadeUp 0.25s ease;
       cursor: pointer;
       visibility: hidden;
@@ -398,8 +394,13 @@
     if (preview.textContent) {
       notif.textContent = preview.textContent
       notif.classList.add('show')
+      requestAnimationFrame(() => {
+        const h = 52 + notif.offsetHeight + 18
+        window.blopus.resize(h)
+      })
+    } else {
+      window.blopus.resize(52)
     }
-    window.blopus.resize(COLLAPSED_H)
   }
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -424,6 +425,10 @@
     if (!expanded) {
       notif.textContent = from === 'blopus' ? text : `you: ${text}`
       notif.classList.add('show')
+      requestAnimationFrame(() => {
+        const h = 52 + notif.offsetHeight + 18
+        window.blopus.resize(h)
+      })
     }
 
     if (from === 'blopus' && !expanded) {
