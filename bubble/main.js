@@ -11,7 +11,7 @@ function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
 
   win = new BrowserWindow({
-    width,
+    width:       WIDTH,
     height:      COLLAPSED_H,
     x:           width - WIDTH - MARGIN,
     y:           height - COLLAPSED_H - MARGIN,
@@ -36,7 +36,7 @@ ipcMain.on('resize', (_, { height }) => {
   if (!win) return
   const b = win.getBounds()
   const bottom = b.y + b.height
-  win.setBounds({ x: b.x, y: bottom - height, width: WIDTH, height }, true)
+  win.setBounds({ x: b.x, y: bottom - height, width: WIDTH, height })
 })
 
 // Manual drag — move window by delta
