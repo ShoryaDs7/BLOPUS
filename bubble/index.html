@@ -36,6 +36,25 @@
       position: relative;
     }
 
+    #wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 320px;
+    }
+
+    #notif {
+      padding: 5px 18px 0;
+      font-size: 12px;
+      color: rgba(140, 210, 255, 0.75);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+      display: none;
+      animation: fadeUp 0.25s ease;
+    }
+
     @keyframes gradShift {
       0%   { background-position: 0% 50%; }
       50%  { background-position: 100% 50%; }
@@ -251,6 +270,7 @@
 </head>
 <body>
 
+<div id="wrap">
 <div id="pill">
   <div id="header">
     <div class="dot pulse" id="dot"></div>
@@ -269,9 +289,11 @@
     </div>
   </div>
 </div>
+  <div id="notif"></div>
+</div>
 
 <script>
-  const COLLAPSED_H = 52
+  const COLLAPSED_H = 80
   const EXPANDED_H  = 480
 
   let expanded = false
@@ -282,6 +304,7 @@
   const chatArea = document.getElementById('chat-area')
   const messages = document.getElementById('messages')
   const preview  = document.getElementById('preview')
+  const notif    = document.getElementById('notif')
   const dot      = document.getElementById('dot')
   const chevron  = document.getElementById('chevron')
   const input    = document.getElementById('input')
@@ -326,6 +349,7 @@
 
   function expand() {
     expanded = true
+    notif.style.display     = 'none'
     divider.style.display   = 'block'
     chatArea.style.display  = 'flex'
     pill.style.borderRadius = '20px'
@@ -341,6 +365,7 @@
     chatArea.style.display  = 'none'
     pill.style.borderRadius = '28px'
     chevron.classList.remove('open')
+    if (preview.textContent) notif.style.display = 'block'
     window.blopus.resize(COLLAPSED_H)
   }
 
@@ -355,6 +380,11 @@
 
   function addMsg(from, text) {
     preview.textContent = from === 'blopus' ? text : `you: ${text}`
+
+    if (!expanded) {
+      notif.textContent = from === 'blopus' ? text : `you: ${text}`
+      notif.style.display = 'block'
+    }
 
     if (from === 'blopus' && !expanded) {
       dot.classList.remove('pulse')

@@ -3,7 +3,7 @@ const path = require('path')
 
 let win = null
 
-const COLLAPSED_H = 52
+const COLLAPSED_H = 80
 const WIDTH       = 320
 const MARGIN      = 24
 
