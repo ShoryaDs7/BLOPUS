@@ -49,6 +49,15 @@ async function main() {
     })
   })
 
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`[BubbleServer] port ${PORT} in use — retrying in 2s`)
+      setTimeout(() => server.listen(PORT, '127.0.0.1'), 2000)
+    } else {
+      console.error('[BubbleServer] error:', err)
+    }
+  })
+
   server.listen(PORT, '127.0.0.1', () => {
     console.log(`[BubbleServer] ready on 127.0.0.1:${PORT}`)
   })

@@ -8,6 +8,8 @@ let brainServer = null
 
 function startBrainServer() {
   const blopusDir = path.resolve(__dirname, '..')
+  // Kill anything already on port 3847 (stale process from previous run)
+  try { require('child_process').execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :3847\') do taskkill /F /PID %a', { shell: true, stdio: 'ignore' }) } catch {}
 
   brainServer = spawn('npx', ['tsx', path.join(__dirname, 'server.ts')], {
     cwd:   blopusDir,
