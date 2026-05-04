@@ -218,6 +218,17 @@
       color: rgba(160, 210, 240, 0.9);
     }
 
+    .dots {
+      display: inline-block;
+      animation: dotPulse 1.2s ease-in-out infinite;
+      letter-spacing: 2px;
+      font-size: 16px;
+      color: rgba(0, 200, 255, 0.7);
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity: 0.3; } 50% { opacity: 1; }
+    }
+
     .msg-time {
       font-size: 9.5px;
       color: rgba(0, 180, 220, 0.35);
@@ -414,12 +425,40 @@
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
-  function send() {
+  let thinking = null
+
+  function showThinking() {
+    thinking = document.createElement('div')
+    thinking.className = 'msg blopus'
+    thinking.innerHTML = '<span class="dots">●&thinsp;●&thinsp;●</span>'
+    messages.appendChild(thinking)
+    messages.scrollTop = messages.scrollHeight
+  }
+
+  function hideThinking() {
+    if (thinking) { thinking.remove(); thinking = null }
+  }
+
+  async function send() {
     const text = input.value.trim()
     if (!text) return
     input.value = ''
     addMsg('user', text)
-    setTimeout(() => addMsg('blopus', 'received'), 380)
+    showThinking()
+
+    try {
+      const res  = await fetch('http://127.0.0.1:3847/message', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ message: text }),
+      })
+      const data = await res.json()
+      hideThinking()
+      addMsg('blopus', data.response ?? data.error ?? 'no response')
+    } catch (e) {
+      hideThinking()
+      addMsg('blopus', 'brain not connected yet — start the bot first')
+    }
   }
 
   sendBtn.addEventListener('click', send)

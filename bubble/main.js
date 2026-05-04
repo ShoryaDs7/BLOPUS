@@ -1,7 +1,25 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron')
+const { spawn } = require('child_process')
 const path = require('path')
+const fs   = require('fs')
 
-let win = null
+let win        = null
+let brainServer = null
+
+function startBrainServer() {
+  const blopusDir = path.resolve(__dirname, '..')
+  // Find npx
+  let npx = 'npx'
+  try { npx = require('child_process').execSync('where npx', { encoding: 'utf8' }).trim().split('\n')[0].trim() } catch {}
+
+  brainServer = spawn(npx, ['tsx', path.join(__dirname, 'server.ts')], {
+    cwd: blopusDir,
+    env: { ...process.env, BLOPUS_DIR: blopusDir },
+  })
+  brainServer.stdout.on('data', d => process.stdout.write(`[brain] ${d}`))
+  brainServer.stderr.on('data', d => process.stderr.write(`[brain] ${d}`))
+  brainServer.on('exit', code => console.log(`[brain] exited ${code}`))
+}
 
 const COLLAPSED_H = 110
 const WIDTH       = 320
@@ -76,5 +94,12 @@ ipcMain.on('reset-position', () => {
   applyBounds()
 })
 
-app.whenReady().then(createWindow)
-app.on('window-all-closed', () => app.quit())
+app.whenReady().then(() => {
+  startBrainServer()
+  createWindow()
+})
+
+app.on('window-all-closed', () => {
+  brainServer?.kill()
+  app.quit()
+})
