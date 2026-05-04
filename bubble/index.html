@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blopus</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      user-select: none;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    /* ── Outer pill ─────────────────────────────────────────────────────── */
+    #pill {
+      width: 320px;
+      background: rgba(6, 10, 30, 0.82);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(80, 130, 255, 0.32);
+      border-radius: 26px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04) inset,
+        0 0 48px rgba(50, 90, 255, 0.16),
+        0 12px 40px rgba(0, 0, 10, 0.55);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header / collapsed row ─────────────────────────────────────────── */
+    #header {
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      height: 52px;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+
+    #header:hover { background: rgba(80, 130, 255, 0.06); }
+
+    /* dot */
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #4d8bff;
+      box-shadow: 0 0 8px #4d8bff, 0 0 18px rgba(77,139,255,0.4);
+      flex-shrink: 0;
+      margin-right: 10px;
+    }
+    .dot.pulse { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 6px #4d8bff, 0 0 14px rgba(77,139,255,0.3); opacity: 1; }
+      50%      { box-shadow: 0 0 14px #4d8bff, 0 0 32px rgba(77,139,255,0.55); opacity: 0.75; }
+    }
+
+    /* brand */
+    .brand {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: rgba(180, 205, 255, 0.95);
+      flex-shrink: 0;
+      margin-right: 10px;
+      text-transform: lowercase;
+    }
+
+    /* preview line — latest message */
+    #preview {
+      font-size: 12px;
+      color: rgba(140, 170, 230, 0.65);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      -webkit-app-region: no-drag;
+    }
+
+    /* chevron */
+    #chevron {
+      font-size: 10px;
+      color: rgba(100, 140, 220, 0.45);
+      margin-left: 8px;
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+      -webkit-app-region: no-drag;
+    }
+    #chevron.open { transform: rotate(180deg); }
+
+    /* ── Divider ────────────────────────────────────────────────────────── */
+    #divider {
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(80,130,255,0.28) 30%,
+        rgba(100,160,255,0.18) 70%,
+        transparent 100%);
+      flex-shrink: 0;
+      display: none;
+    }
+
+    /* ── Chat area ──────────────────────────────────────────────────────── */
+    #chat-area {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* messages list */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(77,139,255,0.25) transparent;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb {
+      background: rgba(77,139,255,0.3);
+      border-radius: 2px;
+    }
+
+    /* individual message bubbles */
+    .msg {
+      max-width: 88%;
+      padding: 8px 13px;
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.45;
+      animation: fadeUp 0.2s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.blopus {
+      align-self: flex-start;
+      background: linear-gradient(135deg, rgba(35,65,180,0.45) 0%, rgba(25,50,140,0.35) 100%);
+      border: 1px solid rgba(80,130,255,0.28);
+      border-bottom-left-radius: 4px;
+      color: rgba(200, 220, 255, 0.95);
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: rgba(16, 24, 60, 0.7);
+      border: 1px solid rgba(60, 95, 190, 0.22);
+      border-bottom-right-radius: 4px;
+      color: rgba(170, 195, 245, 0.9);
+    }
+
+    .msg-time {
+      font-size: 9.5px;
+      color: rgba(100, 135, 200, 0.45);
+      margin-top: 3px;
+      text-align: right;
+    }
+    .msg.blopus .msg-time { text-align: left; }
+
+    /* ── Input row ──────────────────────────────────────────────────────── */
+    #input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px 12px;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    #input {
+      flex: 1;
+      background: rgba(15, 25, 65, 0.6);
+      border: 1px solid rgba(80, 130, 255, 0.28);
+      border-radius: 20px;
+      padding: 9px 15px;
+      font-size: 13px;
+      font-family: inherit;
+      color: rgba(210, 225, 255, 0.95);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #input::placeholder { color: rgba(110, 145, 210, 0.38); }
+    #input:focus {
+      border-color: rgba(80, 130, 255, 0.55);
+      box-shadow: 0 0 0 3px rgba(77, 139, 255, 0.1);
+    }
+
+    #send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #4d8bff 0%, #2b5ce6 100%);
+      box-shadow: 0 0 12px rgba(77,139,255,0.35);
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+    #send-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 20px rgba(77,139,255,0.5);
+    }
+    #send-btn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+
+<div id="pill">
+
+  <!-- Collapsed header — always visible -->
+  <div id="header">
+    <div class="dot pulse" id="dot"></div>
+    <span class="brand">blopus</span>
+    <span id="preview">hey. i'm watching.</span>
+    <span id="chevron">▲</span>
+  </div>
+
+  <!-- Separator -->
+  <div id="divider"></div>
+
+  <!-- Expanded chat -->
+  <div id="chat-area">
+    <div id="messages"></div>
+    <div id="input-row">
+      <input id="input" type="text" placeholder="say something..." autocomplete="off" />
+      <button id="send-btn">➤</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const COLLAPSED_H = 52
+  const EXPANDED_H  = 480
+
+  let expanded  = false
+  let msgCount  = 0
+
+  const pill     = document.getElementById('pill')
+  const header   = document.getElementById('header')
+  const divider  = document.getElementById('divider')
+  const chatArea = document.getElementById('chat-area')
+  const messages = document.getElementById('messages')
+  const preview  = document.getElementById('preview')
+  const dot      = document.getElementById('dot')
+  const chevron  = document.getElementById('chevron')
+  const input    = document.getElementById('input')
+  const sendBtn  = document.getElementById('send-btn')
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function timeStr() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function addMsg(from, text) {
+    msgCount++
+
+    // Update preview in collapsed header
+    preview.textContent = from === 'blopus' ? text : `you: ${text}`
+
+    // Blink dot when blopus sends something while collapsed
+    if (from === 'blopus' && !expanded) {
+      dot.classList.remove('pulse')
+      void dot.offsetWidth // reflow to restart animation
+      dot.classList.add('pulse')
+    }
+
+    // Build message element
+    const el = document.createElement('div')
+    el.className = `msg ${from}`
+    el.innerHTML = `
+      ${escHtml(text)}
+      <div class="msg-time">${timeStr()}</div>
+    `
+    messages.appendChild(el)
+    messages.scrollTop = messages.scrollHeight
+  }
+
+  function escHtml(str) {
+    return str
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+  }
+
+  // ── Expand / collapse ─────────────────────────────────────────────────────
+
+  function open() {
+    expanded = true
+    divider.style.display  = 'block'
+    chatArea.style.display = 'flex'
+    pill.style.borderRadius = '20px'
+    chevron.classList.add('open')
+    window.blopus.resize(EXPANDED_H)
+    messages.scrollTop = messages.scrollHeight
+    setTimeout(() => input.focus(), 80)
+  }
+
+  function close() {
+    expanded = false
+    divider.style.display  = 'none'
+    chatArea.style.display = 'none'
+    pill.style.borderRadius = '26px'
+    chevron.classList.remove('open')
+    window.blopus.resize(COLLAPSED_H)
+  }
+
+  header.addEventListener('click', () => expanded ? close() : open())
+
+  // ── Send ──────────────────────────────────────────────────────────────────
+
+  function send() {
+    const text = input.value.trim()
+    if (!text) return
+    input.value = ''
+    addMsg('user', text)
+
+    // Echo back — Phase 1 stub, SessionBrain replaces this in Phase 2
+    setTimeout(() => addMsg('blopus', 'received'), 380)
+  }
+
+  sendBtn.addEventListener('click', send)
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+  })
+
+  // ── Boot message ─────────────────────────────────────────────────────────
+
+  setTimeout(() => addMsg('blopus', "hey. i'm watching."), 600)
+</script>
+
+</body>
+</html>

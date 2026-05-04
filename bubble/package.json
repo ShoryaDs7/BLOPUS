@@ -1,0 +1,12 @@
+{
+  "name": "blopus-bubble",
+  "version": "0.1.0",
+  "description": "Blopus ghost bubble — always-on floating overlay",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^28.3.3"
+  }
+}

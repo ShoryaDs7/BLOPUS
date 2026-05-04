@@ -14,6 +14,7 @@
     "smart-reply": "npx tsx scripts/smart-reply.ts",
     "smart-qt": "npx tsx scripts/smart-qt.ts",
     "smart-post": "npx tsx scripts/smart-post.ts",
+"bubble": "cd bubble && npm start",
 "blopus:bot": "tsx agent/run-blopus-bot.ts",
     "blopus:owner": "tsx agent/run-blopus-owner.ts",
     "blopus:goals": "tsx agent/run-goals.ts",
