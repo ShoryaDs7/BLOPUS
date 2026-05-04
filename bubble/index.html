@@ -116,15 +116,8 @@
       text-transform: lowercase;
     }
 
-    /* preview */
-    #preview {
-      font-size: 12px;
-      color: rgba(120, 195, 230, 0.6);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-    }
+    /* preview — hidden, used only as internal state tracker */
+    #preview { display: none; }
 
     /* chevron */
     #chevron {
@@ -365,7 +358,10 @@
     chatArea.style.display  = 'none'
     pill.style.borderRadius = '28px'
     chevron.classList.remove('open')
-    if (preview.textContent) notif.style.display = 'block'
+    if (preview.textContent) {
+      notif.textContent = preview.textContent
+      notif.style.display = 'block'
+    }
     window.blopus.resize(COLLAPSED_H)
   }
 
