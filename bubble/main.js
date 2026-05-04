@@ -4,7 +4,6 @@ const path = require('path')
 let win = null
 
 const COLLAPSED_H = 52
-const EXPANDED_H  = 480
 const WIDTH       = 320
 const MARGIN      = 24
 
@@ -12,7 +11,7 @@ function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
 
   win = new BrowserWindow({
-    width:       WIDTH,
+    width,
     height:      COLLAPSED_H,
     x:           width - WIDTH - MARGIN,
     y:           height - COLLAPSED_H - MARGIN,
@@ -40,9 +39,11 @@ ipcMain.on('resize', (_, { height }) => {
   win.setBounds({ x: b.x, y: bottom - height, width: WIDTH, height }, true)
 })
 
-// Drag started from renderer — move window to follow mouse
-ipcMain.on('drag-start', () => {
-  // Electron handles this via -webkit-app-region: drag in CSS
+// Manual drag — move window by delta
+ipcMain.on('move', (_, { dx, dy }) => {
+  if (!win) return
+  const [x, y] = win.getPosition()
+  win.setPosition(x + dx, y + dy)
 })
 
 app.whenReady().then(createWindow)

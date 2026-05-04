@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blopus</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -15,82 +14,99 @@
       height: 100%;
     }
 
-    /* ── Outer pill ─────────────────────────────────────────────────────── */
+    /* ── Pill shell ─────────────────────────────────────────────────────── */
     #pill {
       width: 320px;
-      background: rgba(6, 10, 30, 0.82);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
-      border: 1px solid rgba(80, 130, 255, 0.32);
-      border-radius: 26px;
+      background: linear-gradient(160deg,
+        rgba(0, 30, 65, 0.78) 0%,
+        rgba(0, 18, 48, 0.88) 100%);
+      backdrop-filter: blur(32px) saturate(200%);
+      -webkit-backdrop-filter: blur(32px) saturate(200%);
+      border: 1px solid rgba(0, 210, 255, 0.28);
+      border-radius: 28px;
       box-shadow:
-        0 0 0 1px rgba(255,255,255,0.04) inset,
-        0 0 48px rgba(50, 90, 255, 0.16),
-        0 12px 40px rgba(0, 0, 10, 0.55);
+        0 0 0 1px rgba(255,255,255,0.05) inset,
+        0 0 60px rgba(0, 180, 255, 0.14),
+        0 0 120px rgba(0, 140, 220, 0.08),
+        0 16px 48px rgba(0, 0, 20, 0.6);
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
-    /* ── Header / collapsed row ─────────────────────────────────────────── */
+    /* top cyan shimmer line */
+    #pill::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent,
+        rgba(0, 220, 255, 0.55) 40%,
+        rgba(100, 240, 255, 0.4) 60%,
+        transparent);
+      border-radius: 1px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
     #header {
       display: flex;
       align-items: center;
       padding: 0 16px;
       height: 52px;
-      cursor: pointer;
+      cursor: grab;
       flex-shrink: 0;
-      -webkit-app-region: drag;
+      position: relative;
+      z-index: 1;
     }
+    #header:active { cursor: grabbing; }
+    #header:hover { background: rgba(0, 200, 255, 0.04); }
 
-    #header:hover { background: rgba(80, 130, 255, 0.06); }
-
-    /* dot */
+    /* pulsing dot */
     .dot {
       width: 9px;
       height: 9px;
       border-radius: 50%;
-      background: #4d8bff;
-      box-shadow: 0 0 8px #4d8bff, 0 0 18px rgba(77,139,255,0.4);
+      background: #00d4ff;
+      box-shadow: 0 0 8px #00d4ff, 0 0 20px rgba(0, 212, 255, 0.5);
       flex-shrink: 0;
       margin-right: 10px;
     }
-    .dot.pulse { animation: pulse 2s ease-in-out infinite; }
+    .dot.pulse { animation: pulse 2.2s ease-in-out infinite; }
     @keyframes pulse {
-      0%,100% { box-shadow: 0 0 6px #4d8bff, 0 0 14px rgba(77,139,255,0.3); opacity: 1; }
-      50%      { box-shadow: 0 0 14px #4d8bff, 0 0 32px rgba(77,139,255,0.55); opacity: 0.75; }
+      0%,100% { box-shadow: 0 0 6px #00d4ff, 0 0 16px rgba(0,212,255,0.4); opacity:1; }
+      50%      { box-shadow: 0 0 16px #00d4ff, 0 0 40px rgba(0,212,255,0.6); opacity:0.7; }
     }
 
     /* brand */
     .brand {
       font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.8px;
-      color: rgba(180, 205, 255, 0.95);
+      letter-spacing: 1px;
+      color: rgba(180, 235, 255, 0.95);
       flex-shrink: 0;
       margin-right: 10px;
       text-transform: lowercase;
     }
 
-    /* preview line — latest message */
+    /* preview */
     #preview {
       font-size: 12px;
-      color: rgba(140, 170, 230, 0.65);
+      color: rgba(120, 195, 230, 0.6);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       flex: 1;
-      -webkit-app-region: no-drag;
     }
 
     /* chevron */
     #chevron {
       font-size: 10px;
-      color: rgba(100, 140, 220, 0.45);
+      color: rgba(0, 200, 255, 0.4);
       margin-left: 8px;
       flex-shrink: 0;
       transition: transform 0.25s ease;
-      -webkit-app-region: no-drag;
     }
     #chevron.open { transform: rotate(180deg); }
 
@@ -98,10 +114,10 @@
     #divider {
       height: 1px;
       background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(80,130,255,0.28) 30%,
-        rgba(100,160,255,0.18) 70%,
-        transparent 100%);
+        transparent,
+        rgba(0, 200, 255, 0.22) 30%,
+        rgba(0, 220, 255, 0.15) 70%,
+        transparent);
       flex-shrink: 0;
       display: none;
     }
@@ -114,7 +130,6 @@
       min-height: 0;
     }
 
-    /* messages list */
     #messages {
       flex: 1;
       overflow-y: auto;
@@ -123,16 +138,14 @@
       flex-direction: column;
       gap: 8px;
       scrollbar-width: thin;
-      scrollbar-color: rgba(77,139,255,0.25) transparent;
+      scrollbar-color: rgba(0, 200, 255, 0.2) transparent;
     }
-    #messages::-webkit-scrollbar { width: 4px; }
-    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar { width: 3px; }
     #messages::-webkit-scrollbar-thumb {
-      background: rgba(77,139,255,0.3);
+      background: rgba(0, 200, 255, 0.25);
       border-radius: 2px;
     }
 
-    /* individual message bubbles */
     .msg {
       max-width: 88%;
       padding: 8px 13px;
@@ -142,29 +155,35 @@
       animation: fadeUp 0.2s ease;
     }
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(5px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* blopus bubble — glassy cyan tint */
     .msg.blopus {
       align-self: flex-start;
-      background: linear-gradient(135deg, rgba(35,65,180,0.45) 0%, rgba(25,50,140,0.35) 100%);
-      border: 1px solid rgba(80,130,255,0.28);
+      background: rgba(0, 60, 110, 0.38);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 190, 255, 0.22);
       border-bottom-left-radius: 4px;
-      color: rgba(200, 220, 255, 0.95);
+      color: rgba(200, 235, 255, 0.95);
     }
 
+    /* user bubble */
     .msg.user {
       align-self: flex-end;
-      background: rgba(16, 24, 60, 0.7);
-      border: 1px solid rgba(60, 95, 190, 0.22);
+      background: rgba(0, 30, 65, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 160, 210, 0.18);
       border-bottom-right-radius: 4px;
-      color: rgba(170, 195, 245, 0.9);
+      color: rgba(160, 210, 240, 0.9);
     }
 
     .msg-time {
       font-size: 9.5px;
-      color: rgba(100, 135, 200, 0.45);
+      color: rgba(0, 180, 220, 0.35);
       margin-top: 3px;
       text-align: right;
     }
@@ -175,27 +194,29 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 12px 12px;
+      padding: 10px 12px 13px;
       flex-shrink: 0;
-      -webkit-app-region: no-drag;
     }
 
     #input {
       flex: 1;
-      background: rgba(15, 25, 65, 0.6);
-      border: 1px solid rgba(80, 130, 255, 0.28);
-      border-radius: 20px;
+      background: rgba(0, 40, 80, 0.18);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 190, 255, 0.22);
+      border-radius: 22px;
       padding: 9px 15px;
       font-size: 13px;
       font-family: inherit;
-      color: rgba(210, 225, 255, 0.95);
+      color: rgba(200, 235, 255, 0.95);
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    #input::placeholder { color: rgba(110, 145, 210, 0.38); }
+    #input::placeholder { color: rgba(0, 180, 230, 0.32); }
     #input:focus {
-      border-color: rgba(80, 130, 255, 0.55);
-      box-shadow: 0 0 0 3px rgba(77, 139, 255, 0.1);
+      border-color: rgba(0, 210, 255, 0.45);
+      box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.08),
+                  0 0 16px rgba(0, 180, 255, 0.1);
     }
 
     #send-btn {
@@ -203,30 +224,27 @@
       height: 36px;
       border-radius: 50%;
       border: none;
-      background: linear-gradient(135deg, #4d8bff 0%, #2b5ce6 100%);
-      box-shadow: 0 0 12px rgba(77,139,255,0.35);
+      background: linear-gradient(135deg, #00c8ff 0%, #0077e6 100%);
+      box-shadow: 0 0 14px rgba(0, 200, 255, 0.4);
       color: #fff;
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: transform 0.15s, box-shadow 0.15s;
       flex-shrink: 0;
-      -webkit-app-region: no-drag;
     }
     #send-btn:hover {
       transform: scale(1.08);
-      box-shadow: 0 0 20px rgba(77,139,255,0.5);
+      box-shadow: 0 0 22px rgba(0, 200, 255, 0.6);
     }
-    #send-btn:active { transform: scale(0.96); }
+    #send-btn:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
 
 <div id="pill">
-
-  <!-- Collapsed header — always visible -->
   <div id="header">
     <div class="dot pulse" id="dot"></div>
     <span class="brand">blopus</span>
@@ -234,10 +252,8 @@
     <span id="chevron">▲</span>
   </div>
 
-  <!-- Separator -->
   <div id="divider"></div>
 
-  <!-- Expanded chat -->
   <div id="chat-area">
     <div id="messages"></div>
     <div id="input-row">
@@ -245,15 +261,13 @@
       <button id="send-btn">➤</button>
     </div>
   </div>
-
 </div>
 
 <script>
   const COLLAPSED_H = 52
   const EXPANDED_H  = 480
 
-  let expanded  = false
-  let msgCount  = 0
+  let expanded = false
 
   const pill     = document.getElementById('pill')
   const header   = document.getElementById('header')
@@ -266,49 +280,42 @@
   const input    = document.getElementById('input')
   const sendBtn  = document.getElementById('send-btn')
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Manual drag ───────────────────────────────────────────────────────────
+  let dragging = false
+  let dragOrigin = null
+  let hasMoved = false
 
-  function timeStr() {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
+  header.addEventListener('mousedown', e => {
+    if (e.button !== 0) return
+    dragging    = true
+    hasMoved    = false
+    dragOrigin  = { x: e.screenX, y: e.screenY }
+    e.preventDefault()
+  })
 
-  function addMsg(from, text) {
-    msgCount++
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return
+    const dx = e.screenX - dragOrigin.x
+    const dy = e.screenY - dragOrigin.y
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasMoved = true
+    window.blopus.moveWindow(dx, dy)
+    dragOrigin = { x: e.screenX, y: e.screenY }
+  })
 
-    // Update preview in collapsed header
-    preview.textContent = from === 'blopus' ? text : `you: ${text}`
+  document.addEventListener('mouseup', e => {
+    if (!dragging) return
+    dragging = false
+    // If mouse barely moved, treat as a click (toggle)
+    if (!hasMoved) toggle()
+  })
 
-    // Blink dot when blopus sends something while collapsed
-    if (from === 'blopus' && !expanded) {
-      dot.classList.remove('pulse')
-      void dot.offsetWidth // reflow to restart animation
-      dot.classList.add('pulse')
-    }
+  // ── Toggle expand / collapse ──────────────────────────────────────────────
+  function toggle() { expanded ? collapse() : expand() }
 
-    // Build message element
-    const el = document.createElement('div')
-    el.className = `msg ${from}`
-    el.innerHTML = `
-      ${escHtml(text)}
-      <div class="msg-time">${timeStr()}</div>
-    `
-    messages.appendChild(el)
-    messages.scrollTop = messages.scrollHeight
-  }
-
-  function escHtml(str) {
-    return str
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-  }
-
-  // ── Expand / collapse ─────────────────────────────────────────────────────
-
-  function open() {
+  function expand() {
     expanded = true
-    divider.style.display  = 'block'
-    chatArea.style.display = 'flex'
+    divider.style.display   = 'block'
+    chatArea.style.display  = 'flex'
     pill.style.borderRadius = '20px'
     chevron.classList.add('open')
     window.blopus.resize(EXPANDED_H)
@@ -316,26 +323,46 @@
     setTimeout(() => input.focus(), 80)
   }
 
-  function close() {
+  function collapse() {
     expanded = false
-    divider.style.display  = 'none'
-    chatArea.style.display = 'none'
-    pill.style.borderRadius = '26px'
+    divider.style.display   = 'none'
+    chatArea.style.display  = 'none'
+    pill.style.borderRadius = '28px'
     chevron.classList.remove('open')
     window.blopus.resize(COLLAPSED_H)
   }
 
-  header.addEventListener('click', () => expanded ? close() : open())
+  // ── Messages ──────────────────────────────────────────────────────────────
+  function timeStr() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  }
+
+  function addMsg(from, text) {
+    preview.textContent = from === 'blopus' ? text : `you: ${text}`
+
+    if (from === 'blopus' && !expanded) {
+      dot.classList.remove('pulse')
+      void dot.offsetWidth
+      dot.classList.add('pulse')
+    }
+
+    const el = document.createElement('div')
+    el.className = `msg ${from}`
+    el.innerHTML = `${escHtml(text)}<div class="msg-time">${timeStr()}</div>`
+    messages.appendChild(el)
+    messages.scrollTop = messages.scrollHeight
+  }
 
   // ── Send ──────────────────────────────────────────────────────────────────
-
   function send() {
     const text = input.value.trim()
     if (!text) return
     input.value = ''
     addMsg('user', text)
-
-    // Echo back — Phase 1 stub, SessionBrain replaces this in Phase 2
     setTimeout(() => addMsg('blopus', 'received'), 380)
   }
 
@@ -344,8 +371,7 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   })
 
-  // ── Boot message ─────────────────────────────────────────────────────────
-
+  // ── Boot ──────────────────────────────────────────────────────────────────
   setTimeout(() => addMsg('blopus', "hey. i'm watching."), 600)
 </script>
 
