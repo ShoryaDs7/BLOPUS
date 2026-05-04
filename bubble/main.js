@@ -8,13 +8,11 @@ let brainServer = null
 
 function startBrainServer() {
   const blopusDir = path.resolve(__dirname, '..')
-  // Find npx
-  let npx = 'npx'
-  try { npx = require('child_process').execSync('where npx', { encoding: 'utf8' }).trim().split('\n')[0].trim() } catch {}
 
-  brainServer = spawn(npx, ['tsx', path.join(__dirname, 'server.ts')], {
-    cwd: blopusDir,
-    env: { ...process.env, BLOPUS_DIR: blopusDir },
+  brainServer = spawn('npx', ['tsx', path.join(__dirname, 'server.ts')], {
+    cwd:   blopusDir,
+    env:   { ...process.env, BLOPUS_DIR: blopusDir },
+    shell: true,
   })
   brainServer.stdout.on('data', d => process.stdout.write(`[brain] ${d}`))
   brainServer.stderr.on('data', d => process.stderr.write(`[brain] ${d}`))
