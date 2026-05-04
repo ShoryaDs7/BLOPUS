@@ -425,6 +425,15 @@
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
+  // Retry fetch up to 15 times with 2s gap (waits up to 30s for server boot)
+  async function fetchWithRetry(url, opts, attempts = 15) {
+    for (let i = 0; i < attempts; i++) {
+      try { return await fetch(url, opts) } catch {}
+      await new Promise(r => setTimeout(r, 2000))
+    }
+    throw new Error('server unreachable')
+  }
+
   let thinking = null
 
   function showThinking() {
@@ -447,7 +456,7 @@
     showThinking()
 
     try {
-      const res  = await fetch('http://127.0.0.1:3847/message', {
+      const res  = await fetchWithRetry('http://127.0.0.1:3847/message', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ message: text }),
@@ -457,7 +466,7 @@
       addMsg('blopus', data.response ?? data.error ?? 'no response')
     } catch (e) {
       hideThinking()
-      addMsg('blopus', 'brain not connected yet — start the bot first')
+      addMsg('blopus', 'could not reach brain server — check terminal for errors')
     }
   }
 
