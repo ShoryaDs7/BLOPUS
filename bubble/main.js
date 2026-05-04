@@ -7,17 +7,30 @@ const COLLAPSED_H = 52
 const WIDTH       = 320
 const MARGIN      = 24
 
-// Track anchor separately — never read from getBounds() for resize
-// because getBounds() returns stale values during rapid resizes
 let anchorX      = 0
 let anchorBottom = 0
 let currentH     = COLLAPSED_H
 
+function workArea() {
+  return screen.getPrimaryDisplay().workAreaSize
+}
+
+function clamp() {
+  const { width: sw, height: sh } = workArea()
+  anchorX      = Math.max(0, Math.min(sw - WIDTH, anchorX))
+  anchorBottom = Math.max(currentH + 10, Math.min(sh, anchorBottom))
+}
+
+function applyBounds() {
+  clamp()
+  win.setBounds({ x: anchorX, y: anchorBottom - currentH, width: WIDTH, height: currentH })
+}
+
 function createWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  const { width, height } = workArea()
 
   anchorX      = width - WIDTH - MARGIN
-  anchorBottom = height - MARGIN   // fixed bottom edge
+  anchorBottom = height - MARGIN
 
   win = new BrowserWindow({
     width:       WIDTH,
@@ -40,20 +53,27 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 }
 
-// Resize — always anchored to tracked bottom, never reads getBounds()
 ipcMain.on('resize', (_, { height }) => {
   if (!win) return
   currentH = height
-  win.setBounds({ x: anchorX, y: anchorBottom - height, width: WIDTH, height })
+  applyBounds()
 })
 
-// Drag — move window and update anchor
 ipcMain.on('move', (_, { dx, dy }) => {
   if (!win) return
   anchorX      += dx
   anchorBottom += dy
-  const [x, y]  = win.getPosition()
-  win.setPosition(x + dx, y + dy)
+  applyBounds()
+})
+
+// Safety reset — double-click tray or call from renderer if bubble goes missing
+ipcMain.on('reset-position', () => {
+  if (!win) return
+  const { width, height } = workArea()
+  anchorX      = width - WIDTH - MARGIN
+  anchorBottom = height - MARGIN
+  currentH     = COLLAPSED_H
+  applyBounds()
 })
 
 app.whenReady().then(createWindow)

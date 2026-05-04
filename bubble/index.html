@@ -383,6 +383,15 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   })
 
+  // ── Safety reset — press Escape twice quickly ─────────────────────────────
+  let escCount = 0
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return
+    escCount++
+    if (escCount >= 2) { window.blopus.resetPosition(); escCount = 0 }
+    setTimeout(() => { escCount = 0 }, 600)
+  })
+
   // ── Boot ──────────────────────────────────────────────────────────────────
   setTimeout(() => addMsg('blopus', "hey. i'm watching."), 600)
 </script>
