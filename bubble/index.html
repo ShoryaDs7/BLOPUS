@@ -14,7 +14,8 @@
       height: 100%;
     }
 
-    #messages, #notif { user-select: text; cursor: text; }
+    #messages { user-select: text; cursor: text; }
+    #notif { user-select: none; cursor: grab; }
 
     /* ── Pill shell ─────────────────────────────────────────────────────── */
     #pill {
@@ -343,18 +344,18 @@
   let hasMoved   = false
   let lastTarget = null
 
-  // Drag from anywhere on the pill except interactive elements and messages
-  pill.addEventListener('mousedown', e => {
+  // Drag from anywhere on the pill or notif except interactive elements and messages
+  ;[pill, notif].forEach(el => el.addEventListener('mousedown', e => {
     if (e.button !== 0) return
     const tag = e.target.tagName.toLowerCase()
     if (tag === 'input' || tag === 'button') return
-    if (e.target.closest('#messages') || e.target.closest('#notif')) return
+    if (e.target.closest('#messages')) return
     dragging   = true
     hasMoved   = false
     lastTarget = e.target
     dragOrigin = { x: e.screenX, y: e.screenY }
     e.preventDefault()
-  })
+  }))
 
   document.addEventListener('mousemove', e => {
     if (!dragging) return
