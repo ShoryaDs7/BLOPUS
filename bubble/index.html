@@ -392,7 +392,7 @@
     pill.style.height       = '52px'
     chevron.classList.remove('open')
     if (preview.textContent) {
-      notif.textContent = preview.textContent
+      notif.innerHTML = renderMarkdown(preview.textContent)
       notif.classList.add('show')
       requestAnimationFrame(() => {
         const h = 52 + notif.offsetHeight + 18
@@ -423,7 +423,7 @@
     preview.textContent = from === 'blopus' ? text : `you: ${text}`
 
     if (!expanded) {
-      notif.textContent = from === 'blopus' ? text : `you: ${text}`
+      notif.innerHTML = renderMarkdown(from === 'blopus' ? text : `you: ${text}`)
       notif.classList.add('show')
       requestAnimationFrame(() => {
         const h = 52 + notif.offsetHeight + 18
