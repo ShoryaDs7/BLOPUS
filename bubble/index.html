@@ -369,8 +369,10 @@
   document.addEventListener('mouseup', e => {
     if (!dragging) return
     dragging = false
-    // Only toggle if click was on header and barely moved
-    if (!hasMoved && lastTarget && (lastTarget === header || header.contains(lastTarget))) toggle()
+    if (!hasMoved && lastTarget) {
+      if (lastTarget === header || header.contains(lastTarget)) toggle()
+      else if (lastTarget === notif || notif.contains(lastTarget)) { if (!expanded) expand() }
+    }
   })
 
   // ── Toggle expand / collapse ──────────────────────────────────────────────
@@ -499,7 +501,6 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   })
 
-  notif.addEventListener('click', () => { if (!expanded) expand() })
 
   // ── Safety reset — press Escape twice quickly ─────────────────────────────
   let escCount = 0
