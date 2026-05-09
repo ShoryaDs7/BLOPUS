@@ -9,7 +9,9 @@
 
 **BLOPUS is not a chatbot. It is a continuously running behavioral runtime that reads your environment, models your cognitive state, and decides whether to act — before you ask.**
 
-It sits on your screen. Watches what you're doing. Understands your mental state. And when something genuinely matters, it surfaces a decision — not a notification, not a chat prompt, not a suggestion box. A concrete action, ready to approve or cancel.
+It sits on your screen. It never sleeps. It watches what you're doing, understands when you're stuck, and when something genuinely matters — it surfaces a concrete action. Not a notification. Not a chat window. A decision, ready to approve or cancel in one click.
+
+You don't open it. It's already watching.
 
 | Tool | What it is | When it acts |
 |------|------------|--------------|
@@ -64,6 +66,8 @@ npm run blopus:owner
 ## How Bubble Works
 
 BLOPUS Bubble is not an AI that waits for you to type. It is an event-driven pipeline — every action is triggered by a real signal from your environment.
+
+WindowWatcher notices you've been bouncing between the same two tabs for ten minutes. AwarenessLayer builds a model of what you're stuck on. FrictionEngine decides it's worth interrupting. A proposal appears. You click yes. It's done.
 
 ```mermaid
 flowchart TD
@@ -352,16 +356,6 @@ Every action BLOPUS takes — every post, reply, quote-tweet, email sent, goal s
 BLOPUS reads this log before every action. It never posts the same topic twice in a day. It never repeats itself across platforms. It knows exactly what it has done and what you have done.
 
 Tracks topic performance over time: what gets engagement, what gets ignored, when to stop pushing a topic.
-
----
-
-## Autonomous presence
-
-BLOPUS stays active while you're offline, posting, replying, defending, engaging, all in your voice, derived from your real behavior. X is live today. Reddit and Discord are next.
-
-```bash
-npm run blopus:owner
-```
 
 ---
 
