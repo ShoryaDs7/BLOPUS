@@ -4,6 +4,8 @@
   <img src="assets/banner.png" alt="BLOPUS" width="100%"/>
 </p>
 
+**WHY USE A CLAW WHEN YOU HAVE 8 ARMS?**
+
 [![GitHub Stars](https://img.shields.io/github/stars/ShoryaDs7/BLOPUS?style=flat&color=yellow)](https://github.com/ShoryaDs7/BLOPUS/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
