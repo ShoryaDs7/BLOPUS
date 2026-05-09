@@ -209,15 +209,15 @@
       color: rgba(200, 235, 255, 0.95);
     }
 
-    /* user bubble */
+    /* user bubble — white glass, clearly distinct from blopus cyan */
     .msg.user {
       align-self: flex-end;
-      background: rgba(0, 30, 65, 0.55);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 160, 210, 0.18);
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.13);
       border-bottom-right-radius: 4px;
-      color: rgba(160, 210, 240, 0.9);
+      color: rgba(230, 240, 255, 0.92);
     }
 
     .msg ul { margin: 4px 0 4px 16px; padding: 0; }
@@ -273,6 +273,137 @@
                   0 0 16px rgba(0, 180, 255, 0.1);
     }
 
+    #attach-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 200, 255, 0.25);
+      background: rgba(0, 30, 70, 0.6);
+      color: rgba(0, 200, 255, 0.7);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+      line-height: 1;
+    }
+    #attach-btn:hover { border-color: rgba(0,200,255,0.6); color: rgba(0,200,255,1); }
+    #attach-btn.has-file { border-color: rgba(0,200,255,0.8); color: #00c8ff; }
+
+    #vision-btn {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,200,255,0.25);
+      background: rgba(0,30,70,0.6);
+      color: rgba(0,200,255,0.5);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    #vision-btn:hover { border-color: rgba(0,200,255,0.6); color: rgba(0,200,255,0.9); }
+    #vision-btn.active {
+      border-color: #00c8ff;
+      background: rgba(0,150,255,0.2);
+      color: #00c8ff;
+      box-shadow: 0 0 8px rgba(0,200,255,0.4);
+    }
+
+    #attach-chip {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      margin: 0 12px 5px;
+      padding: 4px 8px 4px 10px;
+      background: rgba(0, 140, 255, 0.1);
+      border: 1px solid rgba(0, 200, 255, 0.28);
+      border-radius: 12px;
+      font-size: 11px;
+      color: rgba(0, 200, 255, 0.85);
+      max-width: calc(100% - 24px);
+      box-sizing: border-box;
+    }
+    #attach-chip.show { display: flex; }
+    #attach-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    #attach-chip-clear { cursor: pointer; font-size: 14px; line-height: 1; flex-shrink: 0; opacity: 0.6; }
+    #attach-chip-clear:hover { opacity: 1; }
+
+    .msg-attach {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(0,140,255,0.12);
+      border: 1px solid rgba(0,200,255,0.2);
+      border-radius: 8px;
+      padding: 2px 7px;
+      font-size: 10px;
+      color: rgba(0,200,255,0.7);
+      margin-bottom: 4px;
+    }
+
+    .thinking-bubble {
+      padding: 10px 13px !important;
+      gap: 0 !important;
+    }
+    .thinking-header {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+    }
+    .thinking-pulse {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(0,200,255,0.7);
+      flex-shrink: 0;
+      animation: tpulse 1.4s ease-in-out infinite;
+    }
+    @keyframes tpulse {
+      0%,100% { opacity: 0.3; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1.2); }
+    }
+    .thinking-status {
+      font-size: 11.5px; font-weight: 500;
+      color: rgba(200,235,255,0.75); flex: 1;
+      letter-spacing: 0.01em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .thinking-expand {
+      font-size: 9px; color: rgba(0,200,255,0.3);
+      transition: transform 0.15s; flex-shrink: 0; margin-left: 2px;
+    }
+    .thinking-bubble.open .thinking-expand { transform: rotate(90deg); }
+    .thinking-cancel {
+      font-size: 10px; color: rgba(0,200,255,0.35);
+      cursor: pointer; flex-shrink: 0; padding: 2px 5px;
+      border: 1px solid rgba(0,200,255,0.18); border-radius: 4px;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none; letter-spacing: 0.02em;
+    }
+    .thinking-cancel:hover { color: rgba(255,80,80,0.8); border-color: rgba(255,80,80,0.35); }
+    .thinking-log {
+      display: none; margin-top: 8px;
+      max-height: 110px; overflow-y: auto;
+      border-top: 1px solid rgba(0,200,255,0.08);
+      padding-top: 7px;
+    }
+    .thinking-bubble.open .thinking-log { display: block; }
+    .thinking-log-line {
+      display: flex; align-items: baseline; gap: 7px;
+      padding: 2px 0; font-size: 10.5px;
+      color: rgba(180,220,255,0.45); line-height: 1.4;
+    }
+    .thinking-log-line .tl-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 4px;
+      background: rgba(0,180,255,0.4);
+    }
+    .thinking-log-line .tl-dot.bash  { background: rgba(255,200,60,0.5); }
+    .thinking-log-line .tl-dot.write { background: rgba(80,220,120,0.5); }
+    .thinking-log-line .tl-dot.web   { background: rgba(0,210,255,0.5); }
+    .thinking-log-line .tl-dot.mcp   { background: rgba(160,100,255,0.5); }
+    .thinking-log-line .tl-text {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+    }
+
     #send-btn {
       width: 36px;
       height: 36px;
@@ -294,6 +425,153 @@
       box-shadow: 0 0 22px rgba(0, 200, 255, 0.6);
     }
     #send-btn:active { transform: scale(0.95); }
+
+    /* ── Ghost overlay ──────────────────────────────────────────────────────── */
+    #ghost {
+      display: none;
+      margin: 6px 0 0 12px;
+      padding: 9px 13px;
+      max-width: 290px;
+      background: rgba(0, 30, 60, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(0, 240, 160, 0.35);
+      border-radius: 14px;
+      border-top-left-radius: 4px;
+      animation: fadeUp 0.2s ease;
+    }
+    #ghost-label {
+      font-size: 11px;
+      font-style: italic;
+      color: rgba(0, 220, 140, 0.55);
+      margin-bottom: 6px;
+    }
+    #ghost-text {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: rgba(180, 255, 210, 0.92);
+      word-break: break-word;
+    }
+    #ghost-dismiss {
+      margin-top: 7px;
+      font-size: 10px;
+      color: rgba(0, 200, 140, 0.45);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    #ghost-dismiss:hover { color: rgba(0, 220, 160, 0.75); }
+
+    /* ── Proposal card ──────────────────────────────────────────────────────── */
+    #proposal {
+      display: none;
+      margin: 6px 0 0 12px;
+      padding: 10px 13px;
+      max-width: 290px;
+      background: rgba(0, 20, 50, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(80, 160, 255, 0.35);
+      border-radius: 14px;
+      border-top-left-radius: 4px;
+      animation: fadeUp 0.2s ease;
+    }
+    #proposal-label {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: rgba(190, 225, 255, 0.95);
+      margin-bottom: 9px;
+      word-break: break-word;
+    }
+    .proposal-btns {
+      display: flex;
+      gap: 7px;
+    }
+    .proposal-btn {
+      flex: 1;
+      padding: 5px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 11.5px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .proposal-btn:hover { opacity: 0.85; }
+    .proposal-btn.yes {
+      background: linear-gradient(135deg, #0077e6 0%, #0055bb 100%);
+      color: #fff;
+    }
+    .proposal-btn.no {
+      background: rgba(255,255,255,0.07);
+      color: rgba(150, 200, 255, 0.7);
+      border: 1px solid rgba(100, 160, 255, 0.2);
+    }
+    #proposal-spinner {
+      font-size: 11px;
+      color: rgba(100, 180, 255, 0.6);
+      margin-top: 7px;
+      display: none;
+    }
+    .proposal-btn.stop {
+      display: none;
+      margin-top: 6px;
+      flex: none;
+      width: 100%;
+      background: rgba(255, 60, 60, 0.12);
+      color: rgba(255, 120, 120, 0.8);
+      border: 1px solid rgba(255, 80, 80, 0.25);
+      padding: 4px 0;
+    }
+    .proposal-btn.stop:hover { opacity: 0.8; }
+    #proposal-result {
+      font-size: 12px;
+      line-height: 1.55;
+      color: rgba(190, 230, 255, 0.9);
+      margin-top: 8px;
+      display: none;
+      word-break: break-word;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .proposal-close {
+      display: none;
+      margin-top: 6px;
+      font-size: 10px;
+      color: rgba(100, 160, 255, 0.4);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    .proposal-close:hover { color: rgba(100, 180, 255, 0.7); }
+
+    #feed-btn {
+      background: none; border: none; cursor: pointer; padding: 0 2px;
+      font-size: 13px; color: rgba(100, 180, 255, 0.35);
+      margin-left: auto; transition: color 0.15s;
+    }
+    #feed-btn:hover, #feed-btn.active { color: rgba(100, 210, 255, 0.8); }
+    #feed-panel {
+      flex: 1; overflow-y: auto; padding: 8px 12px 4px;
+    }
+    .feed-entry {
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(100,160,255,0.08);
+      font-size: 11px;
+      color: rgba(160, 210, 255, 0.75);
+      line-height: 1.45;
+    }
+    .feed-entry:last-child { border-bottom: none; }
+    .feed-entry .feed-label { color: rgba(190,230,255,0.9); font-size: 11.5px; }
+    .feed-entry .feed-time  { color: rgba(100,160,255,0.4); font-size: 10px; margin-top: 2px; }
+    .feed-empty {
+      font-size: 11px; color: rgba(100,160,255,0.35);
+      text-align: center; padding: 24px 0;
+    }
   </style>
 </head>
 <body>
@@ -303,21 +581,50 @@
   <div id="header">
     <div class="dot pulse" id="dot"></div>
     <span class="brand">blopus</span>
-    <span id="preview">hey. i'm watching.</span>
+    <span id="preview"></span>
     <span id="chevron">▲</span>
+    <button id="feed-btn" title="Activity feed">◈</button>
   </div>
 
   <div id="divider"></div>
 
   <div id="chat-area">
     <div id="messages"></div>
+    <div id="feed-panel" style="display:none">
+      <div id="feed-list"></div>
+    </div>
+    <div id="attach-chip">
+      <span>📎</span>
+      <span id="attach-chip-name"></span>
+      <span id="attach-chip-clear" title="Remove">×</span>
+    </div>
     <div id="input-row">
+      <label id="attach-btn" title="Attach image or file">⊕
+        <input id="file-input" type="file" accept="image/*,.pdf,.txt,.md,.ts,.js,.py,.json" style="display:none" />
+      </label>
+      <button id="vision-btn" title="Look at my screen">👁</button>
       <input id="input" type="text" placeholder="say something..." autocomplete="off" />
       <button id="send-btn">➤</button>
     </div>
   </div>
 </div>
   <div id="notif"></div>
+  <div id="ghost">
+    <div id="ghost-label">blopus suggests</div>
+    <div id="ghost-text"></div>
+    <button id="ghost-dismiss">dismiss</button>
+  </div>
+  <div id="proposal">
+    <div id="proposal-label"></div>
+    <div class="proposal-btns">
+      <button class="proposal-btn yes" id="proposal-yes">Yes, find it</button>
+      <button class="proposal-btn no"  id="proposal-no">No thanks</button>
+    </div>
+    <div id="proposal-spinner">searching...</div>
+    <button class="proposal-btn stop" id="proposal-stop">stop</button>
+    <div id="proposal-result"></div>
+    <button class="proposal-close" id="proposal-close">close</button>
+  </div>
 </div>
 
 <script>
@@ -337,6 +644,9 @@
   const chevron  = document.getElementById('chevron')
   const input    = document.getElementById('input')
   const sendBtn  = document.getElementById('send-btn')
+  const ghost      = document.getElementById('ghost')
+  const ghostText  = document.getElementById('ghost-text')
+  const ghostDismiss = document.getElementById('ghost-dismiss')
 
   // ── Manual drag ───────────────────────────────────────────────────────────
   let dragging   = false
@@ -386,7 +696,13 @@
     pill.style.borderRadius = '20px'
     pill.style.height       = EXPANDED_H + 'px'
     chevron.classList.add('open')
-    window.blopus.resize(EXPANDED_H)
+    // Hide proposal only when waiting for yes/no — keep it if task is running or result showing
+    const proposalIdle = proposalYes.style.display !== 'none'
+    if (proposalIdle) proposal.style.display = 'none'
+    requestAnimationFrame(() => {
+      const proposalH = proposal.style.display !== 'none' ? proposal.offsetHeight + 8 : 0
+      window.blopus.resize(EXPANDED_H + proposalH)
+    })
     setTimeout(() => { messages.scrollTop = messages.scrollHeight; input.focus() }, 50)
   }
 
@@ -398,15 +714,29 @@
     pill.style.height       = '52px'
     chevron.classList.remove('open')
     if (preview.textContent) {
-      notif.innerHTML = renderMarkdown(preview.textContent)
+      notif.innerHTML = renderMarkdown(notifSnippet(preview.textContent))
+      // Re-append working step if still thinking
+      if (thinking) {
+        const status = thinking.querySelector('.thinking-status')
+        const stepText = status?.textContent?.trim()
+        if (stepText && stepText !== 'working') {
+          notif.innerHTML += `<div style="margin-top:4px;font-size:10px;color:rgba(0,200,255,0.5);font-style:italic">● ${stepText.slice(0,50)}</div>`
+        }
+      }
       notif.classList.add('show')
-      requestAnimationFrame(() => {
-        const h = 52 + notif.offsetHeight + 18
-        window.blopus.resize(h)
-      })
-    } else {
-      window.blopus.resize(52)
     }
+    // Restore proposal card if it has anything worth showing
+    if (currentProposalId && (
+      proposalYes.style.display     !== 'none' ||
+      proposalSpinner.style.display === 'block' ||
+      proposalResult.style.display  === 'block'
+    )) proposal.style.display = 'block'
+    requestAnimationFrame(() => {
+      const notifH    = notif.classList.contains('show') ? notif.offsetHeight + 18 : 0
+      const proposalH = proposal.style.display !== 'none' ? proposal.offsetHeight + 12 : 0
+      const ghostH    = ghost.style.display    !== 'none' ? ghost.offsetHeight   + 12 : 0
+      window.blopus.resize(52 + notifH + proposalH + ghostH || 52)
+    })
   }
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -425,16 +755,23 @@
       .replace(/\n/g, '<br>')                                            // single breaks
   }
 
-  function addMsg(from, text) {
-    preview.textContent = from === 'blopus' ? text : `you: ${text}`
+  function notifSnippet(text) {
+    const t = text.trim()
+    if (t.length <= 240) return t
+    // cut at last word boundary before 240
+    const cut = t.slice(0, 240).replace(/\s+\S*$/, '')
+    return cut + '…'
+  }
+
+  function addMsg(from, text, attachName = null) {
+    const displayText = text || (attachName ? '' : 'look at this')
+    const previewText = from === 'blopus' ? displayText : `you: ${attachName ? `📎 ${attachName}${displayText ? ' — ' + displayText : ''}` : displayText}`
+    preview.textContent = previewText
 
     if (!expanded) {
-      notif.innerHTML = renderMarkdown(from === 'blopus' ? text : `you: ${text}`)
+      notif.innerHTML = renderMarkdown(notifSnippet(previewText))
       notif.classList.add('show')
-      requestAnimationFrame(() => {
-        const h = 52 + notif.offsetHeight + 18
-        window.blopus.resize(h)
-      })
+      resizeWithProposal()
     }
 
     if (from === 'blopus' && !expanded) {
@@ -445,7 +782,11 @@
 
     const el = document.createElement('div')
     el.className = `msg ${from}`
-    el.innerHTML = `${renderMarkdown(text)}<div class="msg-time">${timeStr()}</div>`
+    let inner = ''
+    if (attachName) inner += `<div class="msg-attach">📎 ${attachName}</div>`
+    inner += renderMarkdown(displayText)
+    inner += `<div class="msg-time">${timeStr()}</div>`
+    el.innerHTML = inner
     messages.appendChild(el)
     messages.scrollTop = messages.scrollHeight
   }
@@ -460,13 +801,120 @@
     throw new Error('server unreachable')
   }
 
+  // ── Vision toggle ─────────────────────────────────────────────────────────
+  const visionBtn = document.getElementById('vision-btn')
+  let visionActive = false
+
+  visionBtn.addEventListener('click', () => {
+    visionActive = !visionActive
+    visionBtn.classList.toggle('active', visionActive)
+    input.placeholder = visionActive ? 'describe what you need help with...' : 'say something...'
+  })
+
+  // ── File attachment state ─────────────────────────────────────────────────
+  const fileInput    = document.getElementById('file-input')
+  const attachBtn    = document.getElementById('attach-btn')
+  const attachChip   = document.getElementById('attach-chip')
+  const attachChipNm = document.getElementById('attach-chip-name')
+  const attachChipX  = document.getElementById('attach-chip-clear')
+  let pendingFile = null  // { base64, mime, name }
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0]
+    if (!file) return
+    const mime = file.type || 'application/octet-stream'
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result
+      const base64  = dataUrl.split(',')[1]
+      pendingFile   = { base64, mime, name: file.name }
+      attachBtn.classList.add('has-file')
+      attachChipNm.textContent = file.name
+      attachChip.classList.add('show')
+    }
+    reader.readAsDataURL(file)
+    fileInput.value = ''  // reset so same file can be reattached
+  })
+
+  function clearAttachment() {
+    pendingFile = null
+    attachBtn.classList.remove('has-file')
+    attachChip.classList.remove('show')
+    attachChipNm.textContent = ''
+  }
+
+  attachChipX.addEventListener('click', clearAttachment)
+
   let thinking = null
+
+  // Strip leading emoji from tool summary strings sent by SessionBrain
+  const EMOJI_RE = /^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}⚡📄✏️🔍🌐🔧⚙✅❌]\s*/u
+  function cleanToolText(raw) { return raw.replace(EMOJI_RE, '').trim() }
+
+  // Map raw text to a dot type for color coding
+  function dotType(raw) {
+    if (/^[⚡$]|bash/i.test(raw))              return 'bash'
+    if (/^[✏️]|write|edit/i.test(raw))          return 'write'
+    if (/^[🌐]|http|fetch|search/i.test(raw))   return 'web'
+    if (/^[🔧]|mcp__|tool/i.test(raw))          return 'mcp'
+    return ''
+  }
+
+  let activeFetchController = null   // AbortController for current chat fetch
 
   function showThinking() {
     thinking = document.createElement('div')
-    thinking.className = 'msg blopus'
-    thinking.innerHTML = '<span class="dots">●&thinsp;●&thinsp;●</span>'
+    thinking.className = 'msg blopus thinking-bubble'
+    thinking.innerHTML = `
+      <div class="thinking-header">
+        <span class="thinking-pulse"></span>
+        <span class="thinking-status">working</span>
+        <span class="thinking-expand">▸</span>
+        <span class="thinking-cancel">stop</span>
+      </div>
+      <div class="thinking-log"></div>`
+
+    thinking.querySelector('.thinking-header').addEventListener('click', (e) => {
+      if (e.target.classList.contains('thinking-cancel')) return
+      thinking?.classList.toggle('open')
+    })
+
+    thinking.querySelector('.thinking-cancel').addEventListener('click', () => {
+      activeFetchController?.abort()          // kill in-flight fetch immediately
+      fetch('http://127.0.0.1:3847/chat/cancel', { method: 'POST' }).catch(() => {})
+      hideThinking()
+      addMsg('blopus', 'stopped.')
+    })
+
     messages.appendChild(thinking)
+    messages.scrollTop = messages.scrollHeight
+  }
+
+  function updateThinkingStatus(raw) {
+    if (!thinking) return
+    const text   = cleanToolText(raw)
+    const status = thinking.querySelector('.thinking-status')
+    const log    = thinking.querySelector('.thinking-log')
+    if (status) status.textContent = text.slice(0, 55) || 'working'
+    if (log) {
+      const row  = document.createElement('div')
+      row.className = 'thinking-log-line'
+      const dot  = document.createElement('span')
+      dot.className = `tl-dot ${dotType(raw)}`
+      const span = document.createElement('span')
+      span.className = 'tl-text'
+      span.textContent = text
+      row.appendChild(dot)
+      row.appendChild(span)
+      log.appendChild(row)
+      log.scrollTop = log.scrollHeight
+    }
+    // Also surface current step in notif strip when collapsed
+    if (!expanded) {
+      notif.innerHTML = renderMarkdown(notifSnippet(preview.textContent || ''))
+        + `<div style="margin-top:4px;font-size:10px;color:rgba(0,200,255,0.5);font-style:italic">● ${text.slice(0,50)}</div>`
+      notif.classList.add('show')
+    }
     messages.scrollTop = messages.scrollHeight
   }
 
@@ -476,23 +924,51 @@
 
   async function send() {
     const text = input.value.trim()
-    if (!text) return
+    if (!text && !pendingFile) return
     input.value = ''
-    addMsg('user', text)
+    const attachName = pendingFile?.name ?? null
+    addMsg('user', text || '', attachName)
     showThinking()
 
+    const body = { message: text || 'look at this' }
+    if (pendingFile) {
+      body.imageBase64 = pendingFile.base64
+      body.imageMime   = pendingFile.mime
+    }
+    const usingVision = visionActive
+    if (visionActive) {
+      body.visionMode = true
+      visionActive = false                         // one-shot — turns off after send
+      visionBtn.classList.remove('active')
+      input.placeholder = 'say something...'
+    }
+    clearAttachment()
+
+    // Hide bubble before screenshot so it doesn't appear in the capture
+    if (usingVision) {
+      window.blopus?.hideForScreenshot()
+      await new Promise(r => setTimeout(r, 180))  // let compositor flush
+    }
+
+    activeFetchController = new AbortController()
     try {
       const res  = await fetchWithRetry('http://127.0.0.1:3847/message', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ message: text }),
+        body:    JSON.stringify(body),
+        signal:  activeFetchController.signal,
       })
       const data = await res.json()
+      if (usingVision) window.blopus?.showAfterScreenshot()
       hideThinking()
       addMsg('blopus', data.response ?? data.error ?? 'no response')
     } catch (e) {
+      if (usingVision) window.blopus?.showAfterScreenshot()
+      if (e?.name === 'AbortError') return   // user hit stop — message already shown
       hideThinking()
       addMsg('blopus', 'could not reach brain server — check terminal for errors')
+    } finally {
+      activeFetchController = null
     }
   }
 
@@ -501,6 +977,107 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   })
 
+  // ── Clipboard image paste (Ctrl+V with an image on clipboard) ───────────
+  input.addEventListener('paste', e => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = ev => {
+          const dataUrl = ev.target.result
+          const base64  = dataUrl.split(',')[1]
+          pendingFile   = { base64, mime: item.type, name: 'screenshot.png' }
+          attachBtn.classList.add('has-file')
+          attachChipNm.textContent = 'screenshot.png'
+          attachChip.classList.add('show')
+        }
+        reader.readAsDataURL(file)
+        return
+      }
+    }
+  })
+
+
+  // ── Ghost overlay ────────────────────────────────────────────────────────
+  const GHOST_PREFIXES = [
+    "here's how i'd say it —",
+    "might land better like this —",
+    "i'd frame it this way —",
+    "try this instead —",
+    "feels stronger like this —",
+  ]
+  let ghostPrefixIdx = 0
+
+  function showGhost(suggestion) {
+    const label = document.getElementById('ghost-label')
+    label.textContent = GHOST_PREFIXES[ghostPrefixIdx % GHOST_PREFIXES.length]
+    ghostPrefixIdx++
+    ghostText.textContent = suggestion
+    ghost.style.display = 'block'
+    requestAnimationFrame(() => {
+      const h = (expanded ? EXPANDED_H : 52) + notif.offsetHeight + ghost.offsetHeight + 28
+      window.blopus.resize(h)
+    })
+  }
+
+  function hideGhost() {
+    ghost.style.display = 'none'
+    // Re-measure height after ghost gone
+    requestAnimationFrame(() => {
+      if (expanded) return
+      const h = notif.classList.contains('show') ? 52 + notif.offsetHeight + 18 : 52
+      window.blopus.resize(h)
+    })
+  }
+
+  ghostDismiss.addEventListener('click', hideGhost)
+
+  // ── Activity feed ─────────────────────────────────────────────────────────
+  const feedBtn   = document.getElementById('feed-btn')
+  const feedPanel = document.getElementById('feed-panel')
+  const feedList  = document.getElementById('feed-list')
+  let feedVisible = false
+
+  function formatFeedTime(iso) {
+    const d = new Date(iso)
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function renderFeed(entries) {
+    if (!entries || entries.length === 0) {
+      feedList.innerHTML = '<div class="feed-empty">nothing yet — tasks will appear here</div>'
+      return
+    }
+    feedList.innerHTML = entries.map(e => `
+      <div class="feed-entry">
+        <div class="feed-label">${e.label}</div>
+        <div>${e.snippet}</div>
+        <div class="feed-time">${formatFeedTime(e.ts)}</div>
+      </div>`).join('')
+  }
+
+  async function loadFeed() {
+    try {
+      const r = await fetch('http://127.0.0.1:3847/activity')
+      const entries = await r.json()
+      renderFeed(entries)
+    } catch {
+      feedList.innerHTML = '<div class="feed-empty">could not load activity</div>'
+    }
+  }
+
+  feedBtn.addEventListener('click', e => {
+    e.stopPropagation()
+    feedVisible = !feedVisible
+    feedPanel.style.display  = feedVisible ? 'block' : 'none'
+    messages.style.display   = feedVisible ? 'none'  : 'block'
+    feedBtn.classList.toggle('active', feedVisible)
+    if (feedVisible) loadFeed()
+  })
 
   // ── Safety reset — press Escape twice quickly ─────────────────────────────
   let escCount = 0
@@ -511,8 +1088,181 @@
     setTimeout(() => { escCount = 0 }, 600)
   })
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
-  setTimeout(() => addMsg('blopus', "hey. i'm watching."), 600)
+  // ── Proposal card ────────────────────────────────────────────────────────
+  const proposal      = document.getElementById('proposal')
+  const proposalLabel = document.getElementById('proposal-label')
+  const proposalYes   = document.getElementById('proposal-yes')
+  const proposalNo    = document.getElementById('proposal-no')
+  const proposalStop    = document.getElementById('proposal-stop')
+  const proposalSpinner = document.getElementById('proposal-spinner')
+  const proposalResult  = document.getElementById('proposal-result')
+  const proposalClose   = document.getElementById('proposal-close')
+
+  let currentProposalId       = null
+  let currentProposalEnvelope = null
+
+  function showProposal(label, envelope, proposalId) {
+    // Don't overwrite if a proposal task is already running or showing a result
+    if (proposalSpinner.style.display === 'block') return
+    if (proposalResult.style.display  === 'block') return
+    currentProposalId       = proposalId
+    currentProposalEnvelope = envelope
+    proposalLabel.textContent     = label
+    proposalSpinner.style.display = 'none'
+    proposalStop.style.display    = 'none'
+    proposalResult.style.display  = 'none'
+    proposalClose.style.display   = 'none'
+    proposalYes.style.display     = ''
+    proposalNo.style.display      = ''
+    proposal.style.display        = 'block'
+    resizeWithProposal()
+  }
+
+  function hideProposal() {
+    proposal.style.display        = 'none'
+    proposalSpinner.style.display = 'none'
+    proposalStop.style.display    = 'none'
+    proposalResult.style.display  = 'none'
+    proposalClose.style.display   = 'none'
+    currentProposalId             = null
+    currentProposalEnvelope       = null
+    resizeWithProposal()
+  }
+
+  function resizeWithProposal() {
+    requestAnimationFrame(() => {
+      if (expanded) return
+      const notifH    = notif.classList.contains('show') ? notif.offsetHeight + 12 : 0
+      const proposalH = proposal.style.display !== 'none' ? proposal.offsetHeight + 12 : 0
+      const ghostH    = ghost.style.display !== 'none'    ? ghost.offsetHeight   + 12 : 0
+      const total     = 52 + notifH + proposalH + ghostH
+      // Never exceed screen height — clamp to leave 80px margin at top
+      const maxH = (window.screen.availHeight || 900) - 80
+      window.blopus.resize(Math.min(total, maxH) || 52)
+    })
+  }
+
+  proposalYes.addEventListener('click', async () => {
+    if (!currentProposalId || !currentProposalEnvelope) return
+    proposalYes.style.display     = 'none'
+    proposalNo.style.display      = 'none'
+    proposalSpinner.textContent   = 'searching...'
+    proposalSpinner.style.display = 'block'
+    proposalStop.style.display    = 'block'
+    resizeWithProposal()
+    try {
+      await fetch('http://127.0.0.1:3847/task', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ proposalId: currentProposalId, envelope: currentProposalEnvelope }),
+      })
+      // Result arrives via SSE task_result event
+    } catch {
+      proposalSpinner.style.display = 'none'
+      proposalStop.style.display    = 'none'
+      proposalResult.textContent    = 'could not reach server'
+      proposalResult.style.display  = 'block'
+      proposalClose.style.display   = 'block'
+      resizeWithProposal()
+    }
+  })
+
+  proposalStop.addEventListener('click', async () => {
+    currentProposalId             = null   // ignore any incoming task_result SSE for this task
+    proposalSpinner.style.display = 'none'
+    proposalStop.style.display    = 'none'
+    proposalResult.innerHTML      = 'cancelled.'
+    proposalResult.style.display  = 'block'
+    proposalClose.style.display   = 'block'
+    resizeWithProposal()
+    try {
+      await fetch('http://127.0.0.1:3847/task/cancel', { method: 'POST' })
+    } catch {}
+  })
+
+  proposalNo.addEventListener('click', () => {
+    const topic = currentProposalEnvelope?.context?.topic
+    if (topic) {
+      fetch('http://127.0.0.1:3847/proposal/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic }),
+      }).catch(() => {})
+    }
+    hideProposal()
+  })
+  proposalClose.addEventListener('click', hideProposal)
+
+  // Ambient nudge — notif bubble only, never enters chat history
+  function showNudge(text) {
+    preview.textContent = text   // so collapse can restore it
+    notif.innerHTML = renderMarkdown(text)
+    if (!expanded) {
+      notif.classList.add('show')
+      resizeWithProposal()
+      dot.classList.remove('pulse')
+      void dot.offsetWidth
+      dot.classList.add('pulse')
+    }
+  }
+
+  // Saves to chat history without touching the notif bubble
+  function saveToChat(text) {
+    const el = document.createElement('div')
+    el.className = 'msg blopus'
+    el.innerHTML = `${renderMarkdown(text)}<div class="msg-time">${timeStr()}</div>`
+    messages.appendChild(el)
+    messages.scrollTop = messages.scrollHeight
+  }
+
+  function handleTaskResult(proposalId, result) {
+    if (proposalId !== currentProposalId) return
+    proposalSpinner.style.display = 'none'
+    proposalStop.style.display    = 'none'
+    proposalResult.innerHTML      = renderMarkdown(result)
+    proposalResult.style.display  = 'block'
+    proposalClose.style.display   = 'block'
+    proposal.style.display        = 'block'
+    // Result shows only in the card — no duplicate in chat
+    requestAnimationFrame(() => {
+      const proposalH = proposal.offsetHeight + 8
+      window.blopus.resize((expanded ? EXPANDED_H : 52) + proposalH)
+    })
+  }
+
+  // ── SSE — connect immediately, reconnect on drop ─────────────────────────
+  function connectSSE() {
+    const es = new EventSource('http://127.0.0.1:3847/events')
+    es.onmessage = e => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data.type === 'ghost' && data.suggestion) {
+          showGhost(data.suggestion)
+        } else if (data.type === 'hide_ghost') {
+          hideGhost()
+        } else if (data.type === 'proposal' && data.label) {
+          showProposal(data.label, data.envelope, data.proposalId)
+        } else if (data.type === 'activity_update') {
+          if (feedVisible) renderFeed(data.entries)
+        } else if (data.type === 'task_progress') {
+          if (data.proposalId === currentProposalId && proposalSpinner.style.display === 'block') {
+            proposalSpinner.textContent = data.update.slice(0, 60)
+          }
+        } else if (data.type === 'task_result') {
+          handleTaskResult(data.proposalId, data.result)
+        } else if (data.type === 'chat_progress') {
+          updateThinkingStatus(data.text)
+        } else if (data.text) {
+          showNudge(data.text)
+        }
+      } catch {}
+    }
+    es.onerror = () => {
+      es.close()
+      setTimeout(connectSSE, 3000)
+    }
+  }
+  connectSSE()
 </script>
 
 </body>

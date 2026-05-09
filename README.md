@@ -1,45 +1,136 @@
-# BLOPUS
+# BLOPUS Bubble
 
 <p align="center">
   <img src="assets/banner.png" alt="BLOPUS" width="100%"/>
 </p>
 
-**WHY USE A CLAW WHEN YOU HAVE 8 ARMS?**
-
 [![GitHub Stars](https://img.shields.io/github/stars/ShoryaDs7/BLOPUS?style=flat&color=yellow)](https://github.com/ShoryaDs7/BLOPUS/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-BLOPUS is an open-source AI version of you.
+**BLOPUS is not a chatbot. It is a continuously running behavioral runtime that reads your environment, models your cognitive state, and decides whether to act — before you ask.**
 
-Not a chatbot. Not an assistant.
+It sits on your screen. Watches what you're doing. Understands your mental state. And when something genuinely matters, it surfaces a decision — not a notification, not a chat prompt, not a suggestion box. A concrete action, ready to approve or cancel.
 
-It thinks like you, writes like you, and acts on your behalf using your own history.
-
-Runs entirely on your machine. Your data never leaves.
-
-You stop. **BLOPUS continues.**
+| Tool | What it is | When it acts |
+|------|-----------|--------------|
+| GitHub Copilot | Code autocomplete | When you stop typing |
+| ChatGPT Desktop | Reactive assistant | When you open it |
+| Raycast AI | Command launcher | When you trigger it |
+| **BLOPUS Bubble** | **Continuous behavioral runtime** | **Before you ask** |
 
 ---
 
-## Example
+## Two Modes
 
-you told it once to watch your space.
+### Bubble Mode — ambient intelligence layer for your desktop
 
-Day 7:
+```bash
+npm run blopus:bubble
+```
 
-- it already knows who matters and who doesn't
-- it's been tracking moves, pricing shifts, and positioning quietly
-- it stepped in where you would have, not everywhere, just where it counts
-- it built what it needed to keep watching without you
-- it's shaping conversations in your voice without forcing them
+A small glass UI lives at the corner of your screen. You never open it. It watches your windows, reads your context, and decides. When a proposal surfaces, you see it. One click runs it. One click cancels it. Every action goes through an approval gate — nothing executes without your confirmation.
 
-you didn't check in.
+### Autonomous Mode — your voice, running while you're offline
 
-it kept going anyway.
+```bash
+npm run blopus:owner
+```
 
-This is not automation.
+Posts on X in your exact writing style. Defends your replies. Tracks what matters. Long-running goals wake every 30 minutes and continue where they left off. Control everything from Telegram.
 
-**This is continuity.**
+---
+
+## How Bubble Works
+
+BLOPUS Bubble is not an AI that waits for you to type. It is an event-driven pipeline — every action is triggered by a real signal from your environment.
+
+```mermaid
+flowchart TD
+    A([WindowWatcher\nmonitors active app + title]) --> B[AwarenessLayer\nbuilds context from signal]
+    B --> C[FrictionEngine\nscores interruption cost]
+    C --> D{Worth surfacing?}
+    D -->|No| E([Silent — do nothing])
+    D -->|Yes| F[ResolutionEngine\npicks action type]
+    F --> G{Route}
+    G -->|Low complexity| H[HaikuReasoner\ndirect LLM call]
+    G -->|High complexity| I[BubbleBrain\nClaude agent loop]
+    G -->|Status nudge| J[Nudge\nambient strip update]
+    H --> K[Proposal\napproval gate]
+    I --> K
+    K -->|Approved| L[TaskExecutor / SessionBrain\nexecutes with tool budget]
+    K -->|Cancelled| M([Dropped cleanly])
+    L --> N([Result in Bubble UI])
+```
+
+**Every layer has a single job. No layer reaches past the next one.**
+
+---
+
+## Ambient vs Intentional Intelligence
+
+BLOPUS Bubble operates in two cognitive modes simultaneously:
+
+**Ambient Intelligence** — you never prompt it. It watches. WindowWatcher detects your active window every second. AwarenessLayer builds a picture of what you're doing. FrictionEngine decides if interrupting you is worth it. Most signals are dropped silently. Only actions that cross the friction threshold reach your screen.
+
+**Intentional Intelligence** — you want it. Click the chat area, type a message, or paste a screenshot. SessionBrain routes your request through the full Claude agent loop with tool access. Vision button gives instant image analysis via a single Haiku call — no agent startup, result in seconds.
+
+Both modes share the same execution layer. The intelligence is in the routing.
+
+---
+
+## Human-State Modeling
+
+Before proposing anything, BLOPUS reads your cognitive state — not just your window title.
+
+AwarenessLayer models states like:
+- `confusion_loop` — cycling between the same two windows repeatedly
+- `deep_work` — sustained focus in a single editor, low switching
+- `rapid_switching` — high context churn, likely overwhelmed
+- `idle_drift` — long inactive, no sustained task
+- `research_mode` — browser-heavy, reading-pattern active
+
+FrictionEngine uses this state to gate proposals. In `deep_work`, the bar is high — only high-confidence, high-value proposals get through. In `idle_drift`, the bar drops. **The system optimizes interruption quality, not action frequency.**
+
+---
+
+## The Router Is the Moat
+
+Most AI tools compete on which model they use. BLOPUS competes on what it decides to do and when.
+
+ResolutionEngine is the routing layer. It takes a scored signal from FrictionEngine and decides:
+- Is this worth a full agent loop, or can Haiku handle it directly?
+- Is this a proposal (requires approval) or a nudge (ambient update only)?
+- What tool budget is this task allowed to use?
+- Does this need a scoped execution envelope with a runtime cap?
+
+Getting this right — for the user's actual context, not a demo — is the hard part. The execution (Claude API, tool calls, Playwright) is commodity. The router is not.
+
+---
+
+## Execution Boundaries
+
+BLOPUS never runs unconstrained. Every task that enters the execution layer runs inside a bounded envelope:
+
+- **Approval gates** — nothing executes without explicit user confirmation on the proposal card
+- **Runtime caps** — tasks have maximum execution time, enforced by AbortController
+- **Tool budgets** — each task specifies which tools it can use and how many calls
+- **Cancellation** — stop button kills the in-flight fetch and signals the agent to halt immediately
+- **Scoped envelopes** — TaskExecutor and SessionBrain each have separate scopes; a chat task and a proposal task can run simultaneously without interfering
+
+These are not safety features added afterward. They are the architecture. BLOPUS is designed to be stoppable at every layer.
+
+---
+
+## Universal Detection. Separated Executor.
+
+Four layers. Each isolated:
+
+1. **Detection** — WindowWatcher + AwarenessLayer. Reads signals. Builds context. Has no execution capability.
+2. **Friction** — FrictionEngine + ResolutionEngine. Scores and routes. Has no execution capability.
+3. **Intelligence** — HaikuReasoner + BubbleBrain. Reasons about context. Proposes actions. Does not execute.
+4. **Execution** — TaskExecutor + SessionBrain. Executes approved actions. Cannot propose. Cannot gate.
+
+This separation means: a detection bug cannot cause an accidental action. An intelligence bug cannot bypass an approval gate. An execution bug cannot surface a false proposal. Each layer fails in its own lane.
 
 ---
 
@@ -67,10 +158,13 @@ git clone https://github.com/ShoryaDs7/BLOPUS.git
 cd BLOPUS
 npm install          # handles all 29 skill dependencies
 npm run setup
+
+# Bubble Mode — ambient intelligence layer on your desktop (main)
+npm run blopus:bubble
+
+# Autonomous Mode — Telegram control + X posting while you're offline
 npm run blopus:owner
 ```
-
-Open Telegram. Search for your bot and start talking.
 
 ---
 
@@ -206,6 +300,8 @@ After every session:
 
 Dead ends stay dead. Progress compounds.
 
+These goals now power both Bubble and the autonomous agent.
+
 ```mermaid
 flowchart TD
     A([GoalRunner wakes\nevery 30 min]) --> B[Load goal state\nread all prior keypoints]
@@ -282,7 +378,7 @@ npm run blopus:owner
 
 ## Skills
 
-29 built-in capabilities.
+29 built-in capabilities. All 29 skills are shared between Bubble and Autonomous Mode.
 
 | Category             | Skills |
 |----------------------|--------|
@@ -301,7 +397,7 @@ npm run blopus:owner
 
 BLOPUS acts as you. A hostile message that hijacks its behavior, or a credential leaked in something it sends, has real consequences.
 
-Every incoming message is scanned before Claude sees it. Every outgoing action is scanned before it sends. Nothing leaks. Nothing gets hijacked. If anything trips, the action is dropped and you're notified on Telegram. Zero config.
+Every incoming message is scanned before Claude sees it. Every outgoing action is scanned before it sends. Nothing leaks. Nothing gets hijacked. If anything trips, the action is dropped and you're notified on Telegram. Zero config. Protects both Bubble and the background agent.
 
 ```bash
 npx tsx scripts/testSecurity.ts   # 50 adversarial tests — all must pass
@@ -323,8 +419,8 @@ creators/bob/     ← Bob's keys, archive, voice, memory
 **npm run setup** saves your name to `.env` automatically. Multiple identities, pass it per instance:
 
 ```bash
-CREATOR=alice npm run blopus:owner
-CREATOR=bob npm run blopus:owner
+CREATOR=alice npm run blopus:bubble
+CREATOR=bob npm run blopus:bubble
 ```
 
 ---
@@ -333,6 +429,7 @@ CREATOR=bob npm run blopus:owner
 
 | Folder | What lives here |
 |--------|----------------|
+| [`bubble/`](bubble/) | Behavioral runtime: WindowWatcher, AwarenessLayer, FrictionEngine, ResolutionEngine, BubbleBrain, Orchestrator, TaskExecutor, Bubble UI |
 | [`agent/`](agent/) | The always-on loop: autonomous posting, reply hunting, engagement, defense, GoalRunner |
 | [`core/`](core/) | Intelligence: voice engine, memory, per-person profiles, RAG index |
 | [`adapters/`](adapters/) | Platform connectors: X (Playwright + API), Telegram, SessionBrain, MCP tools |

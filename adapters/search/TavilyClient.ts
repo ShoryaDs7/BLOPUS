@@ -61,6 +61,33 @@ export class TavilyClient {
   }
 
   /**
+   * Find the single best resource (article, video, paper) on a topic.
+   * Used by awarenessLayer to surface contextual recommendations.
+   */
+  async findResource(topic: string): Promise<{ title: string; url: string } | null> {
+    if (!this.apiKey) return null
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: this.apiKey,
+          query: `best resource to understand ${topic}`,
+          search_depth: 'basic',
+          max_results: 3,
+          include_answer: false,
+        }),
+      })
+      if (!res.ok) return null
+      const data = await res.json() as { results: Array<{ title: string; url: string }> }
+      const top = (data.results ?? []).find(r => r.url && r.title)
+      return top ? { title: top.title, url: top.url } : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
    * Search for tweets on a topic via web search — returns tweet IDs found in x.com URLs.
    * Fallback when X's own search/feed is dry. Requires TAVILY_API_KEY.
    */

@@ -3402,6 +3402,67 @@ async function main() {
     console.log(`  ✓ creators/${creatorName}/runtime_config.json — ${summary}`)
   }
 
+  // ── Bubble extension ──────────────────────────────────────────
+  {
+    const { execSync } = await import('child_process')
+    const extensionPath = path.resolve(process.cwd(), 'bubble', 'extension')
+    console.log('\n' + '═'.repeat(58))
+    console.log('  Blopus Bubble — Chrome Extension')
+    console.log('═'.repeat(58))
+    console.log(`
+  What it is:
+    Most AI writing tools wait for you to ask for help.
+    Blopus doesn't. This extension gives it eyes inside Chrome.
+
+    It watches compose boxes across every website — Gmail, X,
+    LinkedIn, Reddit, Slack, Notion, anywhere you type — and
+    runs a real-time intent scoring system in the background.
+    Scroll past something? Ignored. Click a field? Low score.
+    Type a real draft and pause? Score crosses the threshold.
+
+    The moment you pause, Blopus has already pre-computed a
+    sharper version of your message — in your voice, for your
+    platform — before you've even thought about hitting Send.
+
+    When you hover Send, the improved version appears as a ghost
+    suggestion in the bubble overlay. Silent. Zero interruption.
+    You decide in half a second: use it or ignore it.
+
+    90% of events are silently discarded. It only speaks when
+    there is something genuinely worth saying. That precision
+    is the whole point — this is a judgment engine, not a
+    suggestion engine. The difference is everything.
+
+  What it does NOT do:
+    → Does not read passwords, login forms, or private browsing
+    → Does not send your text to any third party — only to
+      Anthropic's API (the same API powering all of Blopus)
+      via your own API key, on your own account
+    → Goes completely dormant when the bubble is not running
+
+  One-time install. Permanent. Nothing to update.
+`)
+    console.log('─'.repeat(58))
+    console.log('  Install (30 seconds):')
+    console.log('─'.repeat(58))
+    console.log(`
+    1. In Chrome, paste this in the address bar and hit Enter:
+
+         chrome://extensions
+
+    2. Toggle ON "Developer mode"  (top-right corner)
+    3. Click "Load unpacked"
+    4. Select this exact folder:
+
+         ${extensionPath}
+
+    5. You will see "Blopus Intent" appear in your extensions.
+       That's it — never do this again.
+`)
+    await ask('  Press Enter once installed (or Enter to skip for now): ')
+    console.log()
+  }
+
   // ── Done ──────────────────────────────────────────────────────
 
   console.log('\n' + '═'.repeat(58))
@@ -3411,11 +3472,12 @@ async function main() {
   console.log(`
   Start your agent:
 
-    npm run blopus:owner
+    npm run blopus:owner   ← X / Telegram bot
+    npm run bubble         ← AI companion overlay (always-on bubble)
 
   (CREATOR is already saved in .env — no prefix needed on any platform)
 
-  Once it starts, message your Telegram bot to control everything —
+  Once the agent starts, message your Telegram bot to control everything —
   post tweets, search, set timers, manage files, anything.
 `)
 

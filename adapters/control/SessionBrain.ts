@@ -197,9 +197,16 @@ export function buildSystemPrompt(): string {
   const eventsBlock  = formatEventsBlock(readRecentEvents(50))
   const voiceBlock   = buildVoiceBlock()
 
-  return `You are Claude — Blopus's Telegram brain. You have full file access + browser + platform action system.
+  return `You are Claude — Blopus's brain. You have full file access + browser + platform action system.
 
 Owner: ${ownerName} (@${ownerHandle}). Bot account: @${botHandle}. Project: ${projectDir}
+
+# Vision — screen watching (when you receive a [VISION] message)
+You are sitting beside the owner watching their screen. React in 1–2 short casual sentences.
+If your tools can help with what's on screen (Gmail unread, X mentions, calendar, anything), use them now — no asking.
+Never say "I see" or describe the screen back to them. Speak directly to the owner.
+Never repeat something from "What you already said recently".
+Only reply NOTHING if the screen is completely blank or you literally have nothing to add.
 
 # Owner domains — always use these, never invent from conversation history
 ${domainsBlock}
@@ -564,6 +571,8 @@ export class SessionBrain {
   private messageQueue = new Map<string, string[]>()
   // Shared X client — avoids spawning second Playwright instance
   private xClient?: any
+  // Active abort controllers — keyed by chatId for cancellation
+  private abortMap = new Map<string, AbortController>()
 
   constructor() {
     this.loadSessions()
@@ -607,29 +616,62 @@ export class SessionBrain {
     this.xClient = client
   }
 
+  cancelTask(chatId: string): void {
+    const ctrl = this.abortMap.get(chatId)
+    if (ctrl) {
+      console.log(`[SessionBrain] cancel requested for chat=${chatId}`)
+      ctrl.abort()
+      this.abortMap.delete(chatId)
+    }
+  }
+
   private async emit(text: string): Promise<void> {
     await this.streamFn?.(text).catch(() => {})
   }
 
-async processWithImage(chatId: string, userMessage: string, imageBase64: string, mimeType: string): Promise<string> {
-    // Use Anthropic API directly to analyze the image first, then pass description to agent
+async processWithImage(chatId: string, userMessage: string, fileBase64: string, mimeType: string): Promise<string> {
     try {
       const Anthropic = require('@anthropic-ai/sdk')
       const client = new Anthropic.default()
-      const visionResp = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+
+      // Text files — decode and inject directly, no API call needed
+      const isText = mimeType.startsWith('text/') || /\/(json|javascript|typescript|markdown|plain)/.test(mimeType)
+      if (isText) {
+        const decoded = Buffer.from(fileBase64, 'base64').toString('utf-8').slice(0, 8000)
+        return this._run(chatId, `${userMessage}\n\n[FILE CONTENT:\n${decoded}]`)
+      }
+
+      // PDFs — use document type, extract full content
+      if (mimeType === 'application/pdf') {
+        const pdfResp = await client.messages.create({
+          model:      'claude-sonnet-4-6',
+          max_tokens: 4096,
+          messages: [{
+            role:    'user',
+            content: [
+              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } },
+              { type: 'text',     text: 'Extract all important content from this PDF: key facts, URLs, sources, data, and anything that would help answer questions about it.' },
+            ],
+          }],
+        })
+        const pdfContent = pdfResp.content[0]?.type === 'text' ? pdfResp.content[0].text : 'PDF contents unavailable'
+        return this._run(chatId, `${userMessage}\n\n[PDF CONTENT:\n${pdfContent}]`)
+      }
+
+      // Images — describe visually then pass description to agent
+      const imgResp = await client.messages.create({
+        model:      'claude-sonnet-4-6',
         max_tokens: 1024,
         messages: [{
-          role: 'user',
+          role:    'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-            { type: 'text', text: `Describe this image in detail. Include all relevant information visible.` }
-          ]
-        }]
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: fileBase64 } },
+            { type: 'text',  text: 'Describe everything visible in this image in detail.' },
+          ],
+        }],
       })
-      const imageDescription = visionResp.content[0].type === 'text' ? visionResp.content[0].text : 'image attached'
-      const fullMessage = `${userMessage}\n\n[IMAGE DESCRIPTION: ${imageDescription}]`
-      return this._run(chatId, fullMessage)
+      const description = imgResp.content[0]?.type === 'text' ? imgResp.content[0].text : 'image attached'
+      return this._run(chatId, `${userMessage}\n\n[SCREEN/IMAGE:\n${description}]`)
     } catch (e: any) {
       return this._run(chatId, userMessage)
     }
@@ -663,6 +705,7 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
     let lastEmitAt = 0
 
     const abort = new AbortController()
+    this.abortMap.set(chatId, abort)
     const timeoutHandle = setTimeout(() => {
       console.warn(`[SessionBrain] chat=${chatId} TIMEOUT after ${TASK_TIMEOUT_MS / 1000}s`)
       abort.abort()
@@ -719,7 +762,10 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
       // Always fresh session — system prompt injected every time, memory via task_log + today's log
       options.systemPrompt = sanitizeUnicode(buildSystemPrompt())
 
-      const memoryContext = buildMemoryContext()
+      // VISION messages must not get past conversation context — it causes SessionBrain
+      // to talk about fixing code rather than reacting to what's on screen.
+      const isVision = userMessage.trimStart().startsWith('[VISION]')
+      const memoryContext = isVision ? '' : buildMemoryContext()
       const memoryPrefix = memoryContext ? memoryContext + '\n\n---\n\n' : ''
       const effectivePrompt = sanitizeUnicode(memoryPrefix + userMessage)
 
@@ -837,6 +883,7 @@ async processWithImage(chatId: string, userMessage: string, imageBase64: string,
     } finally {
       clearTimeout(timeoutHandle)
       this.processing.delete(chatId)
+      this.abortMap.delete(chatId)
       // Process any messages that arrived while we were busy
       setImmediate(() => this._drainQueue(chatId))
     }

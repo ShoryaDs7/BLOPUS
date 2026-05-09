@@ -85,6 +85,9 @@ ipcMain.on('move', (_, { dx, dy }) => {
   applyBounds()
 })
 
+ipcMain.on('hide-for-screenshot', () => { if (win) win.setOpacity(0) })
+ipcMain.on('show-after-screenshot', () => { if (win) win.setOpacity(1) })
+
 // Safety reset — double-click tray or call from renderer if bubble goes missing
 ipcMain.on('reset-position', () => {
   if (!win) return
