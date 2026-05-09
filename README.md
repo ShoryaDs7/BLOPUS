@@ -216,7 +216,7 @@ flowchart TD
 
 ### Social Memory
 
-```
+```text
 give me the full history with @naval —
 who reached out first, what we talked about, who goes quiet more
 
@@ -227,7 +227,7 @@ who reached out first, what we talked about, who goes quiet more
 
 ### Autonomous Goals
 
-```
+```text
 track what my competitors are shipping every day and post my take
 
 → goal running. posting in your voice every day.
@@ -235,7 +235,7 @@ track what my competitors are shipping every day and post my take
 
 ### Development
 
-```
+```text
 respond to every PR comment on my repo today
 
 → 14 comments. replied to all in your voice. 2 PRs merged.
@@ -243,7 +243,7 @@ respond to every PR comment on my repo today
 
 ### Build
 
-```
+```text
 build something that watches my competitor's pricing page,
 alerts me the moment anything changes, and logs every version
 
@@ -259,7 +259,7 @@ alerts me the moment anything changes, and logs every version
 
 Set a goal:
 
-```
+```text
 set a goal: repair and double down on my professional network
 
 audit my last 2 years of DMs and emails to find 10 high-value
