@@ -12,7 +12,7 @@
 It sits on your screen. Watches what you're doing. Understands your mental state. And when something genuinely matters, it surfaces a decision — not a notification, not a chat prompt, not a suggestion box. A concrete action, ready to approve or cancel.
 
 | Tool | What it is | When it acts |
-|------|-----------|--------------|
+|------|------------|--------------|
 | GitHub Copilot | Code autocomplete | When you stop typing |
 | ChatGPT Desktop | Reactive assistant | When you open it |
 | Raycast AI | Command launcher | When you trigger it |
@@ -40,6 +40,27 @@ Posts on X in your exact writing style. Defends your replies. Tracks what matter
 
 ---
 
+## Quick start
+
+Requires [Node.js](https://nodejs.org) 18+ and [Python](https://python.org) 3.8+.
+
+**npm run setup** walks you through everything: API keys, archive upload, voice modeling, behavior config.
+
+```bash
+git clone https://github.com/ShoryaDs7/BLOPUS.git
+cd BLOPUS
+npm install
+npm run setup
+
+# Bubble Mode — ambient intelligence layer on your desktop
+npm run blopus:bubble
+
+# Autonomous Mode — Telegram control + X posting while you're offline
+npm run blopus:owner
+```
+
+---
+
 ## How Bubble Works
 
 BLOPUS Bubble is not an AI that waits for you to type. It is an event-driven pipeline — every action is triggered by a real signal from your environment.
@@ -64,37 +85,13 @@ flowchart TD
 
 **Every layer has a single job. No layer reaches past the next one.**
 
-### Three input streams
-
-The pipeline has three independent signal sources feeding AwarenessLayer simultaneously:
-
-**WindowWatcher** — polls every 500ms via PowerShell + Win32 `GetForegroundWindow`. Uses UIAutomation to read the actual browser address bar URL, not the tab title. Fires `WindowContext { label, fullUrl }` on every change.
-
-**VS Code / Cursor extension** — `POST /vscode` with event type `edit_loop` (same file opened 3+ times), `error` (diagnostic appeared), or `terminal_fail` (command exited non-zero). Two signals within 5 minutes triggers the code path. `terminal_fail` fires immediately on the first hit.
-
-**Browser extension** — `POST /browser` with either `selection` (text the user highlighted + page keywords) or `page_load` (full page content on navigation). Feeds compose-surface awareness and topic context.
-
-### Signal processing
-
-AwarenessLayer extracts a clean topic from every window change:
-
-- Strips noise from titles: `"how to"`, `"what is"`, `"[D]"`, `"vs"` prefixes, Reddit/YouTube suffixes
-- Platform-specific regex for YouTube (`- YouTube`), Google Search, Bing, Reddit threads (`r/sub`), subreddits, arXiv, GitHub, generic articles
-- Detected platforms: `youtube` / `google` / `bing` / `reddit` / `github` / `arxiv` / `web`
-- Maintains a rolling 30-minute timeline of every page visited
-
-Patterns detected over the timeline:
-- `cross_site` — same topic on 2+ different platforms
-- `repeated` — 3+ hits on the same topic within 30 minutes
-- `deep_read` — 4+ minutes dwell time AND a prior visit to the same page
-
 ---
 
 ## Ambient vs Intentional Intelligence
 
 BLOPUS Bubble operates in two cognitive modes simultaneously:
 
-**Ambient Intelligence** — you never prompt it. It watches. WindowWatcher detects your active window every second. AwarenessLayer builds a picture of what you're doing. FrictionEngine decides if interrupting you is worth it. Most signals are dropped silently. Only actions that cross the friction threshold reach your screen.
+**Ambient Intelligence** — you never prompt it. WindowWatcher watches your active window. AwarenessLayer builds a picture of what you're doing. FrictionEngine decides if interrupting you is worth it. Most signals are dropped silently. Only what crosses the friction threshold reaches your screen.
 
 **Intentional Intelligence** — you want it. Click the chat area, type a message, or paste a screenshot. SessionBrain routes your request through the full Claude agent loop with tool access. Vision button gives instant image analysis via a single Haiku call — no agent startup, result in seconds.
 
@@ -104,40 +101,7 @@ Both modes share the same execution layer. The intelligence is in the routing.
 
 ## Human-State Modeling
 
-Before proposing anything, BLOPUS reads your cognitive state — not just your window title.
-
-FrictionEngine scores every signal into a named state with a calibrated confidence:
-
-| State | Trigger | Confidence |
-|-------|---------|-----------|
-| `unresolved_exploration` | bouncing across 2+ platforms on the same topic | 0.82 |
-| `confusion_loop` | 3+ topic hits in 30min | 0.70 – 0.95 (scales with count) |
-| `prolonged_effort` | same topic for 15+ minutes | 0.75 |
-| `rapid_switching` | high context churn, low dwell per window | 0.73 |
-| `repeated_return` | exact same URL visited twice | 0.78 |
-
-Platform diversity boosts confidence — hitting the same topic on YouTube, then Reddit, then arXiv pushes `unresolved_exploration` higher than hitting it three times on Google alone.
-
-**For non-browser apps** (Notion, Gmail, Figma, PowerPoint, Zoom), WindowWatcher can't read URLs. A suspicion gate fires vision instead — scoring the session against known signals:
-
-| Signal | Score |
-|--------|-------|
-| Known productive app detected | +0.30 |
-| Dwell > 3 minutes | +0.25 |
-| Dwell > 8 minutes | +0.15 |
-| 4+ window switches | +0.20 |
-| 7+ window switches | +0.10 |
-
-Threshold: **0.50** — below it, nothing happens. Above it, a screenshot is taken and analyzed.
-
-**Independent cooldowns** — each layer owns its own timer. They never block each other:
-
-| Layer | Cooldown |
-|-------|---------|
-| Awareness nudge | 4 min |
-| Friction insight | 6 min |
-| BubbleBrain deep answer | 10 min |
-| Proposal card (per topic + action) | 5 min |
+Before proposing anything, BLOPUS reads your cognitive state — not just your window title. FrictionEngine detects when you're actually stuck — bouncing platforms, repeated visits, prolonged effort — and decides whether it's worth interrupting you.
 
 ---
 
@@ -145,51 +109,21 @@ Threshold: **0.50** — below it, nothing happens. Above it, a screenshot is tak
 
 Most AI tools compete on which model they use. BLOPUS competes on what it decides to do and when.
 
-ResolutionEngine classifies every friction signal into a gap type using regex — no LLM involved:
-
-| Gap type | Keywords |
-|----------|---------|
-| `concept_boundary` | "vs", "difference", "compare", "which" |
-| `definition_gap` | "what is", "definition", "explain", "meaning" |
-| `implementation_gap` | "how to", "error", "fix", "debug", "example" |
-| `intuition_gap` | 2+ platforms including YouTube |
-| `general` | everything else |
-
-Gap type determines which of three paths fires — simultaneously, racing:
-
-**Orchestrator** (~12s timeout) — builds a gap-targeted Tavily query, calls Haiku with the search results, returns 2–3 sentences. Fast, specific, no agent loop.
-
-**BubbleBrain** — direct Anthropic API loop, no agent SDK, no MCP servers. Tools available: `web_fetch`, `tavily_search`, `read_file`, `bash_command` (read-only), `save_insight`, `read_insights`, `open_url`, `gmail_unread`. Saves findings to `bubble_insights.jsonl`. Returns an empty string if it can't form a real diagnosis — never hallucinates a proposal.
-
-**Nudge** — one sentence, 10–16 words hard limit. Two types: awareness nudge (surfaced from AwarenessLayer before friction fires) and friction nudge (after FrictionEngine scores the state). If the sentence isn't worth saying, outputs `SKIP` and stays silent.
-
-First path to return a real answer wins. The other two are discarded.
-
-**HaikuReasoner** — before any path fires, classifies the intent into one of nine types:
-
-`build` / `debug` / `compare` / `synthesize` / `draft` / `prepare` / `automate` / `learn` / `silence`
-
-Generates a specific proposal label ("Want me to build a burn rate calculator?") and a confidence score. Confidence below 0.65 → silence, nothing shown. Maps intent to the right runner: `build`, `debug`, `draft`, `prepare`, `automate` → SessionBrain. `synthesize`, `learn` → TaskExecutor.
-
-**ActionRouter** — rule-based, no LLM. Maps `(topic + gap + pattern + surface)` to one of 13 action types:
-
-`find_video` · `find_article` · `find_discussion` · `find_resource` · `draft_tweet` · `compare_options` · `synthesize_research` · `debug_code` · `generate_content` · `draft_email` · `improve_doc` · `meeting_prep` · `summarize_doc`
-
-Builds a full `TaskEnvelope` — goal, allowed tools, tool budget, max turns, max tokens, timeout, return format — before anything executes. Vision surfaces route by detected `activity` (what the user is doing), not by app name.
+Getting the routing right — for the user's actual context, not a demo — is the hard part. The execution (Claude API, tool calls, Playwright) is commodity. The router is not.
 
 ---
 
 ## Execution Boundaries
 
-BLOPUS never runs unconstrained. Every task that enters the execution layer runs inside a bounded envelope:
+BLOPUS never runs unconstrained:
 
-- **Approval gates** — nothing executes without explicit user confirmation on the proposal card
-- **Runtime caps** — tasks have maximum execution time, enforced by AbortController
+- **Approval gates** — nothing executes without explicit confirmation on the proposal card
+- **Runtime caps** — maximum execution time, enforced by AbortController
 - **Tool budgets** — each task specifies which tools it can use and how many calls
-- **Cancellation** — stop button kills the in-flight fetch and signals the agent to halt immediately
-- **Scoped envelopes** — TaskExecutor and SessionBrain each have separate scopes; a chat task and a proposal task can run simultaneously without interfering
+- **Cancellation** — stop button kills the in-flight fetch immediately
+- **Scoped envelopes** — a chat task and a proposal task run simultaneously without interfering
 
-These are not safety features added afterward. They are the architecture. BLOPUS is designed to be stoppable at every layer.
+These are not safety features added afterward. They are the architecture.
 
 ---
 
@@ -202,24 +136,11 @@ Four layers. Each isolated:
 3. **Intelligence** — HaikuReasoner + BubbleBrain. Reasons about context. Proposes actions. Does not execute.
 4. **Execution** — TaskExecutor + SessionBrain. Executes approved actions. Cannot propose. Cannot gate.
 
-This separation means: a detection bug cannot cause an accidental action. An intelligence bug cannot bypass an approval gate. An execution bug cannot surface a false proposal. Each layer fails in its own lane.
+A detection bug cannot cause an accidental action. An intelligence bug cannot bypass an approval gate. An execution bug cannot surface a false proposal. Each layer fails in its own lane.
 
-**ActivityContext** blocks execution based on what you're doing — not who's asking:
+ActivityContext blocks proposals based on what you're doing — coding, writing, watching, communicating each have different allowed actions, or none at all. The VS Code path is a separate lane that bypasses the Orchestrator and goes direct to BubbleBrain. The browser extension watches compose surfaces and injects ghost suggestions on hover before you send. Vision runs a screenshot through a single Haiku call in ~5 seconds, hidden from the frame while the image is captured.
 
-| Activity | Allowed actions |
-|----------|----------------|
-| `research` | find_article, find_video, find_discussion, find_resource, summarize_page, compare_options, synthesize_research |
-| `coding` | find_resource, debug_code only |
-| `writing` | draft_tweet, generate_content only |
-| `watching` / `communication` / `browsing` | nothing — all proposals blocked |
-
-**VS Code path** — a separate lane that bypasses Orchestrator entirely. Needs 2+ code signals within 5 minutes. `terminal_fail` fires immediately on the first hit without waiting for the threshold. Goes direct to BubbleBrain. Only surfaces a proposal if BubbleBrain returns a real answer — empty string means silence.
-
-**IntentEngine** — watches compose surfaces across Gmail, X, LinkedIn, Reddit, Outlook, Notion, Slack. When the browser extension detects a 300ms pause mid-draft, IntentEngine pre-computes a sharper version in the background. On hover over Send, it appears as a ghost suggestion. On send click, it can auto-inject. Results cached 60 seconds per compose surface.
-
-**Vision flow** — when the suspicion gate crosses 0.50 on a non-browser app, `structuredScan()` takes a screenshot (bubble hides via opacity 0 + 180ms compositor flush so it's never in the image), runs a single Haiku call returning structured JSON (`surface`, `activity`, `intent`, `friction`, `confidence`, `contextSnippet`), then ActionRouter routes on the detected activity. Total time: ~5 seconds. The manual vision button in the chat bar follows the same path.
-
-**Bubble UI** — Electron window, always-on-top, frameless, transparent. 320px wide. Collapses to a 52px pill. Drag anywhere on screen — position persists. Double-ESC resets to the bottom-right corner. Pulsing dot indicates a new message or active task. Ghost suggestions are injected directly into compose boxes via the browser extension content script.
+→ Full technical breakdown: [TECHNICAL.md](TECHNICAL.md)
 
 ---
 
@@ -233,27 +154,6 @@ This separation means: a detection bug cannot cause an accidental action. An int
 - **BLOPUS does what you would have done.** Writes, replies, builds, deploys, researches and anything else you'd do yourself. One Telegram message away.
 - **Multi-platform:** X (live), Telegram control (live), Reddit and Discord next.
 - **Per-creator isolation:** multiple identities on one machine, each with its own keys, archive, voice, and memory.
-
----
-
-## Quick start
-
-Requires [Node.js](https://nodejs.org) 18+ and [Python](https://python.org) 3.8+.
-
-**npm run setup** walks you through everything: API keys, archive upload, voice modeling, behavior config.
-
-```bash
-git clone https://github.com/ShoryaDs7/BLOPUS.git
-cd BLOPUS
-npm install          # handles all 29 skill dependencies
-npm run setup
-
-# Bubble Mode — ambient intelligence layer on your desktop (main)
-npm run blopus:bubble
-
-# Autonomous Mode — Telegram control + X posting while you're offline
-npm run blopus:owner
-```
 
 ---
 
@@ -277,7 +177,7 @@ npm run blopus:owner
 <summary>Optional keys — unlocks more capabilities</summary>
 
 | Key | What it unlocks |
-|-----|---------|
+|-----|-----------------|
 | `TAVILY_API_KEY` | Real-time web search (free tier) |
 | `GITHUB_TOKEN` | Repos, commits, PRs, issues from Telegram |
 | `RAILWAY_TOKEN` | Deploy to Railway from Telegram |
@@ -467,16 +367,16 @@ npm run blopus:owner
 
 ## Skills
 
-29 built-in capabilities. All 29 skills are shared between Bubble and Autonomous Mode.
+29 built-in capabilities, shared between Bubble and Autonomous Mode.
 
-| Category             | Skills |
-|----------------------|--------|
-| **BLOPUS-native**    | Post on X, browse web, read memory, long-running goals, edit BLOPUS's own code, security shield |
-| **Development**      | Website builder, backend APIs, MCP tools, GitHub, deploy (Vercel / Railway / Netlify / Render) |
-| **Web & Data**       | Web scraping, data analysis, SQLite, SEO |
+| Category | Skills |
+|----------|--------|
+| **BLOPUS-native** | Post on X, browse web, read memory, long-running goals, edit BLOPUS's own code, security shield |
+| **Development** | Website builder, backend APIs, MCP tools, GitHub, deploy (Vercel / Railway / Netlify / Render) |
+| **Web & Data** | Web scraping, data analysis, SQLite, SEO |
 | **Google Workspace** | Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Meet |
-| **Documents**        | PDF, Word, Excel, PowerPoint |
-| **Media & Content**  | YouTube, image editing, video scripts, writing, resume, clinical notes |
+| **Documents** | PDF, Word, Excel, PowerPoint |
+| **Media & Content** | YouTube, image editing, video scripts, writing, resume, clinical notes |
 
 **Custom Skills:** drop a `.md` file into `/skills` to teach BLOPUS something new.
 
