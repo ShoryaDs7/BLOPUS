@@ -7,6 +7,8 @@
 import readline from 'readline'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
+import { execSync } from 'child_process'
 import Anthropic from '@anthropic-ai/sdk'
 import { config as dotenvConfig } from 'dotenv'
 import { extractFormalRules } from './extract-formal-rules'
@@ -2076,6 +2078,141 @@ async function main() {
       }
     }
   }
+
+  // ── Product mode: Bubble vs Autonomous ───────────────────────
+
+  console.log('\n' + '═'.repeat(58))
+  console.log('  Choose your mode\n')
+  console.log('  1 · Bubble Mode      — ambient intelligence layer on your desktop')
+  console.log('                         watches what you\'re doing, surfaces actions before you ask')
+  console.log('                         runs: npm run blopus:bubble\n')
+  console.log('  2 · Autonomous Mode  — your voice running while you\'re offline')
+  console.log('                         posts on X, Telegram control, long-running goals')
+  console.log('                         runs: npm run blopus:owner')
+  console.log('═'.repeat(58))
+
+  let productModeRaw = ''
+  while (!['1', '2'].includes(productModeRaw)) {
+    productModeRaw = await ask('\n  Enter 1 or 2: ')
+  }
+
+  if (productModeRaw === '1') {
+    // ── BUBBLE MODE SETUP ────────────────────────────────────────
+
+    const ROOT          = process.cwd()
+    const extensionPath = path.resolve(ROOT, 'bubble', 'extension')
+    const vsExtDir      = path.resolve(ROOT, 'bubble', 'vscode-extension')
+
+    // Tavily (optional — web search inside bubble)
+    const envPath    = path.resolve(ROOT, '.env')
+    let envContent   = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : ''
+    const hasTavily  = /^TAVILY_API_KEY=.+/m.test(envContent)
+    let newEnv       = envContent
+
+    // Save Anthropic key now (already verified above)
+    if (!/^ANTHROPIC_API_KEY=/m.test(newEnv)) newEnv += `\nANTHROPIC_API_KEY=${anthropicKey}`
+
+    if (!hasTavily) {
+      console.log('\n' + '─'.repeat(58))
+      console.log('  Tavily — web search inside Bubble (optional, free tier: 1000/month)')
+      console.log('  Get it at: https://tavily.com → API Keys')
+      console.log('─'.repeat(58))
+      const tv = await ask('  TAVILY_API_KEY (Enter to skip): ')
+      if (tv) newEnv += `\nTAVILY_API_KEY=${tv}`
+    } else {
+      console.log('  ✓ TAVILY_API_KEY already set')
+    }
+
+    fs.writeFileSync(envPath, newEnv.trim() + '\n', 'utf-8')
+    console.log('  ✓ Saved to .env\n')
+
+    // ── Chrome extension ─────────────────────────────────────────
+    console.log('═'.repeat(58))
+    console.log('  Chrome Extension — gives Bubble eyes inside your browser')
+    console.log('═'.repeat(58))
+    console.log(`
+  Watches compose boxes across Gmail, X, LinkedIn, Reddit, Slack,
+  Notion — anywhere you type. When you pause mid-draft, Bubble has
+  already pre-computed a sharper version in your voice. 90% of
+  events are silently discarded — it only speaks when it matters.
+
+  Install (30 seconds, never again):
+    1. Chrome opens to chrome://extensions
+    2. Toggle ON "Developer mode" (top-right corner)
+    3. Click "Load unpacked"
+    4. Select this folder:
+
+         ${extensionPath}
+
+    5. "Blopus Intent" appears in your extensions. Done forever.
+`)
+    console.log('  → Paste this in Chrome and hit Enter:\n')
+    console.log('       chrome://extensions\n')
+    await ask('  Press Enter once installed (or Enter to skip): ')
+
+    // ── VS Code / Cursor extension ───────────────────────────────
+    console.log('\n' + '═'.repeat(58))
+    console.log('  VS Code / Cursor Extension — Bubble sees your editor errors')
+    console.log('═'.repeat(58))
+    console.log(`
+  When you\'re stuck on an error or editing the same file repeatedly,
+  Bubble detects it and surfaces a fix — based on your actual code,
+  not a generic web answer.
+`)
+
+    console.log('  Compiling...')
+    try {
+      execSync('npm install --silent', { cwd: vsExtDir, stdio: 'pipe' })
+      execSync('npx tsc -p tsconfig.json', { cwd: vsExtDir, stdio: 'pipe' })
+      console.log('  ✓ Compiled\n')
+    } catch (e: any) {
+      console.log('  ✗ Compile failed:', e.message?.slice(0, 100))
+      console.log('  Skipping VS Code extension.\n')
+      console.log('  Done. Start the bubble with:\n\n    npm run blopus:bubble\n')
+      rl.close()
+      return
+    }
+
+    const home = os.homedir()
+    const targets = [
+      { name: 'VS Code', dir: path.join(home, '.vscode',  'extensions', 'blopus-bubble-0.1.0') },
+      { name: 'Cursor',  dir: path.join(home, '.cursor',  'extensions', 'blopus-bubble-0.1.0') },
+    ]
+    const filesToCopy = ['extension.js', 'package.json']
+    let installed = 0
+    for (const target of targets) {
+      if (!fs.existsSync(path.dirname(target.dir))) continue
+      try {
+        fs.mkdirSync(target.dir, { recursive: true })
+        for (const f of filesToCopy) {
+          const src = path.join(vsExtDir, f)
+          if (fs.existsSync(src)) fs.copyFileSync(src, path.join(target.dir, f))
+        }
+        console.log(`  ✓ Installed into ${target.name}`)
+        installed++
+      } catch (e: any) {
+        console.log(`  ✗ ${target.name} install failed:`, e.message?.slice(0, 80))
+      }
+    }
+
+    if (installed === 0) {
+      console.log('  VS Code and Cursor not detected.')
+      console.log('  To install manually, copy this folder into your editor\'s extensions directory:')
+      console.log(`\n    ${vsExtDir}\n`)
+    } else {
+      console.log('\n  Restart VS Code / Cursor to activate the extension.')
+    }
+
+    console.log('\n' + '═'.repeat(58))
+    console.log('  Bubble Mode ready.\n')
+    console.log('  Start with:\n')
+    console.log('    npm run blopus:bubble\n')
+    console.log('═'.repeat(58) + '\n')
+    rl.close()
+    return
+  }
+
+  // ── AUTONOMOUS MODE continues below ──────────────────────────
 
   // ── Step 1b: Reply model ──────────────────────────────────────
 
