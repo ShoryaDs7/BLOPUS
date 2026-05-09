@@ -11,7 +11,7 @@
 
 **BLOPUS is not a chatbot. It is a continuously running behavioral runtime that reads your environment, models your cognitive state, and decides whether to act — before you ask.**
 
-It sits on your screen. It never sleeps. It watches what you're doing, understands when you're stuck, and when something genuinely matters — it surfaces a concrete action. Not a notification. Not a chat window. A decision, ready to approve or cancel in one click.
+It sits on your screen. It never sleeps. It watches what you're doing, understands when you're stuck, and when something genuinely matters, it surfaces a concrete action. Not a notification. Not a chat window. A decision, ready to approve or cancel in one click.
 
 You don't open it. It's already watching.
 
@@ -32,7 +32,7 @@ You don't open it. It's already watching.
 npm run blopus:bubble
 ```
 
-A small glass UI lives at the corner of your screen. You never open it. It watches your windows, reads your context, and decides. When a proposal surfaces, you see it. One click runs it. One click cancels it. Every action goes through an approval gate — nothing executes without your confirmation.
+A small glass UI lives at the corner of your screen. You never open it. It watches your windows, reads your context, and decides. When a proposal surfaces, you see it. One click runs it. One click cancels it. Every action goes through an approval gate. Nothing executes without your confirmation.
 
 ### Autonomous Mode — your voice, running while you're offline
 
@@ -67,7 +67,7 @@ npm run blopus:owner
 
 ## How Bubble Works
 
-BLOPUS Bubble is not an AI that waits for you to type. It is an event-driven pipeline — every action is triggered by a real signal from your environment.
+BLOPUS Bubble is not an AI that waits for you to type. It is an event-driven pipeline. Every action is triggered by a real signal from your environment.
 
 WindowWatcher notices you've been bouncing between the same two tabs for ten minutes. AwarenessLayer builds a model of what you're stuck on. FrictionEngine decides it's worth interrupting. A proposal appears. You click yes. It's done.
 
@@ -97,9 +97,9 @@ flowchart TD
 
 BLOPUS Bubble operates in two cognitive modes simultaneously:
 
-**Ambient Intelligence** — you never prompt it. WindowWatcher watches your active window. AwarenessLayer builds a picture of what you're doing. FrictionEngine decides if interrupting you is worth it. Most signals are dropped silently. Only what crosses the friction threshold reaches your screen.
+**Ambient Intelligence**: you never prompt it. WindowWatcher watches your active window. AwarenessLayer builds a picture of what you're doing. FrictionEngine decides if interrupting you is worth it. Most signals are dropped silently. Only what crosses the friction threshold reaches your screen.
 
-**Intentional Intelligence** — you want it. Click the chat area, type a message, or paste a screenshot. SessionBrain routes your request through the full Claude agent loop with tool access. Vision button gives instant image analysis via a single Haiku call — no agent startup, result in seconds.
+**Intentional Intelligence**: you want it. Click the chat area, type a message, or paste a screenshot. SessionBrain routes your request through the full Claude agent loop with tool access. Vision button gives instant image analysis via a single Haiku call, no agent startup, result in seconds.
 
 Both modes share the same execution layer. The intelligence is in the routing.
 
@@ -107,7 +107,7 @@ Both modes share the same execution layer. The intelligence is in the routing.
 
 ## Human-State Modeling
 
-Before proposing anything, BLOPUS reads your cognitive state — not just your window title. FrictionEngine detects when you're actually stuck — bouncing platforms, repeated visits, prolonged effort — and decides whether it's worth interrupting you.
+Before proposing anything, BLOPUS reads your cognitive state, not just your window title. FrictionEngine detects when you're actually stuck: bouncing platforms, repeated visits, prolonged effort, and decides whether it's worth interrupting you.
 
 ---
 
@@ -115,7 +115,7 @@ Before proposing anything, BLOPUS reads your cognitive state — not just your w
 
 Most AI tools compete on which model they use. BLOPUS competes on what it decides to do and when.
 
-Getting the routing right — for the user's actual context, not a demo — is the hard part. The execution (Claude API, tool calls, Playwright) is commodity. The router is not.
+Getting the routing right, for the user's actual context and not a demo, is the hard part. The execution (Claude API, tool calls, Playwright) is commodity. The router is not.
 
 ---
 
@@ -123,11 +123,11 @@ Getting the routing right — for the user's actual context, not a demo — is t
 
 BLOPUS never runs unconstrained:
 
-- **Approval gates** — nothing executes without explicit confirmation on the proposal card
-- **Runtime caps** — maximum execution time, enforced by AbortController
-- **Tool budgets** — each task specifies which tools it can use and how many calls
-- **Cancellation** — stop button kills the in-flight fetch immediately
-- **Scoped envelopes** — a chat task and a proposal task run simultaneously without interfering
+- **Approval gates**: nothing executes without explicit confirmation on the proposal card
+- **Runtime caps**: maximum execution time, enforced by AbortController
+- **Tool budgets**: each task specifies which tools it can use and how many calls
+- **Cancellation**: stop button kills the in-flight fetch immediately
+- **Scoped envelopes**: a chat task and a proposal task run simultaneously without interfering
 
 These are not safety features added afterward. They are the architecture.
 
@@ -137,14 +137,14 @@ These are not safety features added afterward. They are the architecture.
 
 Four layers. Each isolated:
 
-1. **Detection** — WindowWatcher + AwarenessLayer. Reads signals. Builds context. Has no execution capability.
-2. **Friction** — FrictionEngine + ResolutionEngine. Scores and routes. Has no execution capability.
-3. **Intelligence** — HaikuReasoner + BubbleBrain. Reasons about context. Proposes actions. Does not execute.
-4. **Execution** — TaskExecutor + SessionBrain. Executes approved actions. Cannot propose. Cannot gate.
+1. **Detection**: WindowWatcher + AwarenessLayer. Reads signals. Builds context. Has no execution capability.
+2. **Friction**: FrictionEngine + ResolutionEngine. Scores and routes. Has no execution capability.
+3. **Intelligence**: HaikuReasoner + BubbleBrain. Reasons about context. Proposes actions. Does not execute.
+4. **Execution**: TaskExecutor + SessionBrain. Executes approved actions. Cannot propose. Cannot gate.
 
 A detection bug cannot cause an accidental action. An intelligence bug cannot bypass an approval gate. An execution bug cannot surface a false proposal. Each layer fails in its own lane.
 
-ActivityContext blocks proposals based on what you're doing — coding, writing, watching, communicating each have different allowed actions, or none at all. The VS Code path is a separate lane that bypasses the Orchestrator and goes direct to BubbleBrain. The browser extension watches compose surfaces and injects ghost suggestions on hover before you send. Vision runs a screenshot through a single Haiku call in ~5 seconds, hidden from the frame while the image is captured.
+ActivityContext blocks proposals based on what you're doing: coding, writing, watching, communicating each have different allowed actions, or none at all. The VS Code path is a separate lane that bypasses the Orchestrator and goes direct to BubbleBrain. The browser extension watches compose surfaces and injects ghost suggestions on hover before you send. Vision runs a screenshot through a single Haiku call in ~5 seconds, hidden from the frame while the image is captured.
 
 → Full technical breakdown: [TECHNICAL.md](TECHNICAL.md)
 
@@ -152,7 +152,7 @@ ActivityContext blocks proposals based on what you're doing — coding, writing,
 
 ## What it is
 
-- **It sounds like you:** trained on 2000+ of your real replies, patterns, tone, writing style. Every output grounded in how you actually think. Tweets in your Twitter voice. Emails and GitHub comments in your professional voice — writing mechanics auto-derived from your archive during setup. It knows the difference.
+- **It sounds like you:** trained on 2000+ of your real replies, patterns, tone, writing style. Every output grounded in how you actually think. Tweets in your Twitter voice. Emails and GitHub comments in your professional voice. Writing mechanics are auto-derived from your archive during setup. It knows the difference.
 
 - **It knows everyone you know. And how you are with each of them.** Before responding to anyone, it reads your full history with them. Your tone with them specifically. What you never say to them. Their patterns too.
 - **It never forgets:** goals run for days or weeks. Every 30 minutes it wakes, reads everything it decided before, and continues. Day 30 still knows what it ruled out on Day 1.
@@ -353,7 +353,7 @@ Your conversation context is always live within a session. Critical decisions, o
 
 ### Global memory
 
-Every action BLOPUS takes — every post, reply, quote-tweet, email sent, goal session run — is logged in a single cross-platform audit trail. Every post is marked: written by BLOPUS or written by you.
+Every post, reply, quote-tweet, email sent, and goal session run is logged in a single cross-platform audit trail. Every post is marked: written by BLOPUS or written by you.
 
 BLOPUS reads this log before every action. It never posts the same topic twice in a day. It never repeats itself across platforms. It knows exactly what it has done and what you have done.
 
